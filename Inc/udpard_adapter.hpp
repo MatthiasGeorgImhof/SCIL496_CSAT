@@ -3,6 +3,8 @@
 
 #include "BoxSet.hpp"
 
+static_assert(CYPHAL_NODE_ID_UNSET != UDPARD_NODE_ID_UNSET, "CYPHAL_NODE_ID_UNSET != UDPARD_NODE_ID_UNSET");
+static_assert(sizeof(CyphalTransfer) != sizeof(UdpardRxTransfer), "sizeof(CyphalTransfer) != sizeof(UdpardRxTransfer)");
 
 struct UdpardPortSubscription
 {
@@ -18,6 +20,28 @@ struct UdpardAdapter
     void *user_transfer_reference;
     BoxSet<UdpardPortSubscription, SUBSCRIPTIONS> subscriptions;
 };
+
+struct UdpardHeader
+{
+    uint8_t version;
+    uint8_t priority;
+    uint16_t source_node_id;
+    uint16_t destination_node_id;
+    uint16_t data_specifier_snm;
+    uint64_t transfer_id;
+    uint32_t frame_index_eot;
+    uint16_t user_data;
+    uint8_t header_crc16_big_endian[2];
+};
+
+UdpardNodeID
+cyphalNodeIdToUdpard(const CyphalNodeID node_id)
+{
+    return node_id == CYPHAL_NODE_ID_UNSET ? UDPARD_NODE_ID_UNSET : static_cast<UdpardNodeID>(node_id);
+}
+CyphalNodeID udpardNodeIdToCyphal(const UdpardNodeID node_id) { return static_cast<CyphalNodeID>(node_id & CYPHAL_NODE_ID_UNSET); }
+UdpardTransferID cyphalTransferIdToUdpard(const CyphalTransferID transfer_id) { return static_cast<UdpardTransferID>(transfer_id); }
+CyphalTransferID udpardTransferIdToCyphal(const UdpardTransferID transfer_id) { return static_cast<CyphalTransferID>(transfer_id); }
 
 template <>
 class Cyphal<UdpardAdapter>
@@ -35,7 +59,7 @@ public:
                          const void *const payload)
     {
         struct UdpardPayload payload_ = {payload_size, payload};
-        return udpardTxPublish(&adapter_->ins, tx_deadline_usec, static_cast<UdpardPriority>(metadata->priority), metadata->port_id, metadata->transfer_id, payload_, adapter_->user_transfer_reference);
+        return udpardTxPublish(&adapter_->ins, tx_deadline_usec, static_cast<UdpardPriority>(metadata->priority), static_cast<UdpardPortID>(metadata->port_id), cyphalTransferIdToUdpard(metadata->transfer_id), payload_, adapter_->user_transfer_reference);
     }
 
     int8_t cyphalRxSubscribe(const CyphalTransferKind transfer_kind,
@@ -43,24 +67,48 @@ public:
                              const size_t extent,
                              const CyphalMicrosecond transfer_id_timeout_usec)
     {
-        UdpardPortSubscription stub = { port_id, {}};
+        UdpardPortSubscription stub = {port_id, {}};
         UdpardPortSubscription *subscription = adapter_->subscriptions.find_or_create(stub, [](const UdpardPortSubscription &a, const UdpardPortSubscription &b)
-                                                                                       { return a.port_id == b.port_id; });
-        if (! subscription) return -4;
+                                                                                      { return a.port_id == b.port_id; });
+        if (!subscription)
+            return -4;
         int_fast8_t result = udpardRxSubscriptionInit(&subscription->subscription, port_id, extent, adapter_->memory_resources);
-        return result >=0 ? 1 : result;
+        return result >= 0 ? 1 : result;
     }
 
     int8_t cyphalRxUnsubscribe(const CyphalTransferKind transfer_kind,
                                const CyphalPortID port_id)
     {
-        UdpardPortSubscription stub = { port_id, {}};
+        UdpardPortSubscription stub = {port_id, {}};
         UdpardPortSubscription *subscription = adapter_->subscriptions.find_or_create(stub, [](const UdpardPortSubscription &a, const UdpardPortSubscription &b)
-                                                                                       { return a.port_id == b.port_id; });
-        if (! subscription) return 0;
-        
+                                                                                      { return a.port_id == b.port_id; });
+        if (!subscription)
+            return 0;
+
         udpardRxSubscriptionFree(&subscription->subscription);
         adapter_->subscriptions.remove(subscription);
+        return 1;
+    }
+
+    int32_t cyphalRxReceive(size_t *frame_size, const uint8_t *const frame, CyphalTransfer *out_transfer)
+    {
+        const UdpardHeader *header = reinterpret_cast<const UdpardHeader*>(frame);
+        struct UdpardPortSubscription stub = {header->data_specifier_snm, {}};
+        UdpardPortSubscription *subpair = adapter_->subscriptions.find(stub, [](const UdpardPortSubscription &a, const UdpardPortSubscription &b)
+                                                                     { return a.port_id == b.port_id; });
+        UdpardMutablePayload payload = {*frame_size, static_cast<void*>(const_cast<uint8_t*>(frame))};
+
+        UdpardRxTransfer udpard_transfer;
+        udpardRxSubscriptionReceive(&subpair->subscription, 0, payload, 0, &udpard_transfer);
+
+        out_transfer->metadata.priority = static_cast<CyphalPriority>(udpard_transfer.priority);
+        out_transfer->metadata.transfer_kind = CyphalTransferKindMessage;
+        out_transfer->metadata.port_id = header->destination_node_id;
+        out_transfer->metadata.remote_node_id = udpard_transfer.source_node_id;
+        out_transfer->metadata.transfer_id = udpard_transfer.transfer_id;
+        out_transfer->payload = static_cast<uint8_t*>(const_cast<void*>(udpard_transfer.payload.view.data));
+        out_transfer->payload_size = udpard_transfer.payload_size;
+        out_transfer->timestamp_usec = udpard_transfer.timestamp_usec;
         return 1;
     }
 };

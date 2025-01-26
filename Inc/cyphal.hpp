@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 #define CYPHAL_ERROR_ARGUMENT 2
 #define CYPHAL_ERROR_MEMORY 3
@@ -43,6 +44,14 @@ typedef struct
     CyphalNodeID remote_node_id;
     CyphalTransferID transfer_id;
 } CyphalTransferMetadata;
+
+typedef struct CyphalTransfer
+{
+    CyphalTransferMetadata metadata;
+    CyphalMicrosecond timestamp_usec;
+    size_t payload_size;
+    void*  payload;
+} CyphalTransfer;
 
 template <typename Adapter>
 class Cyphal;

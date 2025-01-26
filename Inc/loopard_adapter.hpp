@@ -1,0 +1,71 @@
+#pragma once
+
+#include <memory>
+#include <cstring>
+
+#include "cyphal.hpp"
+
+#include "BoxSet.hpp"
+#include "CircularBuffer.hpp"
+
+struct LoopardAdapter
+{
+    static constexpr uint8_t SUBSCRIPTIONS = 32;
+    static constexpr size_t BUFFER=32;
+    CircularBuffer<CyphalTransfer, BUFFER> buffer;
+    BoxSet<uint8_t, SUBSCRIPTIONS> subscriptions;
+};
+
+template <>
+class Cyphal<LoopardAdapter>
+{
+private:
+    LoopardAdapter *adapter_;
+
+public:
+    Cyphal<LoopardAdapter>() = delete;
+    Cyphal<LoopardAdapter>(LoopardAdapter *adapter) : adapter_(adapter) {}
+
+    int32_t cyphalTxPush(const CyphalMicrosecond tx_deadline_usec,
+                         const CyphalTransferMetadata *const metadata,
+                         const size_t payload_size,
+                         const void *const payload)
+    {
+        if (adapter_->buffer.full()) return 0;
+        CyphalTransfer transfer =
+        {
+            .metadata = *metadata,
+            .timestamp_usec = 0,
+            .payload_size = payload_size,
+            .payload = new uint8_t[payload_size]
+        };
+        std::memcpy(transfer.payload, payload, payload_size); 
+        adapter_->buffer.push(transfer);
+        return 1;
+    }
+
+    int8_t cyphalRxSubscribe(const CyphalTransferKind transfer_kind,
+                             const CyphalPortID port_id,
+                             const size_t extent,
+                             const CyphalMicrosecond transfer_id_timeout_usec)
+    {
+        uint8_t *subscription = adapter_->subscriptions.find_or_create(port_id, [](const uint8_t &a, const uint8_t &b) { return a == b; });
+        return 1;
+    }
+
+    int8_t cyphalRxUnsubscribe(const CyphalTransferKind transfer_kind,
+                               const CyphalPortID port_id)
+    {
+        uint8_t *subscription = adapter_->subscriptions.find(port_id, [](const uint8_t &a, const uint8_t &b) { return a == b; });
+        if (subscription) adapter_->subscriptions.remove(subscription);
+        return 1;
+    }
+
+    int32_t cyphalRxReceive(const uint8_t* const frame, size_t &frame_size, CyphalTransfer* out_transfer)
+    {
+        if (adapter_->buffer.empty()) return 0;
+        *out_transfer = adapter_->buffer.pop();
+        return (adapter_->buffer.empty() ? 1 : 2);
+    }
+
+};

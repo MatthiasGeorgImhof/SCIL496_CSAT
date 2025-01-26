@@ -5,6 +5,10 @@
 
 #include "BoxSet.hpp"
 
+static_assert(CYPHAL_NODE_ID_UNSET == CANARD_NODE_ID_UNSET, "unset lengths differ");
+static_assert(sizeof(CyphalTransferMetadata) == sizeof(CanardTransferMetadata), "metadata sizes differ");
+static_assert(sizeof(CyphalTransfer) == sizeof(CanardRxTransfer), "rxtransfer sizes differ");
+
 struct CanardAdapter
 {
     static constexpr uint8_t SUBSCRIPTIONS = 32;
@@ -18,6 +22,9 @@ class Cyphal<CanardAdapter>
 {
 private:
     CanardAdapter *adapter_;
+
+private:
+
 
 public:
     Cyphal<CanardAdapter>() = delete;
@@ -52,4 +59,11 @@ public:
         if (subscription) adapter_->subscriptions.remove(subscription);
         return result;
     }
+
+        int32_t cyphalRxReceive(uint32_t extended_can_id, const size_t *frame_size, const uint8_t *const frame, CyphalTransfer *out_transfer)
+    {
+        CanardFrame canard_frame = { extended_can_id, *frame_size, frame};
+        return canardRxAccept(&adapter_->ins, 0, &canard_frame, 0, reinterpret_cast<CanardRxTransfer*>(out_transfer), nullptr);
+    }
+
 };
