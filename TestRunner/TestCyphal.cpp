@@ -454,3 +454,137 @@ TEST_CASE("Loopard Send Receive")
     CHECK(strncmp(payload2, static_cast<const char *>(transfer.payload), 5) == 0);
     CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 0);
 }
+
+
+template <class A1, class A2, class A3, class A4>
+class TestClass
+{
+    private:
+    std::tuple<A1, A2, A3, A4> adapters_;
+
+    public:
+    TestClass(std::tuple<A1, A2, A3, A4> adapters) : adapters_(adapters) {}
+
+    int8_t txpush_unroll(const size_t frame_size, void const *frame)
+    {
+        CyphalTransferMetadata metadata;
+        metadata.priority = CyphalPriorityNominal;
+        metadata.transfer_kind = CyphalTransferKindMessage;
+        metadata.port_id = 123;
+        metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+        metadata.transfer_id = 0;
+
+        int8_t res0 = std::get<0>(adapters_).cyphalTxPush(0, &metadata, frame_size, frame);
+        int8_t res1 = std::get<1>(adapters_).cyphalTxPush(0, &metadata, frame_size, frame);
+        int8_t res2 = std::get<2>(adapters_).cyphalTxPush(0, &metadata, frame_size, frame);
+        int8_t res3 = std::get<3>(adapters_).cyphalTxPush(0, &metadata, frame_size, frame);
+        return (res0 > 0) && (res1 > 0) && (res2 > 0) && (res3 > 0);
+    }
+
+    int8_t txpush_loop(const size_t frame_size, void const *frame)
+    {
+        CyphalTransferMetadata metadata;
+        metadata.priority = CyphalPriorityNominal;
+        metadata.transfer_kind = CyphalTransferKindMessage;
+        metadata.port_id = 123;
+        metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+        metadata.transfer_id = 0;
+
+        bool all_successful = true;
+        std::apply([&](auto&... adapter)
+        {
+            ( [&]() {
+                int8_t res = adapter.cyphalTxPush(0, &metadata, frame_size, frame);
+                all_successful = all_successful && (res > 0);
+              }(), ...);
+        },adapters_);
+        return all_successful;
+    }
+
+};
+
+TEST_CASE("All Combined Unroll")
+{
+    rxtx_buffer.clear();
+    
+    LoopardAdapter loopard_adapter;
+    Cyphal<LoopardAdapter> loopard_cyphal(&loopard_adapter);
+
+    UdpardAdapter udpard_adapter;
+    struct UdpardMemoryDeleter udpard_memory_deleter = {&udpard_adapter.ins, udpardMemoryDeallocate};
+    struct UdpardMemoryResource udpard_memory_resource = {&udpard_adapter.ins, udpardMemoryDeallocate, udpardMemoryAllocate};
+    UdpardNodeID local_node_id = 11;
+    Cyphal<UdpardAdapter> udpard_cyphal(&udpard_adapter);
+    udpardTxInit(&udpard_adapter.ins, &local_node_id, 100, udpard_memory_resource);
+    udpard_adapter.memory_resources = {udpard_memory_resource, udpard_memory_resource, udpard_memory_deleter};
+
+    SerardAdapter serard_adapter;
+    struct SerardMemoryResource serard_memory_resource = {&serard_adapter.ins, serardMemoryDeallocate, serardMemoryAllocate};
+    serard_adapter.ins = serardInit(serard_memory_resource, serard_memory_resource);
+    serard_adapter.ins.node_id = 11;
+    serard_adapter.user_reference = &serard_adapter.ins;
+    serard_adapter.ins.user_reference = &serard_adapter.ins;
+    serard_adapter.reass = serardReassemblerInit();
+    serard_adapter.emitter = emit;
+    Cyphal<SerardAdapter> serard_cyphal(&serard_adapter);
+
+    CanardAdapter canard_adapter;
+    canard_adapter.ins = canardInit(canardMemoryAllocate, canardMemoryFree);
+    canard_adapter.ins.node_id = 11;
+    canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
+    Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
+
+    auto adapters = TestClass(std::tuple<Cyphal<LoopardAdapter>, Cyphal<UdpardAdapter>, Cyphal<SerardAdapter>, Cyphal<CanardAdapter>>{loopard_cyphal, udpard_cyphal, serard_cyphal, canard_cyphal});
+    
+    const char frame[] = "common message";
+    size_t frame_size = sizeof(frame);
+    CHECK(adapters.txpush_unroll(frame_size, frame) == 1);
+
+    CHECK(loopard_adapter.buffer.size() == 1);
+    CHECK(udpard_adapter.ins.queue_size == 1);
+    CHECK(canard_adapter.que.size > 0);
+    CHECK(rxtx_buffer.size() > 0);
+}
+
+TEST_CASE("All Combined Loop")
+{
+    rxtx_buffer.clear();
+    
+    LoopardAdapter loopard_adapter;
+    Cyphal<LoopardAdapter> loopard_cyphal(&loopard_adapter);
+
+    UdpardAdapter udpard_adapter;
+    struct UdpardMemoryDeleter udpard_memory_deleter = {&udpard_adapter.ins, udpardMemoryDeallocate};
+    struct UdpardMemoryResource udpard_memory_resource = {&udpard_adapter.ins, udpardMemoryDeallocate, udpardMemoryAllocate};
+    UdpardNodeID local_node_id = 11;
+    Cyphal<UdpardAdapter> udpard_cyphal(&udpard_adapter);
+    udpardTxInit(&udpard_adapter.ins, &local_node_id, 100, udpard_memory_resource);
+    udpard_adapter.memory_resources = {udpard_memory_resource, udpard_memory_resource, udpard_memory_deleter};
+
+    SerardAdapter serard_adapter;
+    struct SerardMemoryResource serard_memory_resource = {&serard_adapter.ins, serardMemoryDeallocate, serardMemoryAllocate};
+    serard_adapter.ins = serardInit(serard_memory_resource, serard_memory_resource);
+    serard_adapter.ins.node_id = 11;
+    serard_adapter.user_reference = &serard_adapter.ins;
+    serard_adapter.ins.user_reference = &serard_adapter.ins;
+    serard_adapter.reass = serardReassemblerInit();
+    serard_adapter.emitter = emit;
+    Cyphal<SerardAdapter> serard_cyphal(&serard_adapter);
+
+    CanardAdapter canard_adapter;
+    canard_adapter.ins = canardInit(canardMemoryAllocate, canardMemoryFree);
+    canard_adapter.ins.node_id = 11;
+    canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
+    Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
+
+    auto adapters = TestClass(std::tuple<Cyphal<LoopardAdapter>, Cyphal<UdpardAdapter>, Cyphal<SerardAdapter>, Cyphal<CanardAdapter>>{loopard_cyphal, udpard_cyphal, serard_cyphal, canard_cyphal});
+    
+    const char frame[] = "common message";
+    size_t frame_size = sizeof(frame);
+    CHECK(adapters.txpush_loop(frame_size, frame) == 1);
+
+    CHECK(loopard_adapter.buffer.size() == 1);
+    CHECK(udpard_adapter.ins.queue_size == 1);
+    CHECK(canard_adapter.que.size > 0);
+    CHECK(rxtx_buffer.size() > 0);
+}
