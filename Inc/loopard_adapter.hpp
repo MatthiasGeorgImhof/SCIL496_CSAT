@@ -31,7 +31,7 @@ public:
                          const size_t payload_size,
                          const void *const payload)
     {
-        if (adapter_->buffer.full()) return 0;
+        if (adapter_->buffer.is_full()) return 0;
         CyphalTransfer transfer =
         {
             .metadata = *metadata,
@@ -63,9 +63,9 @@ public:
 
     int32_t cyphalRxReceive(const uint8_t* const frame, size_t &frame_size, CyphalTransfer* out_transfer)
     {
-        if (adapter_->buffer.empty()) return 0;
+        if (adapter_->buffer.is_empty()) return 0;
         *out_transfer = adapter_->buffer.pop();
-        return (adapter_->buffer.empty() ? 1 : 2);
+        return (adapter_->buffer.is_empty() ? 1 : 2);
     }
 
 };

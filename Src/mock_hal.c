@@ -1,3 +1,4 @@
+#ifdef __x86_64__
 #include "mock_hal.h"
 #include <string.h>
 #include <stdlib.h>
@@ -193,6 +194,19 @@ uint32_t HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_
 }
 
 
+// ---- USB CDC Mock Functions -----
+#define USB_TX_BUFFER_SIZE 256
+uint8_t usb_tx_buffer[USB_TX_BUFFER_SIZE];
+int usb_tx_buffer_count = 0;
+
+uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len) {
+  if (usb_tx_buffer_count + Len <= USB_TX_BUFFER_SIZE) {
+        memcpy(usb_tx_buffer + usb_tx_buffer_count, Buf, Len);
+        usb_tx_buffer_count += Len;
+        return 0; // Success
+    }
+    return 1;  // Error (Buffer overflow or something similar)
+}
 
 // ----- Injector and Deleter Functions ------
 
@@ -208,6 +222,7 @@ void inject_can_rx_message(CAN_RxHeaderTypeDef header, uint8_t data[]) {
 
 // CAN Deleters
 void clear_can_tx_buffer() {
+    memset(can_tx_buffer, 0, sizeof(can_tx_buffer));  // Set all elements to 0
     can_tx_buffer_count = 0;
 }
 
@@ -220,12 +235,14 @@ void inject_uart_rx_data(uint8_t *data, int size) {
 }
 
 void clear_uart_rx_buffer(){
+  memset(uart_rx_buffer, 0, sizeof(uart_rx_buffer)); //Set all elements to 0
   uart_rx_buffer_count = 0;
   uart_rx_buffer_read_pos = 0;
 }
 
 // UART Deleters
 void clear_uart_tx_buffer() {
+    memset(uart_tx_buffer, 0, sizeof(uart_tx_buffer)); //Set all elements to 0
     uart_tx_buffer_count = 0;
 }
 
@@ -239,9 +256,15 @@ void inject_i2c_mem_data(uint16_t DevAddress, uint16_t MemAddress,uint8_t *data,
 
 // I2C Deleters
 void clear_i2c_mem_data(){
+    memset(i2c_mem_buffer, 0, sizeof(i2c_mem_buffer)); //Set all elements to 0
     i2c_mem_buffer_size = 0;
 }
 
+
+void clear_usb_tx_buffer(){
+    memset(usb_tx_buffer, 0, sizeof(usb_tx_buffer)); //Set all elements to 0
+    usb_tx_buffer_count = 0;
+}
 
 // Getters to access buffers
 
@@ -266,6 +289,14 @@ uint8_t* get_uart_tx_buffer() {
   return uart_tx_buffer;
 }
 
+int get_usb_tx_buffer_count() {
+    return usb_tx_buffer_count;
+}
+
+uint8_t* get_usb_tx_buffer() {
+    return usb_tx_buffer;
+}
+
 void set_current_free_mailboxes(int free_mailboxes) {
   current_free_mailboxes = free_mailboxes;
 }
@@ -278,3 +309,18 @@ void set_current_rx_fifo_fill_level(int rx_fifo_level){
 void set_current_tick(uint32_t tick){
     current_tick = tick;
 }
+
+void init_uart_handle(UART_HandleTypeDef *huart)
+{
+    huart->Init.BaudRate = 115200;
+    huart->Init.WordLength = 8;
+    huart->Init.StopBits = 1;
+    huart->Init.Parity = 0;
+    huart->Init.Mode = 3;
+    huart->Init.HwFlowCtl = 0;
+    huart->Init.OverSampling = 0;
+    huart->Init.OneBitSampling = 0;
+    huart->Init.ADVFEATURE = 0;
+}
+
+#endif /* __x86_64__ */

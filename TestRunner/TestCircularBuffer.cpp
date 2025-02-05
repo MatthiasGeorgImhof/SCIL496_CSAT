@@ -4,31 +4,31 @@
 
 TEST_CASE("CircularBuffer Functionality") {
 
-	SUBCASE("Capacity and Size") {
+	SUBCASE("Testing Capacity and Size") {
 		CircularBuffer<int, 5> cbf;
 		CHECK(cbf.capacity() == 5);
 		CHECK(cbf.size() == 0);
 	}
 
-	SUBCASE("Empty and Full") {
+	SUBCASE("Testing Empty and Full Flags") {
 		CircularBuffer<int, 3> cbf;
-		CHECK(cbf.empty());
-		CHECK(!cbf.full());
+		CHECK(cbf.is_empty());
+		CHECK(!cbf.is_full());
 
 		cbf.push(1);
-		CHECK(!cbf.empty());
-		CHECK(!cbf.full());
+		CHECK(!cbf.is_empty());
+		CHECK(!cbf.is_full());
 
 		cbf.push(2);
-		CHECK(!cbf.empty());
-		CHECK(!cbf.full());
+		CHECK(!cbf.is_empty());
+		CHECK(!cbf.is_full());
 
 		cbf.push(3);
-		CHECK(!cbf.empty());
-		CHECK(cbf.full());
+		CHECK(!cbf.is_empty());
+		CHECK(cbf.is_full());
 	}
 
-	SUBCASE("Push and Pop with Copy") {
+	SUBCASE("Testing Push and Pop with Copy") {
 		CircularBuffer<int, 5> cbf;
 
 		cbf.push(10);
@@ -43,11 +43,11 @@ TEST_CASE("CircularBuffer Functionality") {
 		int val2 = cbf.pop();
 		CHECK(val2 == 20);
 		CHECK(cbf.size() == 0);
-		CHECK(cbf.empty());
+		CHECK(cbf.is_empty());
 
 	}
 
-	SUBCASE("Push and Pop with Move") {
+	SUBCASE("Testing Push and Pop with Move") {
 		CircularBuffer<std::string, 5> cbf;
 
 		std::string str1 = "Hello";
@@ -66,10 +66,10 @@ TEST_CASE("CircularBuffer Functionality") {
 		std::string popped2 = cbf.pop();
 		CHECK(popped2 == "World");
 		CHECK(cbf.size() == 0);
-		CHECK(cbf.empty());
+		CHECK(cbf.is_empty());
 	}
 
-	SUBCASE("Multiple Push, Peek, and Pop") {
+	SUBCASE("Testing Multiple Push, Peek, and Pop") {
 		CircularBuffer<int, 4> cbf;
 
 		cbf.push(1);
@@ -95,35 +95,43 @@ TEST_CASE("CircularBuffer Functionality") {
 		CHECK(cbf.pop() == 4);
 
 		CHECK(cbf.size() == 0);
-		CHECK(cbf.empty());
+		CHECK(cbf.is_empty());
 
 	}
+    
+    SUBCASE("Testing const peek() on a const object") {
+        CircularBuffer<int, 3> cbf;
+        cbf.push(10);
+        cbf.push(20);
 
-	SUBCASE("Unsafe Overflow behavior") {
-		CircularBuffer<int, 3> cbf;
+        const CircularBuffer<int, 3>& const_cbf = cbf;
+        CHECK(const_cbf.peek() == 10);
+    }
 
-		cbf.push(1);
-		cbf.push(2);
-		cbf.push(3);
-		CHECK(cbf.full());
-		// No exception
-		cbf.push(4);  // Overwrites the first element (1)
-		CHECK(cbf.size() != 3);
+    SUBCASE("Testing Overflow behavior") {
+        CircularBuffer<int, 3> cbf;
+
+        cbf.push(1);
+        cbf.push(2);
+        cbf.push(3);
+        CHECK(cbf.is_full());
+        cbf.push(4);  // Overwrites the first element (1)
+		CHECK(cbf.size() == 4);
 
 
-		CHECK(cbf.pop() != 2);
-		CHECK(cbf.pop() != 3);
-		CHECK(cbf.pop() != 4);
-	}
+        CHECK(cbf.pop() == 4);
+        CHECK(cbf.pop() == 2);
+        CHECK(cbf.pop() == 3);
+    }
 
-	SUBCASE("Unsafe Underflow behavior") {
-		CircularBuffer<int, 3> cbf;
+    SUBCASE("Testing Underflow behavior Returns Garbage") {
+        CircularBuffer<int, 3> cbf;
+        CHECK(cbf.is_empty());
+        cbf.push(1);
+        cbf.pop();
+        CHECK(cbf.is_empty());
+        // Underflow does not throw exception with current implementation
+        cbf.pop(); // Expecting garbage value back
 
-		//pop when empty is undefined behavior
-		// No exception
-		cbf.push(1);
-		cbf.pop();
-		CHECK(cbf.empty());
-		cbf.pop();// Undefined behavior, but we show it will return garbage.
-	}
+    }
 }

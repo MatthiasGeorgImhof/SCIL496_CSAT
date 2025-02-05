@@ -26,18 +26,24 @@ public:
         return std::move(data[current]);
     }
 
-    const T peek()
+    const T& peek() const
+    {
+        size_t current = tail_;
+        return data[current];
+    }
+
+    T& peek()
     { 
         size_t current = tail_;
         return data[current];
     }
 
-    bool empty() const
+    bool is_empty() const
     {
         return count_ == 0;
     }
 
-    bool full() const
+    bool is_full() const
     {
         return count_ == capacity_;
     }

@@ -1,3 +1,4 @@
+#ifdef __x86_64__
 #ifndef MOCK_HAL_H
 #define MOCK_HAL_H
 
@@ -109,6 +110,12 @@ uint32_t HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, u
 uint32_t HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout);
 uint32_t HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout);
 
+// ---- USB CDC Mock Functions -----
+uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
+void clear_usb_tx_buffer();
+int get_usb_tx_buffer_count();
+uint8_t* get_usb_tx_buffer();
+
 
 // ----- Injector and Deleter Functions ------
 void inject_can_rx_message(CAN_RxHeaderTypeDef header, uint8_t data[]);
@@ -127,8 +134,10 @@ uint8_t* get_uart_tx_buffer();
 void set_current_free_mailboxes(int free_mailboxes);
 void set_current_rx_fifo_fill_level(int rx_fifo_level);
 void set_current_tick(uint32_t tick);
+void init_uart_handle(UART_HandleTypeDef *huart);
 
 #ifdef __cplusplus
 }
-#endif
-#endif
+#endif /* __cplusplus */
+#endif /* MOCK_HAL_H */
+#endif /* __x86_64__ */
