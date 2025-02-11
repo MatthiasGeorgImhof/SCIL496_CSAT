@@ -43,6 +43,24 @@ CyphalNodeID udpardNodeIdToCyphal(const UdpardNodeID node_id) { return static_ca
 UdpardTransferID cyphalTransferIdToUdpard(const CyphalTransferID transfer_id) { return static_cast<UdpardTransferID>(transfer_id); }
 CyphalTransferID udpardTransferIdToCyphal(const UdpardTransferID transfer_id) { return static_cast<CyphalTransferID>(transfer_id); }
 
+void udpartToCyphalMetadata(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransferMetadata *cyphal)
+{
+    cyphal->priority = static_cast<CyphalPriority>(udpard->priority);
+    cyphal->transfer_kind = CyphalTransferKindMessage;
+    cyphal->port_id = header->destination_node_id;
+    cyphal->remote_node_id = udpard->source_node_id;
+    cyphal->transfer_id = udpard->transfer_id;
+}
+
+void udpartToCyphalTransfer(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransfer *cyphal)
+{
+    udpartToCyphalMetadata(udpard, header, &cyphal->metadata);
+    cyphal->payload = static_cast<uint8_t*>(const_cast<void*>(udpard->payload.view.data));
+    cyphal->payload_size = udpard->payload_size;
+    cyphal->timestamp_usec = udpard->timestamp_usec;
+}
+
+
 template <>
 class Cyphal<UdpardAdapter>
 {

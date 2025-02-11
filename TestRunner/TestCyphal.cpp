@@ -244,6 +244,7 @@ TEST_CASE("Cyphal<serard_adapter> Send Receive")
     metadata.transfer_id = 0;
     const char payload1[] = "hello\0";
     CHECK(cyphal.cyphalTxPush(0, &metadata, strlen(payload1), payload1) == 1);
+    CHECK(rxtx_buffer.size() == 36);
 
     metadata.priority = CyphalPriorityNominal;
     metadata.transfer_kind = CyphalTransferKindMessage;
@@ -252,16 +253,34 @@ TEST_CASE("Cyphal<serard_adapter> Send Receive")
     metadata.transfer_id++;
     const char payload2[] = "ehllo\0";
     CHECK(cyphal.cyphalTxPush(0, &metadata, strlen(payload2), payload2) == 1);
+    CHECK(rxtx_buffer.size() == 72);
+
+    metadata.priority = CyphalPriorityNominal;
+    metadata.transfer_kind = CyphalTransferKindMessage;
+    metadata.port_id = 123;
+    metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    metadata.transfer_id++;
+    const char payload3[] = "bonjour\0";
+    CHECK(cyphal.cyphalTxPush(0, &metadata, strlen(payload3), payload3) == 1);
+    CHECK(rxtx_buffer.size() == 110);
 
     CyphalTransfer transfer;
+    size_t shift = 0;
     size_t in_out = rxtx_buffer.size();
-    CHECK(cyphal.cyphalRxReceive(&in_out, rxtx_buffer.data(), &transfer) == 1);
-    CHECK(strncmp(payload1, static_cast<const char *>(transfer.payload), 5) == 0);
-    CHECK(in_out != 0);
 
-    in_out = rxtx_buffer.size() - in_out;
-    CHECK(cyphal.cyphalRxReceive(&in_out, rxtx_buffer.data() + in_out, &transfer) == 1);
+    shift = rxtx_buffer.size() - in_out;
+    CHECK(cyphal.cyphalRxReceive(&in_out, rxtx_buffer.data() + shift, &transfer) == 1);
+    CHECK(strncmp(payload1, static_cast<const char *>(transfer.payload), 5) == 0);
+    CHECK(in_out == 74);
+
+    shift = rxtx_buffer.size() - in_out;
+    CHECK(cyphal.cyphalRxReceive(&in_out, rxtx_buffer.data() + shift, &transfer) == 1);
     CHECK(strncmp(payload2, static_cast<const char *>(transfer.payload), 5) == 0);
+    CHECK(in_out == 38);
+
+    shift = rxtx_buffer.size() - in_out;
+    CHECK(cyphal.cyphalRxReceive(&in_out, rxtx_buffer.data() + shift, &transfer) == 1);
+    CHECK(strncmp(payload3, static_cast<const char *>(transfer.payload), 7) == 0);
     CHECK(in_out == 0);
 }
 

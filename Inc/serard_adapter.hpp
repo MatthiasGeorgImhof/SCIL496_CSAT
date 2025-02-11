@@ -43,6 +43,41 @@ CyphalTransferMetadata serardMetadataToCyphal(const SerardTransferMetadata metad
         serardTransferIdToCyphal(metadata.transfer_id)};
 }
 
+void cyphalMetadataToSerard(const CyphalTransferMetadata *cyphal, SerardTransferMetadata *serard)
+{
+        serard->priority = static_cast<SerardPriority>(cyphal->priority);
+        serard->transfer_kind = static_cast<SerardTransferKind>(cyphal->transfer_kind);
+        serard->port_id = static_cast<SerardPortID>(cyphal->port_id);
+        serard->remote_node_id = cyphalNodeIdToSerard(cyphal->remote_node_id);
+        serard->transfer_id = cyphalTransferIdToSerard(cyphal->transfer_id);
+}
+
+void cyphalTransferToSerard(const CyphalTransfer *cyphal, SerardRxTransfer *serard)
+{
+    cyphalMetadataToSerard(&cyphal->metadata, &serard->metadata);
+    serard->payload = cyphal->payload;
+    serard->payload_size = cyphal->payload_size;
+    serard->timestamp_usec = cyphal->timestamp_usec;
+}
+
+
+void serardMetadataToCyphal(const SerardTransferMetadata *serard, CyphalTransferMetadata *cyphal)
+{
+    cyphal->priority = static_cast<CyphalPriority>(serard->priority);
+    cyphal->transfer_kind = static_cast<CyphalTransferKind>(serard->transfer_kind);
+    cyphal->port_id = serard->port_id;
+    cyphal->remote_node_id = serard->remote_node_id;
+    cyphal->transfer_id = serard->transfer_id;
+}
+
+void serardTransferToCyphal(const SerardRxTransfer *serard, CyphalTransfer *cyphal)
+{
+    serardMetadataToCyphal(&serard->metadata, &cyphal->metadata);
+    cyphal->payload = serard->payload;
+    cyphal->payload_size = serard->payload_size;
+    cyphal->timestamp_usec = serard->timestamp_usec;
+}
+
 template <>
 class Cyphal<SerardAdapter>
 {

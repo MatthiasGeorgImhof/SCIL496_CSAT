@@ -53,5 +53,12 @@ typedef struct CyphalTransfer
     void*  payload;
 } CyphalTransfer;
 
+typedef struct CyphalSubscription
+{
+	CyphalPortID port_id;
+	size_t extent;
+	CyphalTransferKind transfer_kind;
+} CyphalSubscription;
+
 template <typename Adapter>
 class Cyphal;

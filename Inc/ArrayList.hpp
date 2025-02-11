@@ -22,7 +22,7 @@ public:
 		}
 	}
 
-	// Modified find function using a lambda for custom comparison
+	// Find function returns the item index or capacity if not found
 	template <typename Compare>
 	size_t find(const T& value, Compare comp) {
 		for (size_t i = 0; i < count_; ++i) {
@@ -31,8 +31,7 @@ public:
 				return i;
 			}
 		}
-		push(value);
-		return count_-1;
+		return capacity_;
 	}
 
 	// Add push or replace functionality
@@ -95,6 +94,19 @@ public:
 
 		--count_;
 	}
+
+	// Remove all items satisfying a predicate
+	template <typename Predicate>
+	void removeIf(Predicate pred) {
+		size_t writeIndex = 0;
+		for (size_t readIndex = 0; readIndex < count_; ++readIndex) {
+			if (!pred(data_[readIndex])) {
+				data_[writeIndex++] = data_[readIndex];
+			}
+		}
+		count_ = writeIndex;
+	}
+
 
 	// Iterator implementation
 	class iterator {

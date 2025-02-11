@@ -2,6 +2,7 @@
 #include "doctest/doctest.h"
 #include "ArrayList.hpp"
 #include <string>
+#include <algorithm> // For std::equal
 
 TEST_CASE("ArrayList Construction and Basic Operations") {
 	ArrayList<int, 5> list;
@@ -188,7 +189,8 @@ TEST_CASE("ArrayList pushOrReplace operation"){
 }
 
 TEST_CASE("ArrayList Find Operation") {
-    ArrayList<int, 5> list;
+    constexpr size_t list_capacity = 5;
+	ArrayList<int, list_capacity> list;
     list.push(10);
     list.push(20);
     list.push(30);
@@ -200,7 +202,9 @@ TEST_CASE("ArrayList Find Operation") {
 
     // Find a non-existing element (should add it)
     size_t index2 = list.find(40, [](int a, int b) { return a == b; });
-	CHECK(index2 == 3);
+	CHECK(index2 == list_capacity);
+	list.push(40);
+	index2 = list.find(40, [](int a, int b) { return a == b; });
     CHECK(list[index2] == 40);
 	CHECK(list.size() == 4);
 
@@ -210,7 +214,8 @@ TEST_CASE("ArrayList Find Operation") {
 	CHECK(list[index3] == 10);
 	CHECK(list.size() == 4);
 
-	ArrayList<std::string, 4> names;
+    constexpr size_t names_capacity = 4;
+	ArrayList<std::string, names_capacity> names;
 	names.push("Alice");
 	names.push("Bob");
 	names.push("Charlie");
@@ -220,7 +225,88 @@ TEST_CASE("ArrayList Find Operation") {
 	CHECK(names[index4] == "Bob");
 	// Find a non existing string (should add it)
 	size_t index5 = names.find("David", [](const std::string& a, const std::string& b) { return a == b; });
-	CHECK(index5 == 3);
+	CHECK(index5 == names_capacity);
+	names.push("David");
+	index5 = names.find("David", [](const std::string& a, const std::string& b) { return a == b; });
 	CHECK(names[index5] == "David");
 	CHECK(names.size() == 4);
+}
+
+TEST_CASE("ArrayList RemoveIf Operation") {
+    ArrayList<int, 5> list;
+    list.push(1);
+    list.push(2);
+    list.push(3);
+    list.push(4);
+    list.push(5);
+
+    // Remove all even numbers
+    list.removeIf([](int x) { return x % 2 == 0; });
+    CHECK(list.size() == 3);
+    CHECK(list[0] == 1);
+    CHECK(list[1] == 3);
+    CHECK(list[2] == 5);
+
+    // Remove all numbers greater than 3
+    list.removeIf([](int x) { return x > 3; });
+    CHECK(list.size() == 2);
+    CHECK(list[0] == 1);
+    CHECK(list[1] == 3);
+
+    // Remove all numbers (should be empty)
+    list.removeIf([](int x) { return true; });
+    CHECK(list.empty());
+
+    ArrayList<std::string, 4> names;
+    names.push("Alice");
+    names.push("Bob");
+    names.push("Charlie");
+    names.push("David");
+
+    // Remove names containing "a"
+    names.removeIf([](const std::string& name) { return name.find('a') != std::string::npos; });
+    CHECK(names.size() == 2);
+    CHECK(names[0] == "Alice");
+    CHECK(names[1] == "Bob");
+
+    //Remove names equal to Alice
+    names.removeIf([](const std::string& name) { return name == "Alice";});
+    CHECK(names.size() == 1);
+
+
+    //Remove names equal to Bob
+    names.removeIf([](const std::string& name) { return name == "Bob";});
+    CHECK(names.empty());
+}
+
+TEST_CASE("ArrayList Equality Operator"){
+		ArrayList<int, 5> list1;
+		list1.push(1);
+		list1.push(2);
+		list1.push(3);
+
+		ArrayList<int, 5> list2;
+		list2.push(1);
+		list2.push(2);
+		list2.push(3);
+
+		ArrayList<int, 5> list3;
+		list3.push(3);
+		list3.push(2);
+		list3.push(1);
+
+		ArrayList<int, 4> list4;
+		list4.push(1);
+		list4.push(2);
+		list4.push(3);
+
+
+		// Check if the lists contain the same elements in the same order
+		CHECK(std::equal(list1.begin(), list1.end(), list2.begin(), list2.end()));
+
+		// The sizes are different and should compare equal
+		CHECK(list1.size() == list4.size());
+
+		// The lists do not contain the same element and should not compare equal
+		CHECK(!std::equal(list1.begin(), list1.end(), list3.begin(), list3.end()));
 }

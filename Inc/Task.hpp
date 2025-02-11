@@ -20,12 +20,14 @@
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 
-class ServiceManager;
+class RegistrationManager;
+
 
 class Task {
 public:
 	Task() = delete;
 	Task(uint32_t interval, uint32_t tick) : interval_(interval), last_tick_(0), shift_(tick) {}
+	virtual ~Task() {};
 
 	uint32_t getInterval() const { return interval_; }
 	uint32_t getShift() const { return shift_; }
@@ -48,9 +50,11 @@ public:
 			update(HAL_GetTick());
 		}
 	}
-	virtual void handleMessage(std::shared_ptr<CanardRxTransfer> transfer) = 0;
+	virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) = 0;
 
-	virtual void registerTask(ServiceManager *manager, std::shared_ptr<Task> task) = 0;
+	virtual void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) = 0;
+
+	virtual void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) = 0;
 
 protected:
 	virtual void handleTaskImpl() = 0;
@@ -66,8 +70,9 @@ template <typename... Adapters>
 class TaskWithPublication : public Task {
 public:
 	TaskWithPublication() = delete;
-	TaskWithPublication(uint32_t interval, uint32_t tick, uint8_t transfer_id, const std::tuple<Adapters...>& t) :
-		Task(interval, tick), transfer_id_(transfer_id) {}
+	TaskWithPublication(uint32_t interval, uint32_t tick, uint8_t transfer_id, const std::tuple<Adapters...>& adapters) :
+		Task(interval, tick), transfer_id_(transfer_id), adapters_(adapters) {}
+	virtual ~TaskWithPublication() {};
 
 	uint8_t getTransferId() const { return transfer_id_; }
 
@@ -76,10 +81,10 @@ public:
 protected:
 	virtual void update(uint32_t now) override { Task::update(now); ++transfer_id_; }
 
-	void publish(size_t PAYLOAD_SIZE, uint8_t* payload, void* data,
-			int8_t (*serialize)(const void* const, uint8_t* const,  size_t* const), CanardPortID port_id)
+	void publish(size_t payload_size, uint8_t* payload, void* data,
+			int8_t (*serialize)(const void* const, uint8_t* const,  size_t* const), CyphalPortID port_id)
 	{
-		size_t payload_size = PAYLOAD_SIZE;
+		size_t payload_size_ = payload_size;
 		serialize(data, payload, &payload_size);
 
 		CyphalTransferMetadata metadata =
@@ -106,20 +111,20 @@ protected:
 	std::tuple<Adapters...>& adapters_;
 };
 
+
+
 constexpr size_t CIRC_BUF_SIZE=64;
-typedef CircularBuffer<std::shared_ptr<CanardRxTransfer>, CIRC_BUF_SIZE> CanardRxBuffer;
+typedef CircularBuffer<std::shared_ptr<CyphalTransfer>, CIRC_BUF_SIZE> CyphalBuffer;
 
 class TaskFromBuffer : public Task {
 public:
 	TaskFromBuffer() = delete;
-	TaskFromBuffer(CanardInstance *canard, uint32_t interval, uint32_t tick) :
-		Task(interval, tick), canard(canard) {}
+	TaskFromBuffer(uint32_t interval, uint32_t tick) : Task(interval, tick) {}
 
-	virtual void handleMessage(std::shared_ptr<CanardRxTransfer> transfer) { buffer.push(transfer); }
+	virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) { buffer.push(transfer); }
 
 protected:
-	CanardInstance *canard;
-	CanardRxBuffer buffer;
+	CyphalBuffer buffer;
 };
 
 #endif /* INC_TASK_HPP_ */

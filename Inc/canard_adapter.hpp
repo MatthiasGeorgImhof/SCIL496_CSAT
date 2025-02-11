@@ -3,11 +3,32 @@
 #include "cyphal.hpp"
 #include "canard.h"
 
+#include <cstring>
 #include "BoxSet.hpp"
 
 static_assert(CYPHAL_NODE_ID_UNSET == CANARD_NODE_ID_UNSET, "unset lengths differ");
 static_assert(sizeof(CyphalTransferMetadata) == sizeof(CanardTransferMetadata), "metadata sizes differ");
 static_assert(sizeof(CyphalTransfer) == sizeof(CanardRxTransfer), "rxtransfer sizes differ");
+
+void cyphalMetadataToCanard(const CyphalTransferMetadata *cyphal, CanardTransferMetadata *canard)
+{
+    memcpy(canard, cyphal, sizeof(CyphalTransferMetadata));
+}
+
+void cyphalTransferToCanard(const CyphalTransfer *cyphal, CanardRxTransfer *canard)
+{
+    memcpy(canard, cyphal, sizeof(CyphalTransfer));
+}
+
+void canardMetadataToCyphal(const CanardTransferMetadata *canard, CyphalTransferMetadata *cyphal)
+{
+    memcpy(cyphal, canard, sizeof(CanardTransferMetadata));
+}
+
+void canardTransferToCyphal(const CanardRxTransfer *canard, CyphalTransfer *cyphal)
+{
+    memcpy(cyphal, canard, sizeof(CanardRxTransfer));
+}
 
 struct CanardAdapter
 {
@@ -22,9 +43,6 @@ class Cyphal<CanardAdapter>
 {
 private:
     CanardAdapter *adapter_;
-
-private:
-
 
 public:
     Cyphal<CanardAdapter>() = delete;
@@ -60,7 +78,7 @@ public:
         return result;
     }
 
-        int32_t cyphalRxReceive(uint32_t extended_can_id, const size_t *frame_size, const uint8_t *const frame, CyphalTransfer *out_transfer)
+    int32_t cyphalRxReceive(uint32_t extended_can_id, const size_t *frame_size, const uint8_t *const frame, CyphalTransfer *out_transfer)
     {
         CanardFrame canard_frame = { extended_can_id, *frame_size, frame};
         return canardRxAccept(&adapter_->ins, 0, &canard_frame, 0, reinterpret_cast<CanardRxTransfer*>(out_transfer), nullptr);

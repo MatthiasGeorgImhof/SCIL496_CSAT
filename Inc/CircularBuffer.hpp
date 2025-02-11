@@ -11,6 +11,14 @@ class CircularBuffer
 public:
     CircularBuffer() : head_(0), tail_(0), count_(0) {}
 
+    T& next()
+    { 
+        T& result = data[head_];
+        head_ = (head_ + 1) % capacity_;
+        ++count_;
+        return result;
+    }
+   
     void push(T value)
     { 
         data[head_] = value;
