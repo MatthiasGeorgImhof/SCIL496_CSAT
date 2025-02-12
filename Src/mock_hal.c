@@ -169,6 +169,11 @@ uint32_t HAL_GetTick(void)
     return current_tick;
 }
 
+void HAL_SetTick(uint32_t tick)
+{
+    current_tick = tick;
+}
+
 // ---- I2C Mock Functions -----
 
 uint32_t HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t Timeout)

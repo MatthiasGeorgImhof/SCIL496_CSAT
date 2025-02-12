@@ -14,16 +14,10 @@
 #include "ArrayList.hpp"
 #include "Task.hpp"
 
-typedef struct {
-	int16_t port_id;
-	std::shared_ptr<Task> task;
-} TaskHandler;
-constexpr size_t NUM_TASKS=32;
-
 class ServiceManager {
 public:
 	ServiceManager () = delete;
-	ServiceManager(const ArrayList<TaskHandler, NUM_TASKS> &handlers): handlers_(handlers) {};
+	ServiceManager(const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &handlers): handlers_(handlers) {};
 //	void add(std::shared_ptr<Task> task);
 //	void remove(std::shared_ptr<Task> task);
 
@@ -32,7 +26,7 @@ public:
 	void handleServices() const;
 
 private:
-	const ArrayList<TaskHandler, NUM_TASKS> &handlers_;
+	const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &handlers_;
 };
 
 #endif /* INC_SERVICEMANAGER_HPP_ */

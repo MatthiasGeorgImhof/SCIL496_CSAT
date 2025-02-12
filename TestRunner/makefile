@@ -1,6 +1,5 @@
-# Compiler and flags
 CXX = g++
-CXXFLAGS = -g -MMD
+CXXFLAGS = -g -MMD -std=c++17
 
 INCLUDE_PATHS = -I ../Inc \
 				-I $(HOME)/Data/github/can/libcanard/libcanard \
@@ -10,7 +9,7 @@ INCLUDE_PATHS = -I ../Inc \
 				-I /usr/include/eigen3 \
 				-I /usr/include/doctest
 
-LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64 
+LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
@@ -21,8 +20,15 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCyphal.cpp \
 			 TestMockHal.cpp \
 			 TestO1HeapAllocator.cpp \
-			 TestLogger.cpp
-			 
+			 TestLogger.cpp \
+			 TestServiceManager.cpp \
+			 TestRegistrationManager.cpp  # ADD THIS LINE
+
+SRC_FILES = ../Src/Logger.cpp \
+            ../Src/ServiceManager.cpp \
+            ../Src/mock_hal.c   # Keep C source files separate if needed.
+
+# Extract the names for the targets from the source files
 TEST_NAMES = $(TEST_FILES:.cpp=)
 
 # Build directories
@@ -30,11 +36,10 @@ BIN_DIR = bin
 
 # Object files
 OBJECTS = $(addprefix $(BIN_DIR)/,$(TEST_NAMES:=.o))
-
+SRC_OBJECTS = $(addprefix $(BIN_DIR)/, $(SRC_FILES:.cpp=.o))
+SRC_OBJECTS := $(SRC_OBJECTS:.c=.o) # correct for the c source files
 # Executables
 EXECUTABLES = $(addprefix $(BIN_DIR)/,$(TEST_NAMES))
-
-MOCK_HAL_EXTRA_SOURCES =  ../Src/mock_hal.c
 
 # Extra defines for logger
 LOGGER_EXTRA_DEFINES = -DLOGGER_ENABLED -DLOGGER_OUTPUT_STDERR -DLOGGER_OUTPUT_UART -DLOGGER_OUTPUT_USB
@@ -48,27 +53,39 @@ create_bin_dir:
 
 
 # Rule for TestMockHal with extra sources
-$(BIN_DIR)/TestMockHal.o : TestMockHal.cpp $(MOCK_HAL_EXTRA_SOURCES)
+$(BIN_DIR)/TestMockHal.o : TestMockHal.cpp ../Src/mock_hal.c
 	@echo "Compiling $< with extra sources"
-	$(CXX) -c TestMockHal.cpp $(CXXFLAGS) $(INCLUDE_PATHS) -o $(BIN_DIR)/TestMockHal.o
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestMockHal : $(BIN_DIR)/TestMockHal.o $(MOCK_HAL_EXTRA_SOURCES:.c=.o)
-	$(CXX) $(BIN_DIR)/TestMockHal.o $(MOCK_HAL_EXTRA_SOURCES:.c=.o) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+$(BIN_DIR)/TestMockHal : $(BIN_DIR)/TestMockHal.o $(BIN_DIR)/mock_hal.o # Link the object file
+	$(CXX) $(BIN_DIR)/TestMockHal.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
-../Src/mock_hal.o : ../Src/mock_hal.c
-	$(CXX) -c ../Src/mock_hal.c $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+$(BIN_DIR)/mock_hal.o : ../Src/mock_hal.c
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
 
 # Rule for TestLogger with extra sources
 $(BIN_DIR)/TestLogger.o : TestLogger.cpp
 	@echo "Compiling $< with extra sources"
-	$(CXX) $(LOGGER_EXTRA_DEFINES) -c TestLogger.cpp $(CXXFLAGS) $(INCLUDE_PATHS) -o $(BIN_DIR)/TestLogger.o
+	$(CXX) $(LOGGER_EXTRA_DEFINES) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestLogger : $(BIN_DIR)/TestLogger.o ../Src/Logger.o ../Src/mock_hal.o
-	$(CXX) $(BIN_DIR)/TestLogger.o ../Src/Logger.o ../Src/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+$(BIN_DIR)/TestLogger : $(BIN_DIR)/TestLogger.o $(BIN_DIR)/Logger.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestLogger.o $(BIN_DIR)/Logger.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
-../Src/Logger.o : ../Src/Logger.cpp
-	$(CXX) $(LOGGER_EXTRA_DEFINES) -c ../Src/Logger.cpp $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+$(BIN_DIR)/Logger.o : ../Src/Logger.cpp
+	$(CXX) $(LOGGER_EXTRA_DEFINES) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
+
+# Rule for TestServiceManager with extra sources
+$(BIN_DIR)/TestServiceManager.o : TestServiceManager.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestServiceManager : $(BIN_DIR)/TestServiceManager.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestServiceManager.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+
+$(BIN_DIR)/ServiceManager.o : ../Src/ServiceManager.cpp
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp
@@ -77,7 +94,7 @@ $(BIN_DIR)/%.o : %.cpp
 
 $(BIN_DIR)/% : $(BIN_DIR)/%.o
 	$(CXX) $<  $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
-	
+
 # Run all tests target
 run_all: all
 	@echo "Running all tests..."

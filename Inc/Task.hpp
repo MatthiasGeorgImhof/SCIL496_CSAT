@@ -1,10 +1,3 @@
-/*
- * Task.hpp
- *
- *  Created on: Dec 4, 2024
- *      Author: mgi
- */
-
 #ifndef INC_TASK_HPP_
 #define INC_TASK_HPP_
 
@@ -12,16 +5,20 @@
 #include <memory>
 #include <tuple>
 
-#include "stm32l4xx_hal.h"
-
 #include "cyphal.hpp"
-
 #include <CircularBuffer.hpp>
+
+#ifdef __arm__
+#include "stm32l4xx_hal.h"
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
+#endif
+
+#ifdef __x86_64__
+#include "mock_hal.h"
+#endif
 
 class RegistrationManager;
-
 
 class Task {
 public:
@@ -52,9 +49,9 @@ public:
 	}
 	virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) = 0;
 
-	virtual void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) = 0;
-
-	virtual void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) = 0;
+    // Non-template virtual function (using type erasure with a base class)
+    virtual void registerTask(void* manager, std::shared_ptr<Task> task) = 0;
+    virtual void unregisterTask(void* manager, std::shared_ptr<Task> task) = 0;
 
 protected:
 	virtual void handleTaskImpl() = 0;
@@ -70,7 +67,7 @@ template <typename... Adapters>
 class TaskWithPublication : public Task {
 public:
 	TaskWithPublication() = delete;
-	TaskWithPublication(uint32_t interval, uint32_t tick, uint8_t transfer_id, const std::tuple<Adapters...>& adapters) :
+	TaskWithPublication(uint32_t interval, uint32_t tick, CyphalTransferID transfer_id, const std::tuple<Adapters...>& adapters) :
 		Task(interval, tick), transfer_id_(transfer_id), adapters_(adapters) {}
 	virtual ~TaskWithPublication() {};
 
@@ -107,7 +104,7 @@ protected:
 	}
 
 protected:
-	uint8_t transfer_id_;
+CyphalTransferID transfer_id_;
 	std::tuple<Adapters...>& adapters_;
 };
 
@@ -126,5 +123,11 @@ public:
 protected:
 	CyphalBuffer buffer;
 };
+
+typedef struct {
+	CyphalPortID port_id;
+	std::shared_ptr<Task> task;
+} TaskHandler;
+constexpr size_t NUM_TASK_HANDLERS = 32;
 
 #endif /* INC_TASK_HPP_ */
