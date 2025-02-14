@@ -53,7 +53,23 @@ public:
                          const size_t payload_size,
                          const void *const payload)
     {
-        return canardTxPush(&adapter_->que, &adapter_->ins, tx_deadline_usec, reinterpret_cast<const CanardTransferMetadata*>(metadata), payload_size, payload);
+        return canardTxPush(&adapter_->que, &adapter_->ins, tx_deadline_usec, reinterpret_cast<const CanardTransferMetadata *>(metadata), payload_size, payload);
+    }
+
+    inline CanardNodeID getNodeID() const { return adapter_->ins.node_id; }
+    inline void setNodeID(const CanardNodeID node_id) { adapter_->ins.node_id = node_id; }
+
+    int32_t cyphalTxForward(const CyphalMicrosecond tx_deadline_usec,
+                            const CyphalTransferMetadata *const metadata,
+                            const size_t payload_size,
+                            const void *const payload,
+                            const CyphalNodeID node_id)
+    {
+        CanardNodeID node_id_ = getNodeID();
+        setNodeID(node_id);
+        int32_t res = cyphalTxPush(tx_deadline_usec, metadata, payload_size, payload);
+        setNodeID(node_id_);
+        return res;
     }
 
     int8_t cyphalRxSubscribe(const CyphalTransferKind transfer_kind,
@@ -61,27 +77,27 @@ public:
                              const size_t extent,
                              const CyphalMicrosecond transfer_id_timeout_usec)
     {
-        CanardRxSubscription stub{ .port_id = port_id };
+        CanardRxSubscription stub{.port_id = port_id};
         CanardRxSubscription *subscription = adapter_->subscriptions.find_or_create(stub, [](const CanardRxSubscription &a, const CanardRxSubscription &b)
-                                                                                { return a.port_id == b.port_id; });
+                                                                                    { return a.port_id == b.port_id; });
         return canardRxSubscribe(&adapter_->ins, static_cast<const CanardTransferKind>(transfer_kind), port_id, extent, transfer_id_timeout_usec, subscription);
     }
 
     int8_t cyphalRxUnsubscribe(const CyphalTransferKind transfer_kind,
                                const CyphalPortID port_id)
     {
-        CanardRxSubscription stub{ .port_id = port_id };
+        CanardRxSubscription stub{.port_id = port_id};
         CanardRxSubscription *subscription = adapter_->subscriptions.find(stub, [](const CanardRxSubscription &a, const CanardRxSubscription &b)
-                                                                                { return a.port_id == b.port_id; });
+                                                                          { return a.port_id == b.port_id; });
         auto result = canardRxUnsubscribe(&adapter_->ins, static_cast<const CanardTransferKind>(transfer_kind), port_id);
-        if (subscription) adapter_->subscriptions.remove(subscription);
+        if (subscription)
+            adapter_->subscriptions.remove(subscription);
         return result;
     }
 
     int32_t cyphalRxReceive(uint32_t extended_can_id, const size_t *frame_size, const uint8_t *const frame, CyphalTransfer *out_transfer)
     {
-        CanardFrame canard_frame = { extended_can_id, *frame_size, frame};
-        return canardRxAccept(&adapter_->ins, 0, &canard_frame, 0, reinterpret_cast<CanardRxTransfer*>(out_transfer), nullptr);
+        CanardFrame canard_frame = {extended_can_id, *frame_size, frame};
+        return canardRxAccept(&adapter_->ins, 0, &canard_frame, 0, reinterpret_cast<CanardRxTransfer *>(out_transfer), nullptr);
     }
-
 };

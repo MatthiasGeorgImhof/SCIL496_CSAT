@@ -18,8 +18,6 @@ class ServiceManager {
 public:
 	ServiceManager () = delete;
 	ServiceManager(const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &handlers): handlers_(handlers) {};
-//	void add(std::shared_ptr<Task> task);
-//	void remove(std::shared_ptr<Task> task);
 
 	void initializeServices(uint32_t now) const;
 	void handleMessage(std::shared_ptr<CyphalTransfer> transfer) const;

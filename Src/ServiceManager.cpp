@@ -9,29 +9,6 @@
 #include <algorithm>
 #include "Allocator.hpp"
 
-//void ServiceManager::add(std::shared_ptr<Task> task)
-//{
-//	task->registerTask(this, task);
-//}
-//
-//void ServiceManager::remove(std::shared_ptr<Task> task)
-//{
-//	task->unregisterTask(this, task);
-//}
-//
-//void ServiceManager::subscribe(int16_t port_id, std::shared_ptr<Task> task)
-//{
-//	services.push(TaskHandler {.port_id = port_id, .task = task} );
-//}
-//
-//void ServiceManager::unsubscribe(int16_t port_id, std::shared_ptr<Task> task)
-//{
-//	size_t index = services.find(TaskHandler {.port_id = port_id, .task = task},
-//			[](TaskHandler task, TaskHandler other) { return task.port_id == other.port_id && task.task == other.task; });
-//	services.remove(index);
-//}
-//
-//
 void ServiceManager::initializeServices(uint32_t now) const
 {
 	for(auto handler : handlers_)

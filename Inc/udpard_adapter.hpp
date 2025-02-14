@@ -34,8 +34,7 @@ struct UdpardHeader
     uint8_t header_crc16_big_endian[2];
 };
 
-UdpardNodeID
-cyphalNodeIdToUdpard(const CyphalNodeID node_id)
+UdpardNodeID cyphalNodeIdToUdpard(const CyphalNodeID node_id)
 {
     return node_id == CYPHAL_NODE_ID_UNSET ? UDPARD_NODE_ID_UNSET : static_cast<UdpardNodeID>(node_id);
 }
@@ -55,11 +54,10 @@ void udpartToCyphalMetadata(const UdpardRxTransfer *udpard, const UdpardHeader *
 void udpartToCyphalTransfer(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransfer *cyphal)
 {
     udpartToCyphalMetadata(udpard, header, &cyphal->metadata);
-    cyphal->payload = static_cast<uint8_t*>(const_cast<void*>(udpard->payload.view.data));
+    cyphal->payload = static_cast<uint8_t *>(const_cast<void *>(udpard->payload.view.data));
     cyphal->payload_size = udpard->payload_size;
     cyphal->timestamp_usec = udpard->timestamp_usec;
 }
-
 
 template <>
 class Cyphal<UdpardAdapter>
@@ -78,6 +76,23 @@ public:
     {
         struct UdpardPayload payload_ = {payload_size, payload};
         return udpardTxPublish(&adapter_->ins, tx_deadline_usec, static_cast<UdpardPriority>(metadata->priority), static_cast<UdpardPortID>(metadata->port_id), cyphalTransferIdToUdpard(metadata->transfer_id), payload_, adapter_->user_transfer_reference);
+    }
+
+    inline const UdpardNodeID* getNodeID() { return adapter_->ins.local_node_id; }
+    inline void setNodeID(const UdpardNodeID *node_id) { adapter_->ins.local_node_id = node_id; }
+
+    int32_t cyphalTxForward(const CyphalMicrosecond tx_deadline_usec,
+                         const CyphalTransferMetadata *const metadata,
+                         const size_t payload_size,
+                         const void *const payload,
+                         const CyphalNodeID node_id)
+    {
+        const UdpardNodeID *node_id_ = getNodeID();
+        UdpardNodeID forward_node_id = cyphalNodeIdToUdpard(node_id);
+        setNodeID(&forward_node_id);
+        int32_t res =  cyphalTxPush(tx_deadline_usec, metadata, payload_size, payload);
+        setNodeID(node_id_);
+        return res;
     }
 
     int8_t cyphalRxSubscribe(const CyphalTransferKind transfer_kind,
@@ -110,11 +125,11 @@ public:
 
     int32_t cyphalRxReceive(size_t *frame_size, const uint8_t *const frame, CyphalTransfer *out_transfer)
     {
-        const UdpardHeader *header = reinterpret_cast<const UdpardHeader*>(frame);
+        const UdpardHeader *header = reinterpret_cast<const UdpardHeader *>(frame);
         struct UdpardPortSubscription stub = {header->data_specifier_snm, {}};
         UdpardPortSubscription *subpair = adapter_->subscriptions.find(stub, [](const UdpardPortSubscription &a, const UdpardPortSubscription &b)
-                                                                     { return a.port_id == b.port_id; });
-        UdpardMutablePayload payload = {*frame_size, static_cast<void*>(const_cast<uint8_t*>(frame))};
+                                                                       { return a.port_id == b.port_id; });
+        UdpardMutablePayload payload = {*frame_size, static_cast<void *>(const_cast<uint8_t *>(frame))};
 
         UdpardRxTransfer udpard_transfer;
         udpardRxSubscriptionReceive(&subpair->subscription, 0, payload, 0, &udpard_transfer);
@@ -124,7 +139,7 @@ public:
         out_transfer->metadata.port_id = header->destination_node_id;
         out_transfer->metadata.remote_node_id = udpard_transfer.source_node_id;
         out_transfer->metadata.transfer_id = udpard_transfer.transfer_id;
-        out_transfer->payload = static_cast<uint8_t*>(const_cast<void*>(udpard_transfer.payload.view.data));
+        out_transfer->payload = static_cast<uint8_t *>(const_cast<void *>(udpard_transfer.payload.view.data));
         out_transfer->payload_size = udpard_transfer.payload_size;
         out_transfer->timestamp_usec = udpard_transfer.timestamp_usec;
         return 1;
