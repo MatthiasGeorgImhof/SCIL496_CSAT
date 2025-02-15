@@ -13,6 +13,10 @@
 #include "mock_hal.h"
 #endif
 
+#ifdef LOGGER_OUTPUT_CYPHAL
+#include "cyphal.hpp"
+#include "loopard_adapter.hpp"
+#endif
 
 #define LOG_LEVEL_ALERT (7U)
 #define LOG_LEVEL_CRITICAL (6U)
@@ -42,27 +46,28 @@ private:
 #endif
 
 #ifdef LOGGER_OUTPUT_CYPHAL
-    // static std::tuple<Adapters...>& adapters_;   // Removed: No Adapters
-	static void can_transmit_log_message(const char *str, size_t size, int level);
-//	static CyphalTransferID transfer_id_;
+    static Cyphal<LoopardAdapter> *adapter_loopard_;
+    static CyphalTransferID loopard_transfer_id_;
+
+    static void can_transmit_log_message(const char *str, size_t size, int level);
 #endif
 
 #ifdef LOGGER_OUTPUT_STDERR
-    static std::ostream* stream_; // Using std::ostream*
-    static void stream_transmit_log_message(const char *str); // New function
+    static std::ostream *stream_;
+    static void stream_transmit_log_message(const char *str);
 #endif
 
 public:
     static void log(int level, const char *format, va_list args);
-    
+
 #ifdef LOGGER_OUTPUT_UART
     static void setUartHandle(UART_HandleTypeDef *huart) { huart_ = huart; };
 #endif
 #ifdef LOGGER_OUTPUT_CYPHAL
-    // static void setAdapters(const std::tuple<Adapters...>& adapters) { adapters_ = adapters; transfer_id_ = 0; }; // Removed: No Adapters
+    static void setCyphalLoopardAdapter(Cyphal<LoopardAdapter> *adapter) { adapter_loopard_ = adapter; };
 #endif
 #ifdef LOGGER_OUTPUT_STDERR
-    static void setLogStream(std::ostream *stream) { stream_ = stream; }; // Using std::ostream*
+    static void setLogStream(std::ostream *stream) { stream_ = stream; };
 #endif
 };
 #endif /* LOGGER_ENABLED */

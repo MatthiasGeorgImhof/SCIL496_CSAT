@@ -6,6 +6,7 @@ INCLUDE_PATHS = -I ../Inc \
 				-I $(HOME)/Data/github/can/libudpard/libudpard \
 				-I $(HOME)/Data/github/can/libserard_ck/libserard \
 				-I $(HOME)/Data/github/can/o1heap/o1heap \
+				-I $(HOME)/Data/github/can/nunavut_out \
 				-I /usr/include/eigen3 \
 				-I /usr/include/doctest
 
@@ -13,7 +14,8 @@ LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
-TEST_FILES = TestArrayList.cpp \
+TEST_FILES = TestLoggerCyphal.cpp \
+			 TestArrayList.cpp \
              TestCircularBuffer.cpp \
              TestBoxSet.cpp \
              TestBoxSetIterator.cpp \
@@ -22,7 +24,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestLogger.cpp \
 			 TestServiceManager.cpp \
-			 TestRegistrationManager.cpp  # ADD THIS LINE
+			 TestRegistrationManager.cpp
 
 SRC_FILES = ../Src/Logger.cpp \
             ../Src/ServiceManager.cpp \
@@ -41,8 +43,9 @@ SRC_OBJECTS := $(SRC_OBJECTS:.c=.o) # correct for the c source files
 # Executables
 EXECUTABLES = $(addprefix $(BIN_DIR)/,$(TEST_NAMES))
 
-# Extra defines for logger
+# Extra defines
 LOGGER_EXTRA_DEFINES = -DLOGGER_ENABLED -DLOGGER_OUTPUT_STDERR -DLOGGER_OUTPUT_UART -DLOGGER_OUTPUT_USB
+LOGGER_CYPHAL_EXTRA_DEFINES = -DLOGGER_ENABLED -DLOGGER_OUTPUT_CYPHAL
 
 # Default target
 all: create_bin_dir $(EXECUTABLES)
@@ -74,6 +77,18 @@ $(BIN_DIR)/TestLogger : $(BIN_DIR)/TestLogger.o $(BIN_DIR)/Logger.o $(BIN_DIR)/m
 
 $(BIN_DIR)/Logger.o : ../Src/Logger.cpp
 	$(CXX) $(LOGGER_EXTRA_DEFINES) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+
+# Rule for TestLoggerCyphal with extra sources
+$(BIN_DIR)/TestLoggerCyphal.o : TestLoggerCyphal.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX) $(LOGGER_CYPHAL_EXTRA_DEFINES) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestLoggerCyphal : $(BIN_DIR)/TestLoggerCyphal.o $(BIN_DIR)/LoggerCyphal.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestLoggerCyphal.o $(BIN_DIR)/LoggerCyphal.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+
+$(BIN_DIR)/LoggerCyphal.o : ../Src/Logger.cpp
+	$(CXX) $(LOGGER_CYPHAL_EXTRA_DEFINES) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
 
 # Rule for TestServiceManager with extra sources
