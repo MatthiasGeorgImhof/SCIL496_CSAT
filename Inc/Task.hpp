@@ -49,9 +49,9 @@ public:
 	}
 	virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) = 0;
 
-    // Non-template virtual function (using type erasure with a base class)
-    virtual void registerTask(void* manager, std::shared_ptr<Task> task) = 0;
-    virtual void unregisterTask(void* manager, std::shared_ptr<Task> task) = 0;
+	// Non-template virtual function (using type erasure with a base class)
+	virtual void registerTask(RegistrationManager* manager, std::shared_ptr<Task> task) = 0;
+	virtual void unregisterTask(RegistrationManager* manager, std::shared_ptr<Task> task) = 0;
 
 protected:
 	virtual void handleTaskImpl() = 0;
@@ -67,7 +67,7 @@ template <typename... Adapters>
 class TaskWithPublication : public Task {
 public:
 	TaskWithPublication() = delete;
-	TaskWithPublication(uint32_t interval, uint32_t tick, CyphalTransferID transfer_id, const std::tuple<Adapters...>& adapters) :
+	TaskWithPublication(uint32_t interval, uint32_t tick, CyphalTransferID transfer_id, std::tuple<Adapters...>& adapters) :
 		Task(interval, tick), transfer_id_(transfer_id), adapters_(adapters) {}
 	virtual ~TaskWithPublication() {};
 
@@ -95,16 +95,16 @@ protected:
 
 		bool all_successful = true;
 		std::apply([&](auto&... adapter)
-		{
+				{
 			( [&]() {
-				int8_t res = adapter.cyphalTxPush(0, &metadata, payload_size, payload);
+				int8_t res = adapter.cyphalTxPush(static_cast<CyphalMicrosecond>(0), &metadata, payload_size, payload);
 				all_successful = all_successful && (res > 0);
 			}(), ...);
-		}, adapters_);
+				}, adapters_);
 	}
 
 protected:
-CyphalTransferID transfer_id_;
+	CyphalTransferID transfer_id_;
 	std::tuple<Adapters...>& adapters_;
 };
 
@@ -117,6 +117,7 @@ class TaskFromBuffer : public Task {
 public:
 	TaskFromBuffer() = delete;
 	TaskFromBuffer(uint32_t interval, uint32_t tick) : Task(interval, tick) {}
+	virtual ~TaskFromBuffer() {};
 
 	virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) { buffer.push(transfer); }
 

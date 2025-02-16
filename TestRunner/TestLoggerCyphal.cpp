@@ -26,7 +26,7 @@ TEST_CASE("Cyphal Logger Loopard") {
       uint8_t frame[1024];
       CyphalTransfer out_transfer = {};
       size_t frame_size = 0;
-      loopard_cyphal.cyphalRxReceive(frame, frame_size, &out_transfer);
+      loopard_cyphal.cyphalRxReceive(frame, &frame_size, &out_transfer);
       CHECK(out_transfer.metadata.remote_node_id == node_id);
       CHECK(out_transfer.metadata.port_id == uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
@@ -45,7 +45,7 @@ TEST_CASE("Cyphal Logger Loopard") {
       uint8_t frame[1024];
       CyphalTransfer out_transfer = {};
       size_t frame_size = 0;
-      loopard_cyphal.cyphalRxReceive(frame, frame_size, &out_transfer);
+      loopard_cyphal.cyphalRxReceive(frame, &frame_size, &out_transfer);
       CHECK(out_transfer.metadata.remote_node_id == node_id);
       CHECK(out_transfer.metadata.port_id == uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 

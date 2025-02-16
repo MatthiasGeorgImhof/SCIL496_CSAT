@@ -145,3 +145,8 @@ public:
         return 1;
     }
 };
+
+#include "cyphal_adapter_api.hpp"
+
+// Call the checks *after* the class definition
+static_assert((checkCyphalAdapterAPI<UdpardAdapter>(), true), "UdpardAdapter fails API check");

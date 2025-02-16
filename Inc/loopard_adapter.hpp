@@ -67,7 +67,7 @@ public:
                              const size_t extent,
                              const CyphalMicrosecond transfer_id_timeout_usec)
     {
-        uint8_t *subscription = adapter_->subscriptions.find_or_create(port_id, [](const uint8_t &a, const uint8_t &b)
+        adapter_->subscriptions.find_or_create(port_id, [](const uint8_t &a, const uint8_t &b)
                                                                        { return a == b; });
         return 1;
     }
@@ -82,7 +82,7 @@ public:
         return 1;
     }
 
-    int32_t cyphalRxReceive(const uint8_t *const frame, size_t &frame_size, CyphalTransfer *out_transfer)
+    int32_t cyphalRxReceive(const uint8_t *const frame, size_t *frame_size, CyphalTransfer *out_transfer)
     {
         if (adapter_->buffer.is_empty())
             return 0;
@@ -90,3 +90,8 @@ public:
         return (adapter_->buffer.is_empty() ? 1 : 2);
     }
 };
+
+#include "cyphal_adapter_api.hpp"
+
+// Call the checks *after* the class definition
+static_assert((checkCyphalAdapterAPI<LoopardAdapter>(), true), "LoopardAdapter fails API check");

@@ -24,7 +24,8 @@ TEST_FILES = TestLoggerCyphal.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestLogger.cpp \
 			 TestServiceManager.cpp \
-			 TestRegistrationManager.cpp
+			 TestRegistrationManager.cpp \
+			 TestTaskSendHeartBeat.cpp
 
 SRC_FILES = ../Src/Logger.cpp \
             ../Src/ServiceManager.cpp \
@@ -101,6 +102,14 @@ $(BIN_DIR)/TestServiceManager : $(BIN_DIR)/TestServiceManager.o $(BIN_DIR)/Servi
 
 $(BIN_DIR)/ServiceManager.o : ../Src/ServiceManager.cpp
 	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+# Rule for TestTaskSendHeartBeat with extra sources
+$(BIN_DIR)/TestTaskSendHeartBeat.o : TestTaskSendHeartBeat.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskSendHeartBeat : $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

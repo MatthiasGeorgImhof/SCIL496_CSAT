@@ -706,13 +706,13 @@ TEST_CASE("Loopard Send Receive")
 
     CyphalTransfer transfer = {};
     size_t inout_payload_size = 0;
-    CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 2);
+    CHECK(cyphal.cyphalRxReceive(nullptr, &inout_payload_size, &transfer) == 2);
     CHECK(transfer.payload_size == payload_size1);
     CHECK(strncmp(payload1, static_cast<const char *>(transfer.payload), 5) == 0);
-    CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 1);
+    CHECK(cyphal.cyphalRxReceive(nullptr, &inout_payload_size, &transfer) == 1);
     CHECK(transfer.payload_size == payload_size2);
     CHECK(strncmp(payload2, static_cast<const char *>(transfer.payload), 5) == 0);
-    CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 0);
+    CHECK(cyphal.cyphalRxReceive(nullptr, &inout_payload_size, &transfer) == 0);
 }
 
 TEST_CASE("Loopard Forward Send Receive")
@@ -746,15 +746,15 @@ TEST_CASE("Loopard Forward Send Receive")
 
     CyphalTransfer transfer = {};
     size_t inout_payload_size = 0;
-    CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 2);
+    CHECK(cyphal.cyphalRxReceive(nullptr, &inout_payload_size, &transfer) == 2);
     CHECK(transfer.payload_size == payload_size1);
     CHECK(strncmp(payload1, static_cast<const char *>(transfer.payload), 5) == 0);
     CHECK(transfer.metadata.remote_node_id == forward_id);
     
-    CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 1);
+    CHECK(cyphal.cyphalRxReceive(nullptr, &inout_payload_size, &transfer) == 1);
     CHECK(transfer.payload_size == payload_size2);
     CHECK(strncmp(payload2, static_cast<const char *>(transfer.payload), 5) == 0);
-    CHECK(cyphal.cyphalRxReceive(nullptr, inout_payload_size, &transfer) == 0);
+    CHECK(cyphal.cyphalRxReceive(nullptr, &inout_payload_size, &transfer) == 0);
     CHECK(transfer.metadata.remote_node_id == my_id);
 }
 

@@ -152,3 +152,8 @@ public:
         return result;
     }
 };
+
+#include "cyphal_adapter_api.hpp"
+
+// Call the checks *after* the class definition
+static_assert((checkCyphalAdapterAPI<SerardAdapter>(), true), "SerardAdapter fails API check");

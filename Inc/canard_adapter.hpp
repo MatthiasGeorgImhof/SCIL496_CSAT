@@ -101,3 +101,8 @@ public:
         return canardRxAccept(&adapter_->ins, 0, &canard_frame, 0, reinterpret_cast<CanardRxTransfer *>(out_transfer), nullptr);
     }
 };
+
+#include "cyphal_adapter_api.hpp"
+
+// Call the checks *after* the class definition
+static_assert((checkCyphalAdapterAPI<CanardAdapter>(), true), "CanardAdapter fails API check");

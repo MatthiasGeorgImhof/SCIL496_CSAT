@@ -2,6 +2,7 @@
 #include "doctest/doctest.h"
 
 #include "ServiceManager.hpp"
+#include "RegistrationManager.hpp"
 #include "Allocator.hpp"
 #include <memory>
 #include <iostream> // For cout
@@ -35,8 +36,8 @@ public:
     }
 
     // Correct override signature (now taking void* as the manager)
-    void registerTask(void* manager, std::shared_ptr<Task> task) override {}
-    void unregisterTask(void* manager, std::shared_ptr<Task> task) override {}
+    void registerTask(RegistrationManager* manager, std::shared_ptr<Task> task) {}
+    void unregisterTask(RegistrationManager* manager, std::shared_ptr<Task> task) {}
 
     bool message_handled;
     bool task_handled;

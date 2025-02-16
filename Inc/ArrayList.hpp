@@ -97,16 +97,23 @@ public:
 
 	// Remove all items satisfying a predicate
 	template <typename Predicate>
-	void removeIf(Predicate pred) {
-		size_t writeIndex = 0;
-		for (size_t readIndex = 0; readIndex < count_; ++readIndex) {
-			if (!pred(data_[readIndex])) {
-				data_[writeIndex++] = data_[readIndex];
-			}
-		}
-		count_ = writeIndex;
-	}
+    void removeIf(Predicate pred) {
+        size_t writeIndex = 0;
+        for (size_t readIndex = 0; readIndex < count_; ++readIndex) {
+            if (!pred(data_[readIndex])) {
+                if (writeIndex != readIndex) { // Avoid self-assignment
+                    data_[writeIndex] = data_[readIndex];
+                }
+                writeIndex++;
+            }
+        }
 
+        // Clear the remaining elements after writeIndex
+        for (size_t i = writeIndex; i < count_; ++i) {
+            data_[i] = T{}; // Destruct existing object
+        }
+        count_ = writeIndex;
+    }
 
 	// Iterator implementation
 	class iterator {

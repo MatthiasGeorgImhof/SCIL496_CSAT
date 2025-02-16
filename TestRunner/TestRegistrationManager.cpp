@@ -26,14 +26,13 @@ public:
     }
 
      int8_t cyphalRxUnsubscribe(const CyphalTransferKind transfer_kind,
-                                const CyphalPortID port_id,
-                                const size_t extent,
-                                const CyphalMicrosecond transfer_id_timeout_usec) {
+                                const CyphalPortID port_id)
+    {
         cyphalRxUnsubscribeCallCount++;
         lastTransferKind = transfer_kind;
         lastPortID = port_id;
-        lastExtent = extent;
-        lastTimeout = transfer_id_timeout_usec;
+        lastExtent = 0;
+        lastTimeout = 0;
         return 1; // Dummy implementation
     }
 
@@ -59,7 +58,7 @@ public:
     void handleTaskImpl() override {}
 
      // Override the non-template virtual functions
-    void registerTask(void* manager_ptr, std::shared_ptr<Task> task) override {
+    void registerTask(RegistrationManager* manager_ptr, std::shared_ptr<Task> task) override {
         RegistrationManager* manager = static_cast<RegistrationManager*>(manager_ptr);
         CyphalSubscription subscription = {port_id_, extent_, transfer_kind_};
 
@@ -67,7 +66,7 @@ public:
         registered_ = true;
     }
 
-    void unregisterTask(void* manager_ptr, std::shared_ptr<Task> task) override {
+    void unregisterTask(RegistrationManager* manager_ptr, std::shared_ptr<Task> task) override {
         RegistrationManager* manager = static_cast<RegistrationManager*>(manager_ptr);
         CyphalSubscription subscription = {port_id_, extent_, transfer_kind_};
 
