@@ -81,7 +81,6 @@ protected:
 	void publish(size_t payload_size, uint8_t* payload, void* data,
 			int8_t (*serialize)(const void* const, uint8_t* const,  size_t* const), CyphalPortID port_id)
 	{
-		size_t payload_size_ = payload_size;
 		serialize(data, payload, &payload_size);
 
 		CyphalTransferMetadata metadata =

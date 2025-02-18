@@ -35,4 +35,3 @@ void ServiceManager::handleServices() const
 		handler.task->handleTask();
 	}
 }
-

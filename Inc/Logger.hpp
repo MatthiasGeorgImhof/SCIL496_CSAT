@@ -49,7 +49,7 @@ private:
     static Cyphal<LoopardAdapter> *adapter_loopard_;
     static CyphalTransferID loopard_transfer_id_;
 
-    static void can_transmit_log_message(const char *str, size_t size, int level);
+    static void can_transmit_log_message(const char *str, size_t size, unsigned int level);
 #endif
 
 #ifdef LOGGER_OUTPUT_STDERR
@@ -58,7 +58,7 @@ private:
 #endif
 
 public:
-    static void log(int level, const char *format, va_list args);
+    static void log(unsigned int level, const char *format, va_list args);
 
 #ifdef LOGGER_OUTPUT_UART
     static void setUartHandle(UART_HandleTypeDef *huart) { huart_ = huart; };
@@ -74,10 +74,10 @@ public:
 
 #ifdef LOGGER_ENABLED
 // inline log function for enabled case, using va_list
-void log(int level, const char *format, ...);
+void log(unsigned int level, const char *format, ...);
 #else
 // Dummy inline log function for disabled case.
-inline void log(int level, const char *format, ...) {}
+inline void log(unsigned int level, const char *format, ...) {}
 #endif /* LOGGER_ENABLED */
 
 #endif /* LOGGER_HPP_ */

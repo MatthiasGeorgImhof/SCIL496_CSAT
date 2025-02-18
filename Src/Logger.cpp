@@ -28,7 +28,7 @@ CyphalTransferID Logger::loopard_transfer_id_ = 0;
 #endif
 
 constexpr size_t BUFFER_SIZE = 256;
-void Logger::log(int level, const char *format, va_list args) // Added va_list arg
+void Logger::log(unsigned int level, const char *format, va_list args) // Added va_list arg
 {
     if (level >= LOG_LEVEL)
     {
@@ -57,7 +57,7 @@ void Logger::log(int level, const char *format, va_list args) // Added va_list a
 }
 
 #ifdef LOGGER_OUTPUT_CYPHAL
-void Logger::can_transmit_log_message(const char *str, size_t size, int level)
+void Logger::can_transmit_log_message(const char *str, size_t size, unsigned int level)
 {
     uavcan_diagnostic_Record_1_1 record{};
     record.severity.value = level;
@@ -103,7 +103,7 @@ void Logger::stream_transmit_log_message(const char *str)
 }
 #endif
 
-void log(int level, const char *format, ...)
+void log(unsigned int level, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
