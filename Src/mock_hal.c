@@ -2,6 +2,7 @@
 #include "mock_hal.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h> // For logging (optional)
 
 // Mocked Data Buffers
 #define CAN_TX_BUFFER_SIZE 20
@@ -28,16 +29,25 @@ uint16_t i2c_mem_buffer_dev_address;
 uint16_t i2c_mem_buffer_mem_address;
 uint16_t i2c_mem_buffer_size = 0;
 
+// Store I2C transfer parameters for verification
+uint16_t mocked_i2c_dev_address;
+uint16_t mocked_i2c_mem_address;
+uint16_t mocked_i2c_mem_size;
+
 // Mock Variables
 uint32_t current_tick = 0;
 int current_free_mailboxes = 3;
 int current_rx_fifo_fill_level = 0;
+
+// Global variable to control HAL_UARTEx_GetRxEventType's return value
+HAL_UART_RxEventTypeTypeDef mocked_uart_rx_event_type = 0; // Default value
 
 
 // ----- CAN Mock Functions -----
 
 uint32_t HAL_CAN_AddTxMessage(void *hcan, CAN_TxHeaderTypeDef *pHeader, uint8_t aData[], uint32_t *pTxMailbox)
 {
+    if (pHeader == NULL) return 1; //HAL_ERROR
     if (can_tx_buffer_count < CAN_TX_BUFFER_SIZE) {
         can_tx_buffer[can_tx_buffer_count].TxHeader = *pHeader;
         
@@ -58,6 +68,9 @@ uint32_t HAL_CAN_AddTxMessage(void *hcan, CAN_TxHeaderTypeDef *pHeader, uint8_t 
 
 
 uint32_t HAL_CAN_GetRxMessage(void *hcan, uint32_t Fifo, CAN_RxHeaderTypeDef *pHeader, uint8_t aData[]) {
+    if(hcan == NULL || pHeader == NULL || aData == NULL) {
+        return 1; //HAL_ERROR
+    }
     if(current_rx_fifo_fill_level == 0) {
         return 1; // HAL_ERROR
     }
@@ -110,6 +123,8 @@ uint32_t HAL_UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t S
 
 uint32_t HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size)
 {
+     if (huart == NULL || pData == NULL) return HAL_ERROR;
+
     if (uart_tx_buffer_count + Size <= UART_TX_BUFFER_SIZE) {
         memcpy(uart_tx_buffer + uart_tx_buffer_count, pData, Size);
         uart_tx_buffer_count += Size;
@@ -119,6 +134,7 @@ uint32_t HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16
 }
 
 uint32_t HAL_UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout) {
+  if (huart == NULL || pData == NULL) return HAL_ERROR;
   uint32_t start_tick = current_tick;
   uint16_t bytes_received = 0;
 
@@ -140,6 +156,7 @@ uint32_t HAL_UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Si
 }
 
 uint32_t HAL_UART_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size) {
+    if (huart == NULL || pData == NULL) return HAL_ERROR;
     uint32_t start_tick = current_tick;
     uint16_t bytes_received = 0;
 
@@ -178,24 +195,58 @@ void HAL_SetTick(uint32_t tick)
 
 uint32_t HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
+    if (hi2c == NULL || pData == NULL) {
+        return 1; //HAL_ERROR; // Check for NULL pointers
+    }
+    if (Size > I2C_MEM_BUFFER_SIZE) {
+        return 1; //HAL_ERROR; // Check for size limits
+    }
+
+    // Store the parameters for later verification
+    mocked_i2c_dev_address = DevAddress;
+    mocked_i2c_mem_address = 0; // Not a memory transfer
+    mocked_i2c_mem_size = Size;
+
+    // You might want to copy the data to a buffer here to inspect it later
+
     // Basic mock, just return HAL_OK
-    return 0; // HAL_OK
+    return 0;
 }
 
 uint32_t HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout) {
-   if(i2c_mem_buffer_dev_address != DevAddress || i2c_mem_buffer_mem_address != MemAddress || i2c_mem_buffer_size == 0) {
+    if (hi2c == NULL || pData == NULL) {
+        return 1; //HAL_ERROR;
+    }
+
+    if(i2c_mem_buffer_dev_address != DevAddress || i2c_mem_buffer_mem_address != MemAddress || i2c_mem_buffer_size == 0) {
        return 1; //HAL_ERROR, invalid address
-   }
-   if(Size > i2c_mem_buffer_size) {
+    }
+    if(Size > i2c_mem_buffer_size) {
      return 1; //HAL_ERROR, invalid size
-   }
+    }
+
+    // Store the parameters for later verification
+    mocked_i2c_dev_address = DevAddress;
+    mocked_i2c_mem_address = MemAddress;
+    mocked_i2c_mem_size = Size;
+
     memcpy(pData, i2c_mem_buffer, Size);
-   return 0; // HAL_OK
+    return 0;
 }
 
+
 uint32_t HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout) {
-  // Basic Mock, just returns HAL_OK
-    return 0; //HAL_OK
+    if (hi2c == NULL || pData == NULL) {
+        return 1; //HAL_ERROR;
+    }
+
+    // Store the parameters for later verification
+    mocked_i2c_dev_address = DevAddress;
+    mocked_i2c_mem_address = MemAddress;
+    mocked_i2c_mem_size = Size;
+
+    // Basic Mock, just returns HAL_OK
+    return 0;
 }
 
 
@@ -326,6 +377,33 @@ void init_uart_handle(UART_HandleTypeDef *huart)
     huart->Init.OverSampling = 0;
     huart->Init.OneBitSampling = 0;
     huart->Init.ADVFEATURE = 0;
+}
+
+// --- Mock UARTEx Functions ---
+
+void set_mocked_uart_rx_event_type(HAL_UART_RxEventTypeTypeDef event_type) {
+    mocked_uart_rx_event_type = event_type;
+}
+
+uint32_t HAL_UARTEx_GetRxEventType(UART_HandleTypeDef *huart) {
+    return mocked_uart_rx_event_type;
+}
+
+uint32_t HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size) {
+   if (huart == NULL || pData == NULL) return HAL_ERROR;
+    uint32_t start_tick = current_tick;
+    uint16_t bytes_received = 0;
+
+    while(bytes_received < Size) {
+        if(uart_rx_buffer_read_pos >= uart_rx_buffer_count) {
+            break; // No Timeout in DMA version, just return the available data
+        }
+        pData[bytes_received] = uart_rx_buffer[uart_rx_buffer_read_pos];
+        uart_rx_buffer_read_pos++;
+        bytes_received++;
+    }
+
+    return bytes_received == Size ? 0 : 1; //HAL_OK if all bytes are received
 }
 
 #endif /* __x86_64__ */

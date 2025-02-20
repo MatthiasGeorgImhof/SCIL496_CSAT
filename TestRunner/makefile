@@ -20,13 +20,14 @@ TEST_FILES = TestLoggerCyphal.cpp \
              TestBoxSet.cpp \
              TestBoxSetIterator.cpp \
 			 TestCyphal.cpp \
-			 TestMockHal.cpp \
+			 TestTask.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestLogger.cpp \
 			 TestServiceManager.cpp \
 			 TestRegistrationManager.cpp \
 			 TestTaskSendHeartBeat.cpp \
-			 TestProcessRxQueue.cpp
+			 TestProcessRxQueue.cpp \
+			 TestMockHal
 
 SRC_FILES = ../Src/Logger.cpp \
             ../Src/ServiceManager.cpp \
@@ -68,6 +69,13 @@ $(BIN_DIR)/TestMockHal : $(BIN_DIR)/TestMockHal.o $(BIN_DIR)/mock_hal.o # Link t
 $(BIN_DIR)/mock_hal.o : ../Src/mock_hal.c
 	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
+# Rule for TestTask with extra sources
+$(BIN_DIR)/TestTask.o : TestTask.cpp ../Src/mock_hal.c
+	@echo "Compiling $< with extra sources"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTask : $(BIN_DIR)/TestTask.o $(BIN_DIR)/mock_hal.o # Link the object file
+	$(CXX) $(BIN_DIR)/TestTask.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Rule for TestLogger with extra sources
 $(BIN_DIR)/TestLogger.o : TestLogger.cpp
@@ -119,6 +127,14 @@ $(BIN_DIR)/TestProcessRxQueue.o : TestProcessRxQueue.cpp
 
 $(BIN_DIR)/TestProcessRxQueue : $(BIN_DIR)/TestProcessRxQueue.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/ServiceManager.o 
 	$(CXX) $(BIN_DIR)/TestProcessRxQueue.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/ServiceManager.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+
+# Rule for TestRegistrationManager with extra sources
+$(BIN_DIR)/TestRegistrationManager.o : TestRegistrationManager.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestRegistrationManager : $(BIN_DIR)/TestRegistrationManager.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestRegistrationManager.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

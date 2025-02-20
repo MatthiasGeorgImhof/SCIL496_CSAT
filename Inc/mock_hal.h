@@ -1,4 +1,3 @@
-#ifdef __x86_64__
 #ifndef MOCK_HAL_H
 #define MOCK_HAL_H
 
@@ -8,6 +7,20 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+
+// Error Codes
+#define HAL_OK  0
+#define HAL_ERROR 1
+#define HAL_BUSY  2
+#define HAL_TIMEOUT 3
+
+// Buffer sizes
+#define CAN_TX_BUFFER_SIZE 20
+#define CAN_RX_BUFFER_SIZE 20
+#define UART_TX_BUFFER_SIZE 256
+#define UART_RX_BUFFER_SIZE 256
+#define I2C_MEM_BUFFER_SIZE 256
+#define USB_TX_BUFFER_SIZE 256
 
 // Mock CAN Structures
 typedef struct {
@@ -88,6 +101,24 @@ typedef struct {
    I2C_InitTypeDef Instance;
 } I2C_HandleTypeDef;
 
+// --- Additions for UARTEx ---
+
+typedef uint32_t HAL_UART_RxEventTypeTypeDef; // Or whatever type is appropriate
+
+#define HAL_UART_RXEVENT_HT 0  // Choose a representative value.  Could be an enum.
+
+// Control the return value of HAL_UARTEx_GetRxEventType
+extern HAL_UART_RxEventTypeTypeDef mocked_uart_rx_event_type;
+void set_mocked_uart_rx_event_type(HAL_UART_RxEventTypeTypeDef event_type);
+
+// --- Additions for CAN ---
+
+typedef struct {
+    int dummy; // Minimal definition
+} CAN_HandleTypeDef;
+
+#define CAN_RX_FIFO0 0
+
 // ----- CAN Mock Functions -----
 uint32_t HAL_CAN_AddTxMessage(void *hcan, CAN_TxHeaderTypeDef *pHeader, uint8_t aData[], uint32_t *pTxMailbox);
 uint32_t HAL_CAN_GetRxMessage(void *hcan, uint32_t Fifo, CAN_RxHeaderTypeDef *pHeader, uint8_t aData[]);
@@ -137,8 +168,16 @@ void set_current_rx_fifo_fill_level(int rx_fifo_level);
 void set_current_tick(uint32_t tick);
 void init_uart_handle(UART_HandleTypeDef *huart);
 
+// UARTEx
+uint32_t HAL_UARTEx_GetRxEventType(UART_HandleTypeDef *huart);
+uint32_t HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+
+// Add a way to access the injected I2C parameters for assertions
+extern uint16_t mocked_i2c_dev_address;
+extern uint16_t mocked_i2c_mem_address;
+extern uint16_t mocked_i2c_mem_size;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 #endif /* MOCK_HAL_H */
-#endif /* __x86_64__ */

@@ -17,75 +17,94 @@
 constexpr size_t SERIAL_MTU = 640;
 constexpr size_t CAN_MTU = 8;
 
-struct SerialFrame { size_t size; uint8_t data[SERIAL_MTU]; };
-struct CanRxFrame { CAN_RxHeaderTypeDef header; uint8_t data[CAN_MTU]; };
+struct SerialFrame
+{
+    size_t size;
+    uint8_t data[SERIAL_MTU];
+};
+struct CanRxFrame
+{
+    CAN_RxHeaderTypeDef header;
+    uint8_t data[CAN_MTU];
+};
 
-// Common transfer processing function
-template <typename... Adapters>
-bool processTransfer(CyphalTransfer& transfer, ServiceManager* service_manager, std::tuple<Adapters...>& adapters, O1HeapInstance* o1heap) {
-    O1HeapAllocator<CyphalTransfer> alloc(o1heap);
-    std::shared_ptr<CyphalTransfer> transfer_ptr = std::allocate_shared<CyphalTransfer>(alloc, transfer);
-    service_manager->handleMessage(transfer_ptr);
+template<typename Allocator>
+class LoopManager
+{
+private:
+    Allocator &allocator_;
 
-    bool all_successful = true;
-    std::apply([&](auto&... adapter) {
-        ([&]() {
+public:
+    LoopManager(Allocator &allocator) : allocator_(allocator) {}
+
+    // Common transfer processing function
+    template <typename... Adapters>
+    bool processTransfer(CyphalTransfer &transfer, ServiceManager *service_manager, std::tuple<Adapters...> &adapters)
+    {
+        std::shared_ptr<CyphalTransfer> transfer_ptr = std::allocate_shared<CyphalTransfer>(allocator_, transfer);
+        service_manager->handleMessage(transfer_ptr);
+
+        bool all_successful = true;
+        std::apply([&](auto &...adapter)
+                   { ([&]()
+                      {
             int8_t res = adapter.cyphalTxPush(static_cast<CyphalMicrosecond>(0), &transfer.metadata, transfer.payload_size, transfer.payload);
-            all_successful = all_successful && (res > 0);
-        }(), ...);
-    }, adapters);
-    return all_successful; // Return success status
-}
-
-template <typename... Adapters>
-void CanProcessRxQueue(Cyphal<CanardAdapter> *cyphal, ServiceManager *service_manager, std::tuple<Adapters...>& adapters, O1HeapInstance* o1heap, CircularBuffer<CanRxFrame, 32>& can_rx_buffer)
-{
-    size_t num_frames = can_rx_buffer.size();
-    for(uint32_t n=0; n<num_frames; ++n)
-    {
-        CanRxFrame frame = can_rx_buffer.pop();
-        size_t frame_size = frame.header.DLC;
-        CyphalTransfer transfer;
-        int32_t result = cyphal->cyphalRxReceive(frame.header.ExtId, &frame_size, frame.data, &transfer);
-        if (result == 1)
-        {
-           processTransfer(transfer, service_manager, adapters, o1heap);
-        }
+            all_successful = all_successful && (res > 0); }(), ...); }, adapters);
+        return all_successful; // Return success status
     }
-}
 
-template <typename... Adapters>
-void SerialProcessRxQueue(Cyphal<SerardAdapter> *cyphal, ServiceManager *service_manager, std::tuple<Adapters...>& adapters, O1HeapInstance* o1heap, CircularBuffer<SerialFrame, 4>& serial_buffer)
-{
-    size_t num_frames = serial_buffer.size();
-    for(uint32_t n=0; n<num_frames; ++n)
+    template <typename... Adapters>
+    void CanProcessRxQueue(Cyphal<CanardAdapter> *cyphal, ServiceManager *service_manager, std::tuple<Adapters...> &adapters, CircularBuffer<CanRxFrame, 32> &can_rx_buffer)
     {
-        SerialFrame frame = serial_buffer.pop();
-        size_t frame_size = frame.size;
-        size_t shift = 0;
-        CyphalTransfer transfer;
-        for(;;)
-        {     int32_t result = cyphal->cyphalRxReceive(&frame_size, frame.data+shift, &transfer);
-
+        size_t num_frames = can_rx_buffer.size();
+        for (uint32_t n = 0; n < num_frames; ++n)
+        {
+            CanRxFrame frame = can_rx_buffer.pop();
+            size_t frame_size = frame.header.DLC;
+            CyphalTransfer transfer;
+            int32_t result = cyphal->cyphalRxReceive(frame.header.ExtId, &frame_size, frame.data, &transfer);
             if (result == 1)
             {
-                processTransfer(transfer, service_manager, adapters, o1heap);
+                processTransfer(transfer, service_manager, adapters);
             }
-
-            if (frame_size == 0) break;
-            shift = frame.size - frame_size;
         }
     }
-}
 
-template <typename... Adapters>
-void LoopProcessRxQueue(Cyphal<LoopardAdapter> *cyphal, ServiceManager *service_manager, std::tuple<Adapters...>& adapters, O1HeapInstance* o1heap)
-{
-    CyphalTransfer transfer;
-    while (cyphal->cyphalRxReceive(nullptr, nullptr, &transfer))
+    template <typename... Adapters>
+    void SerialProcessRxQueue(Cyphal<SerardAdapter> *cyphal, ServiceManager *service_manager, std::tuple<Adapters...> &adapters, CircularBuffer<SerialFrame, 4> &serial_buffer)
     {
-        processTransfer(transfer, service_manager, adapters, o1heap);
+        size_t num_frames = serial_buffer.size();
+        for (uint32_t n = 0; n < num_frames; ++n)
+        {
+            SerialFrame frame = serial_buffer.pop();
+            size_t frame_size = frame.size;
+            size_t shift = 0;
+            CyphalTransfer transfer;
+            for (;;)
+            {
+                int32_t result = cyphal->cyphalRxReceive(&frame_size, frame.data + shift, &transfer);
+
+                if (result == 1)
+                {
+                    processTransfer(transfer, service_manager, adapters);
+                }
+
+                if (frame_size == 0)
+                    break;
+                shift = frame.size - frame_size;
+            }
+        }
     }
-}
+
+    template <typename... Adapters>
+    void LoopProcessRxQueue(Cyphal<LoopardAdapter> *cyphal, ServiceManager *service_manager, std::tuple<Adapters...> &adapters)
+    {
+        CyphalTransfer transfer;
+        while (cyphal->cyphalRxReceive(nullptr, nullptr, &transfer))
+        {
+            processTransfer(transfer, service_manager, adapters);
+        }
+    }
+};
 
 #endif // RX_PROCESSING_HPP

@@ -45,6 +45,7 @@ TEST_CASE("HAL_CAN_AddTxMessage Extended ID") {
 
 TEST_CASE("HAL_CAN_GetRxMessage Standard ID") {
      CAN_RxHeaderTypeDef header;
+     CAN_HandleTypeDef hcan;
     uint8_t data[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     uint8_t rx_data[8];
 
@@ -54,7 +55,7 @@ TEST_CASE("HAL_CAN_GetRxMessage Standard ID") {
 
     inject_can_rx_message(header, data);
 
-    CHECK(HAL_CAN_GetRxMessage(NULL, 0, &header, rx_data) == 0);
+    CHECK(HAL_CAN_GetRxMessage(&hcan, 0, &header, rx_data) == 0);
     CHECK(header.StdId == 0x123);
     CHECK(header.IDE == 0);
     CHECK(header.DLC == 8);
@@ -63,7 +64,8 @@ TEST_CASE("HAL_CAN_GetRxMessage Standard ID") {
 
 
 TEST_CASE("HAL_CAN_GetRxMessage Extended ID") {
-     CAN_RxHeaderTypeDef header;
+    CAN_RxHeaderTypeDef header;
+    CAN_HandleTypeDef hcan;
     uint8_t data[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     uint8_t rx_data[8];
 
@@ -73,7 +75,7 @@ TEST_CASE("HAL_CAN_GetRxMessage Extended ID") {
 
     inject_can_rx_message(header, data);
 
-    CHECK(HAL_CAN_GetRxMessage(NULL, 0, &header, rx_data) == 0);
+    CHECK(HAL_CAN_GetRxMessage(&hcan, 0, &header, rx_data) == 0);
     CHECK(header.ExtId == 0x1234567);
     CHECK(header.IDE == 1);
     CHECK(header.DLC == 8);
@@ -238,4 +240,16 @@ TEST_CASE("HAL_I2C_Mem_Write") {
     I2C_HandleTypeDef hi2c;
     uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};
     CHECK(HAL_I2C_Mem_Write(&hi2c, 0x50, 0x20, 1, data, 4, 100) == 0);
+}
+
+TEST_CASE("HAL_UART_Transmit Buffer Overflow") {
+    UART_HandleTypeDef huart;
+    uint8_t data[UART_TX_BUFFER_SIZE + 1]; // Create data larger than the buffer
+    memset(data, 'A', sizeof(data));
+
+    //Fill the buffer partially
+    uint8_t partial_data[10] = {0};
+    HAL_UART_Transmit(&huart, partial_data, sizeof(partial_data), 1000);
+
+    CHECK(HAL_UART_Transmit(&huart, data, sizeof(data) - 1, 1000) == 1); // Expect HAL_ERROR
 }

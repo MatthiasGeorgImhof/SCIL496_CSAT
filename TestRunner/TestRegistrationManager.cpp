@@ -159,3 +159,71 @@ TEST_CASE("RegistrationManager: Register and Unregister Task with Tuple") {
     }
     CHECK(found == false);
 }
+
+constexpr CyphalPortID CYPHALPORT = 129; 
+
+void checkTransfers(const CyphalTransfer transfer1, const CyphalTransfer transfer2)
+{
+    CHECK(transfer1.metadata.port_id == transfer2.metadata.port_id);
+    CHECK(transfer1.payload_size == transfer2.payload_size);
+    CHECK(strncmp(static_cast<const char *>(transfer1.payload), static_cast<const char *>(transfer2.payload), transfer1.payload_size) == 0);
+}
+
+class BasicTaskFromBuffer : public TaskFromBuffer
+{
+public:
+BasicTaskFromBuffer(uint32_t interval, uint32_t tick, const CyphalTransfer transfer) : TaskFromBuffer(interval, tick), transfer_(transfer) {}
+    ~BasicTaskFromBuffer() override {}
+
+    void handleTaskImpl() override 
+    {
+        CHECK(buffer.size() == 1);
+
+        for(int i=0; i<buffer.size(); ++i)
+        {
+            auto transfer = buffer.pop();
+            checkTransfers(transfer_, *transfer);
+        }
+    }
+
+    void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+    {
+	    CyphalSubscription subscription = {CYPHALPORT, 2, CyphalTransferKindMessage};
+        std::tuple<> adapters;
+	    manager->subscribe(subscription, task, adapters);
+    }
+
+    void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) {}
+
+    CyphalTransfer transfer_;
+};
+
+
+TEST_CASE("RegistrationManager: TaskFromBuffer") {
+    constexpr CyphalPortID port_id = 123;
+    CyphalTransfer transfer;
+    transfer.metadata.priority = CyphalPriorityNominal;
+    transfer.metadata.transfer_kind = CyphalTransferKindMessage;
+    transfer.metadata.port_id = port_id;
+    transfer.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    transfer.metadata.transfer_id = 0;
+    transfer.payload_size = 5;
+    char payload[6] = "hello";
+    transfer.payload = payload;
+
+    
+    RegistrationManager manager;
+    std::shared_ptr<BasicTaskFromBuffer> basic_task_buffer = std::make_shared<BasicTaskFromBuffer>(100, 0, transfer);
+    HAL_SetTick(1000);
+
+    basic_task_buffer->registerTask(&manager, basic_task_buffer);
+    const ArrayList<TaskHandler, NUM_TASK_HANDLERS>& handlers = manager.getHandlers();
+    CHECK(handlers.size() == 1);
+
+    std::shared_ptr<CyphalTransfer> transfer_ptr = std::make_shared<CyphalTransfer>(transfer);
+    CHECK(transfer_ptr.use_count() == 1);
+    for(auto handler : handlers) handler.task->handleMessage(transfer_ptr);
+    CHECK(transfer_ptr.use_count() == 2);
+    for(auto handler : handlers) handler.task->handleTask();
+    CHECK(transfer_ptr.use_count() == 1);
+}

@@ -5,6 +5,8 @@
 #include "Allocator.hpp"
 #include "o1heap.h"
 #include "ProcessRxQueue.hpp"
+#include "RegistrationManager.hpp"
+
 
 void checkTransfers(const CyphalTransfer transfer1, const CyphalTransfer transfer2)
 {
@@ -14,6 +16,8 @@ void checkTransfers(const CyphalTransfer transfer1, const CyphalTransfer transfe
 }
 
 // Mock Task class that interacts with the ServiceManager
+constexpr CyphalPortID CYPHALPORT = 129; 
+
 class MockTask : public Task
 {
 public:
@@ -26,11 +30,44 @@ public:
     }
 
     void handleTaskImpl() override {}
-    void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) {}
+    void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+    {
+        CyphalSubscription subscription = {CYPHALPORT, 2, CyphalTransferKindMessage};
+        std::tuple<> adapters;
+        manager->subscribe(subscription, task, adapters);
+    }
     void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) {}
 
     CyphalTransfer transfer_;
 };
+
+class MockTaskFromBuffer : public TaskFromBuffer
+{
+public:
+MockTaskFromBuffer(uint32_t interval, uint32_t tick, const CyphalTransfer transfer) : TaskFromBuffer(interval, tick), transfer_(transfer) {}
+    ~MockTaskFromBuffer() override {}
+
+    void handleTaskImpl() override 
+    {
+        CHECK(buffer.size() == 1);
+
+        for(int i=0; i<buffer.size(); ++i)
+        {
+            auto transfer = buffer.pop();
+            checkTransfers(transfer_, *transfer);
+        }
+    }
+    void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+    {
+        CyphalSubscription subscription = {CYPHALPORT, 2, CyphalTransferKindMessage};
+        std::tuple<> adapters;
+        manager->subscribe(subscription, task, adapters);
+    }
+    void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) {}
+
+    CyphalTransfer transfer_;
+};
+
 
 TEST_CASE("processTransfer no forwarding")
 {
@@ -39,6 +76,7 @@ TEST_CASE("processTransfer no forwarding")
 
     char buffer[4192] __attribute__((aligned(256)));
     O1HeapInstance *o1heap = o1heapInit(buffer, 4192);
+    O1HeapAllocator<CyphalTransfer> alloc(o1heap);
 
     auto adapters = std::make_tuple();
 
@@ -60,7 +98,9 @@ TEST_CASE("processTransfer no forwarding")
     CHECK(task.use_count() == 2);
 
     // Exercise
-    bool result = processTransfer(transfer, &service_manager, adapters, o1heap);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    bool result = loop_manager.processTransfer(transfer, &service_manager, adapters);
 
     // Verify processTransfer was successful
     CHECK(result == true);
@@ -97,7 +137,9 @@ TEST_CASE("processTransfer with LoopardAdapter")
     CHECK(task.use_count() == 2);
 
     // Exercise
-    bool result = processTransfer(transfer, &service_manager, adapters, o1heap);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    bool result = loop_manager.processTransfer(transfer, &service_manager, adapters);
 
     // Verify processTransfer was successful
     CHECK(result == true);
@@ -159,7 +201,9 @@ TEST_CASE("processTransfer with LoopardAdapter and CanardAdapter")
     CHECK(task.use_count() == 2);
 
     // Exercise
-    bool result = processTransfer(transfer, &service_manager, adapters, o1heap);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    bool result = loop_manager.processTransfer(transfer, &service_manager, adapters);
 
     // Verify processTransfer was successful
     CHECK(result == true);
@@ -223,10 +267,12 @@ TEST_CASE("CanProcessRxQueue with CanardAdapter and MockTask")
     CHECK(task.use_count() == 2);
 
     CircularBuffer<CanRxFrame, 32> can_rx_buffer;
-    
+
     // Exercise
     CHECK(cyphal.cyphalTxPush(0, &transfer.metadata, transfer.payload_size, transfer.payload) == 1);
-    CanProcessRxQueue(&cyphal, &service_manager, adapters, o1heap, can_rx_buffer);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    loop_manager.CanProcessRxQueue(&cyphal, &service_manager, adapters, can_rx_buffer);
 
     // Verify processTransfer was successful, and the data in the can_rx_buffer has been cleared
     CHECK(can_rx_buffer.size() == 0);
@@ -235,7 +281,7 @@ TEST_CASE("CanProcessRxQueue with CanardAdapter and MockTask")
 
 TEST_CASE("CanProcessRxQueue multiple frames")
 {
-     // Setup
+    // Setup
     constexpr CyphalPortID port_id = 123;
     constexpr CyphalNodeID node_id = 11;
 
@@ -270,7 +316,7 @@ TEST_CASE("CanProcessRxQueue multiple frames")
     char payload2[7] = "world!";
     transfer2.payload = payload2;
 
-     ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
+    ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
     std::shared_ptr<MockTask> task1 = std::make_shared<MockTask>(10, 0, transfer1);
     CHECK(task1.use_count() == 1);
     handlers.push(TaskHandler{port_id, task1});
@@ -288,7 +334,9 @@ TEST_CASE("CanProcessRxQueue multiple frames")
     // Exercise
     CHECK(cyphal.cyphalTxPush(0, &transfer1.metadata, transfer1.payload_size, transfer1.payload) == 1);
     CHECK(cyphal.cyphalTxPush(0, &transfer2.metadata, transfer2.payload_size, transfer2.payload) == 1);
-    CanProcessRxQueue(&cyphal, &service_manager, adapters, o1heap, can_rx_buffer);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    loop_manager.CanProcessRxQueue(&cyphal, &service_manager, adapters, can_rx_buffer);
 
     // Verify processTransfer was successful, and the data in the can_rx_buffer has been cleared
     CHECK(can_rx_buffer.size() == 0);
@@ -342,7 +390,9 @@ TEST_CASE("SerialProcessRxQueue with SerardAdapter and MockTask")
 
     // Exercise
     CHECK(cyphal.cyphalTxPush(0, &transfer.metadata, transfer.payload_size, transfer.payload) == 1);
-    SerialProcessRxQueue(&cyphal, &service_manager, adapters, o1heap, serial_rx_buffer);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    loop_manager.SerialProcessRxQueue(&cyphal, &service_manager, adapters, serial_rx_buffer);
 
     // Verify processTransfer was successful, and the data in the can_rx_buffer has been cleared (should not be affected)
     CHECK(serial_rx_buffer.size() == 0);
@@ -351,7 +401,7 @@ TEST_CASE("SerialProcessRxQueue with SerardAdapter and MockTask")
 
 TEST_CASE("SerialProcessRxQueue multiple frames with Serard")
 {
-     // Setup
+    // Setup
     constexpr CyphalPortID port_id = 123;
     constexpr CyphalNodeID node_id = 11;
 
@@ -391,7 +441,7 @@ TEST_CASE("SerialProcessRxQueue multiple frames with Serard")
     char payload2[7] = "world!";
     transfer2.payload = payload2;
 
-     ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
+    ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
     std::shared_ptr<MockTask> task1 = std::make_shared<MockTask>(10, 0, transfer1);
     CHECK(task1.use_count() == 1);
     handlers.push(TaskHandler{port_id, task1});
@@ -409,10 +459,218 @@ TEST_CASE("SerialProcessRxQueue multiple frames with Serard")
     // Exercise
     CHECK(cyphal.cyphalTxPush(0, &transfer1.metadata, transfer1.payload_size, transfer1.payload) == 1);
     CHECK(cyphal.cyphalTxPush(0, &transfer2.metadata, transfer2.payload_size, transfer2.payload) == 1);
-    SerialProcessRxQueue(&cyphal, &service_manager, adapters, o1heap, serial_rx_buffer);
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    loop_manager.SerialProcessRxQueue(&cyphal, &service_manager, adapters, serial_rx_buffer);
 
     // Verify processTransfer was successful, and the data in the can_rx_buffer has been cleared (should not be affected)
     CHECK(serial_rx_buffer.size() == 0);
     CHECK(task1.use_count() == 2);
     CHECK(task2.use_count() == 2);
+}
+
+TEST_CASE("LoopProcessRxQueue with LoopardAdapter and MockTask")
+{
+    // Setup
+    constexpr CyphalPortID port_id = 123;
+
+    char buffer[4192] __attribute__((aligned(256)));
+    O1HeapInstance *o1heap = o1heapInit(buffer, 4192);
+
+    LoopardAdapter adapter;
+    Cyphal<LoopardAdapter> cyphal(&adapter);
+    auto adapters = std::make_tuple();
+
+    CyphalTransfer transfer;
+    transfer.metadata.priority = CyphalPriorityNominal;
+    transfer.metadata.transfer_kind = CyphalTransferKindMessage;
+    transfer.metadata.port_id = port_id;
+    transfer.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    transfer.metadata.transfer_id = 0;
+    transfer.payload_size = 5;
+    char payload[6] = "hello";
+    transfer.payload = payload;
+
+    ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
+    std::shared_ptr<MockTask> task = std::make_shared<MockTask>(10, 0, transfer);
+    CHECK(task.use_count() == 1);
+    handlers.push(TaskHandler{port_id, task});
+    ServiceManager service_manager(handlers);
+    CHECK(task.use_count() == 2);
+
+    // push to loop back, to mock a receive
+    adapter.buffer.push(transfer);
+
+    // Exercise
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    loop_manager.LoopProcessRxQueue(&cyphal, &service_manager, adapters);
+
+    // Verify processTransfer was successful, and the data in the can_rx_buffer has been cleared
+    CHECK(adapter.buffer.size() == 0);
+    CHECK(task.use_count() == 2);
+}
+
+TEST_CASE("LoopProcessRxQueue multiple frames with LoopardAdapter")
+{
+    // Setup
+    constexpr CyphalPortID port_id1 = 123;
+    constexpr CyphalPortID port_id2 = 124;
+
+    char buffer[4192] __attribute__((aligned(256)));
+    O1HeapInstance *o1heap = o1heapInit(buffer, 4192);
+
+    LoopardAdapter adapter;
+    Cyphal<LoopardAdapter> cyphal(&adapter);
+    auto adapters = std::make_tuple();
+
+    CyphalTransfer transfer1;
+    transfer1.metadata.priority = CyphalPriorityNominal;
+    transfer1.metadata.transfer_kind = CyphalTransferKindMessage;
+    transfer1.metadata.port_id = port_id1;
+    transfer1.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    transfer1.metadata.transfer_id = 0;
+    transfer1.payload_size = 5;
+    char payload1[6] = "hello";
+    transfer1.payload = payload1;
+
+    CyphalTransfer transfer2;
+    transfer2.metadata.priority = CyphalPriorityNominal;
+    transfer2.metadata.transfer_kind = CyphalTransferKindMessage;
+    transfer2.metadata.port_id = port_id2;
+    transfer2.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    transfer2.metadata.transfer_id = 1;
+    transfer2.payload_size = 6;
+    char payload2[7] = "world!";
+    transfer2.payload = payload2;
+
+    ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
+    std::shared_ptr<MockTask> task1 = std::make_shared<MockTask>(0, 0, transfer1);
+    CHECK(task1.use_count() == 1);
+    handlers.push(TaskHandler{port_id1, task1});
+
+    std::shared_ptr<MockTask> task2 = std::make_shared<MockTask>(0, 0, transfer2);
+    CHECK(task2.use_count() == 1);
+    handlers.push(TaskHandler{port_id2, task2});
+
+    ServiceManager service_manager(handlers);
+    CHECK(task1.use_count() == 2);
+    CHECK(task2.use_count() == 2);
+
+    // push to loop back, to mock a receive
+    adapter.buffer.push(transfer1);
+    adapter.buffer.push(transfer2);
+
+    // Exercise
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    loop_manager.LoopProcessRxQueue(&cyphal, &service_manager, adapters);
+
+    // Verify processTransfer was successful, and the data in the can_rx_buffer has been cleared
+    CHECK(adapter.buffer.size() == 0);
+    CHECK(task1.use_count() == 2);
+    CHECK(task2.use_count() == 2);
+}
+
+TEST_CASE("Full Loop Test with LoopardAdapter and MockTask")
+{
+    // Setup
+    constexpr CyphalPortID port_id = 123;
+
+    char buffer[4192] __attribute__((aligned(256)));
+    O1HeapInstance *o1heap = o1heapInit(buffer, 4192);
+
+    LoopardAdapter adapter;
+    Cyphal<LoopardAdapter> cyphal(&adapter);
+    auto adapters = std::make_tuple();
+
+    CyphalTransfer transfer;
+    transfer.metadata.priority = CyphalPriorityNominal;
+    transfer.metadata.transfer_kind = CyphalTransferKindMessage;
+    transfer.metadata.port_id = port_id;
+    transfer.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    transfer.metadata.transfer_id = 0;
+    transfer.payload_size = 5;
+    char payload[6] = "hello";
+    transfer.payload = payload;
+
+    ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
+    std::shared_ptr<MockTask> task1 = std::make_shared<MockTask>(10, 0, transfer);
+    std::shared_ptr<MockTask> task2 = std::make_shared<MockTask>(10, 0, transfer);
+    handlers.push(TaskHandler{port_id, task1});
+    handlers.push(TaskHandler{port_id, task2});
+    ServiceManager service_manager(handlers);
+
+    O1HeapDiagnostics diagnostics = o1heapGetDiagnostics(o1heap);
+    size_t allocated = diagnostics.allocated;
+
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+    for (int i = 0; i < 13; ++i)
+    {
+        diagnostics = o1heapGetDiagnostics(o1heap);
+        CHECK(diagnostics.allocated == allocated);
+        allocated = diagnostics.allocated;
+        adapter.buffer.push(transfer);
+        loop_manager.LoopProcessRxQueue(&cyphal, &service_manager, adapters);
+        diagnostics = o1heapGetDiagnostics(o1heap);
+        CHECK(diagnostics.allocated == allocated);
+        allocated = diagnostics.allocated;        
+    }
+}
+
+TEST_CASE("Full Loop Test with LoopardAdapter and MockTaskFromBuffer")
+{
+    // Setup
+    constexpr CyphalPortID port_id = 123;
+
+    char buffer[4192] __attribute__((aligned(256)));
+    O1HeapInstance *o1heap = o1heapInit(buffer, 4192);
+
+    LoopardAdapter adapter;
+    Cyphal<LoopardAdapter> cyphal(&adapter);
+    auto adapters = std::make_tuple();
+
+    CyphalTransfer transfer1;
+    transfer1.metadata.priority = CyphalPriorityNominal;
+    transfer1.metadata.transfer_kind = CyphalTransferKindMessage;
+    transfer1.metadata.port_id = port_id;
+    transfer1.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+    transfer1.metadata.transfer_id = 0;
+    transfer1.payload_size = 5;
+    char payload1[6] = "hello";
+    transfer1.payload = payload1;
+
+    ArrayList<TaskHandler, NUM_TASK_HANDLERS> handlers;
+    std::shared_ptr<MockTaskFromBuffer> task1 = std::make_shared<MockTaskFromBuffer>(10, 0, transfer1);
+    handlers.push(TaskHandler{port_id, task1});
+    CHECK(handlers.size() == 1);
+    ServiceManager service_manager(handlers);
+
+    O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
+
+    O1HeapDiagnostics diagnostics = o1heapGetDiagnostics(o1heap);
+    size_t allocated = diagnostics.allocated;
+
+    for (int i = 0; i < 13; ++i)
+    {
+        HAL_SetTick(HAL_GetTick() + 100);
+        adapter.buffer.push(transfer1);
+        CHECK(adapter.buffer.size() == 1);
+        diagnostics = o1heapGetDiagnostics(o1heap);
+        CHECK(diagnostics.allocated == 0);
+        allocated = diagnostics.allocated;
+
+        loop_manager.LoopProcessRxQueue(&cyphal, &service_manager, adapters); // adapters are for forwarding!
+        diagnostics = o1heapGetDiagnostics(o1heap);
+        CHECK(diagnostics.allocated != allocated);
+        allocated = diagnostics.allocated;
+		
+        service_manager.handleServices();
+        diagnostics = o1heapGetDiagnostics(o1heap);
+        CHECK(diagnostics.allocated != allocated);
+        CHECK(diagnostics.allocated == 0);
+        allocated = diagnostics.allocated;
+    }
 }
