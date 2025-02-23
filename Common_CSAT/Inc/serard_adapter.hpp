@@ -105,7 +105,6 @@ public:
                             const void *const payload,
                             const CyphalNodeID node_id)
     {
-        SerardTransferMetadata serard_metadata = cyphalMetadataToSerard(*metadata);
         SerardNodeID node_id_ = getNodeID();
         setNodeID(node_id);
         int32_t res = cyphalTxPush(tx_deadline_usec, metadata, payload_size, payload);

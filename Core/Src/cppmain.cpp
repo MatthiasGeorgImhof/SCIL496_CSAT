@@ -73,18 +73,15 @@ bool serialSendHuart3(void* user_reference, uint8_t data_size, const uint8_t* da
 	return (HAL_UART_Transmit(huart3_, data, data_size, 1000) == HAL_OK);
 }
 
-constexpr CanardNodeID canard_node_id = 0x6f;
-constexpr SerardNodeID serard_node_id = static_cast<SerardNodeID>(canard_node_id);
+constexpr CyphalNodeID cyphal_node_id = 11;
+
 
 constexpr uint32_t SERIAL_TIMEOUT = 1000;
 constexpr size_t SERIAL_BUFFER_SIZE = 4;
-//constexpr size_t SERIAL_MTU = 640;
-//struct SerialFrame { size_t size; uint8_t data[SERIAL_MTU]; };
-CircularBuffer<SerialFrame, SERIAL_BUFFER_SIZE> serial_buffer;
+using SerialCircularBuffer = CircularBuffer<SerialFrame, SERIAL_BUFFER_SIZE>;
+SerialCircularBuffer serial_buffer;
 
 constexpr size_t CAN_RX_BUFFER_SIZE = 32;
-//constexpr size_t CAN_MTU = 8;
-//struct CanRxFrame { CAN_RxHeaderTypeDef header; uint8_t data[CAN_MTU]; };
 CircularBuffer<CanRxFrame, CAN_RX_BUFFER_SIZE> can_rx_buffer;
 
 CanardTransferMetadata convert(const SerardTransferMetadata serard)
@@ -131,6 +128,20 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+bool serial_send(void* user_reference, uint8_t data_size, const uint8_t* data)
+{
+	HAL_StatusTypeDef status = HAL_UART_Transmit(huart2_, data, data_size, 1000);
+// 	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&huart2_, data, data_size);
+
+ 	return status == HAL_OK;;
+}
+#ifdef __cplusplus
+}
+#endif
+
 
 void cppmain(HAL_Handles handles)
 {
@@ -142,29 +153,37 @@ void cppmain(HAL_Handles handles)
 
     LoopardAdapter loopard_adapter;
     Cyphal<LoopardAdapter> loopard_cyphal(&loopard_adapter);
-    loopard_cyphal.setNodeID(11);
+    loopard_cyphal.setNodeID(cyphal_node_id);
 
-    CanardAdapter canard_adapter;
-    canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
-    canard_adapter.ins.node_id = 11;
-    canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
-    Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
-    canard_cyphal.setNodeID(12);
+//    CanardAdapter canard_adapter;
+//    canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
+//    canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
+//    Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
+//    canard_cyphal.setNodeID(cyphal_node_id);
 
-	RegistrationManager registration_manager;
+    SerardAdapter serard_adapter;
+    struct SerardMemoryResource serard_memory_resource = {&serard_adapter.ins, serardMemoryDeallocate, serardMemoryAllocate};
+    serard_adapter.ins = serardInit(serard_memory_resource, serard_memory_resource);
+    serard_adapter.emitter = serial_send;
+    Cyphal<SerardAdapter> serard_cyphal(&serard_adapter);
+    serard_cyphal.setNodeID(cyphal_node_id);
 
-	std::tuple<Cyphal<LoopardAdapter>, Cyphal<CanardAdapter>> adapters = { loopard_cyphal, canard_cyphal};
-	O1HeapAllocator<TaskSendHeartBeat<Cyphal<LoopardAdapter>, Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<LoopardAdapter>, Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, adapters));
+	std::tuple<Cyphal<LoopardAdapter>, Cyphal<SerardAdapter>> adapters = { loopard_cyphal, serard_cyphal };
+
+    RegistrationManager registration_manager;
+
+	O1HeapAllocator<TaskSendHeartBeat<Cyphal<LoopardAdapter>, Cyphal<SerardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<LoopardAdapter>, Cyphal<SerardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, adapters));
 
 	ServiceManager service_manager(registration_manager.getHandlers());
 
-	log(LOG_LEVEL_INFO, "asfd");
-
-	log(LOG_LEVEL_INFO, "Logger test");
+	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+    LoopManager loop_manager(allocator);
 	while(1)
 	{
 		log(LOG_LEVEL_INFO, "while loop");
+		loop_manager.SerialProcessRxQueue(&serard_cyphal, &service_manager, adapters, serial_buffer);
+		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, adapters);
 		service_manager.handleServices();
 	}
 }
