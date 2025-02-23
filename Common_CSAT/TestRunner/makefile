@@ -14,20 +14,21 @@ LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
-TEST_FILES = TestLoggerCyphal.cpp \
-			 TestArrayList.cpp \
-             TestCircularBuffer.cpp \
+TEST_FILES = TestArrayList.cpp \
+			 TestCyphal.cpp \
+			 TestLogger.cpp \
+			 TestLoggerCyphal.cpp \
+			 TestMockHal.cpp \
+			 TestO1HeapAllocator.cpp \
+			 TestProcessRxQueue.cpp \
+			 TestRegistrationManager.cpp \
+			 TestServiceManager.cpp \
+			 TestTask.cpp \
+			 TestTaskCheckMemory.cpp \
+			 TestTaskSendHeartBeat.cpp \
              TestBoxSet.cpp \
              TestBoxSetIterator.cpp \
-			 TestCyphal.cpp \
-			 TestTask.cpp \
-			 TestO1HeapAllocator.cpp \
-			 TestLogger.cpp \
-			 TestServiceManager.cpp \
-			 TestRegistrationManager.cpp \
-			 TestTaskSendHeartBeat.cpp \
-			 TestProcessRxQueue.cpp \
-			 TestMockHal
+             TestCircularBuffer.cpp 
 
 SRC_FILES = ../Src/Logger.cpp \
             ../Src/ServiceManager.cpp \
@@ -119,6 +120,17 @@ $(BIN_DIR)/TestTaskSendHeartBeat.o : TestTaskSendHeartBeat.cpp
 
 $(BIN_DIR)/TestTaskSendHeartBeat : $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/mock_hal.o
 	$(CXX) $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+
+# Rule for TestTaskCheckMemory with extra sources
+$(BIN_DIR)/TestTaskCheckMemory.o : TestTaskCheckMemory.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TaskCheckMemory.o : ../Src/TaskCheckMemory.cpp
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskCheckMemory : $(BIN_DIR)/TestTaskCheckMemory.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/TaskCheckMemory.o 
+	$(CXX) $(BIN_DIR)/TestTaskCheckMemory.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/TaskCheckMemory.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Rule for TestProcessRxQueue with extra sources
 $(BIN_DIR)/TestProcessRxQueue.o : TestProcessRxQueue.cpp
