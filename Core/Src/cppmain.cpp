@@ -27,6 +27,8 @@
 #include "RegistrationManager.hpp"
 #include "ServiceManager.hpp"
 #include "ProcessRxQueue.hpp"
+#include "TaskCheckMemory.hpp"
+#include "TaskBlinkLED.hpp"
 #include "TaskSendHeartBeat.hpp"
 
 #include <cppmain.h>
@@ -174,6 +176,12 @@ void cppmain(HAL_Handles handles)
 
 	O1HeapAllocator<TaskSendHeartBeat<Cyphal<LoopardAdapter>, Cyphal<SerardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<LoopardAdapter>, Cyphal<SerardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, adapters));
+
+	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOC, LED1_Pin, 1000, 100));
+
+	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
 
 	ServiceManager service_manager(registration_manager.getHandlers());
 

@@ -29,7 +29,6 @@ void TaskCheckMemory::handleTaskImpl()
 	bool heap_health = o1heapDoInvariantsHold(o1heap);
 	O1HeapDiagnostics diagnostic = o1heapGetDiagnostics(o1heap);
 	{
-		char message[256];
 		log(LOG_LEVEL_INFO, "Memory: %d, (%4d %4d %4d)", heap_health, diagnostic.capacity, diagnostic.peak_allocated, diagnostic.allocated);
 	}
 }

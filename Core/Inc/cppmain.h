@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 #include "main.h"
+#include "stm32l4xx_hal.h"
 
 struct HAL_Handles {
 	UART_HandleTypeDef *huart2;
