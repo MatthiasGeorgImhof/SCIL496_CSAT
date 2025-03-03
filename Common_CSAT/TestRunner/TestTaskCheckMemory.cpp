@@ -37,8 +37,9 @@ private:
 TEST_CASE("TaskCheckMemory")
 {
     // Create an O1Heap instance (you might need to adjust parameters)
-    uint8_t buffer[4096];
+    uint8_t buffer[4096] __attribute__ ((aligned (256)));
     O1HeapInstance *heap = o1heapInit((O1HeapInstance *)buffer, sizeof(buffer));
+    CHECK(heap != nullptr);
 
     // Create a TaskCheckMemory instance
     TaskCheckMemory task(heap, 100, 0); // Interval = 100, Shift = 0
