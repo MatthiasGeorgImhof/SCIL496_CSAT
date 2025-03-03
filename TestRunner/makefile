@@ -24,6 +24,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestRegistrationManager.cpp \
 			 TestServiceManager.cpp \
 			 TestTask.cpp \
+			 TestTaskBlinkLED.cpp \
 			 TestTaskCheckMemory.cpp \
 			 TestTaskSendHeartBeat.cpp \
              TestBoxSet.cpp \
@@ -120,6 +121,17 @@ $(BIN_DIR)/TestTaskSendHeartBeat.o : TestTaskSendHeartBeat.cpp
 
 $(BIN_DIR)/TestTaskSendHeartBeat : $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/mock_hal.o
 	$(CXX) $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+
+# Rule for TestTaskBlinkLED with extra sources
+$(BIN_DIR)/TestTaskBlinkLED.o : TestTaskBlinkLED.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TaskBlinkLED.o : ../Src/TaskBlinkLED.cpp
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskBlinkLED : $(BIN_DIR)/TestTaskBlinkLED.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestTaskBlinkLED.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Rule for TestTaskCheckMemory with extra sources
 $(BIN_DIR)/TestTaskCheckMemory.o : TestTaskCheckMemory.cpp

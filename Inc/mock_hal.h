@@ -22,6 +22,26 @@ extern "C" {
 #define I2C_MEM_BUFFER_SIZE 256
 #define USB_TX_BUFFER_SIZE 256
 
+// GPIO Definitions (minimal)
+typedef struct {
+    uint32_t Pin;
+    uint32_t Mode;
+    uint32_t Pull;
+    uint32_t Speed;
+    uint32_t Alternate;
+} GPIO_InitTypeDef;
+
+typedef struct {
+    void *Instance; // e.g., GPIOA, GPIOB, etc.  Use void* for mocking
+    GPIO_InitTypeDef Init;
+} GPIO_TypeDef;
+
+// GPIO Pin State Definition
+typedef enum {
+    GPIO_PIN_RESET = 0,
+    GPIO_PIN_SET = 1
+} GPIO_PinState;
+
 // Mock CAN Structures
 typedef struct {
     uint32_t StdId;
@@ -148,6 +168,11 @@ void clear_usb_tx_buffer();
 int get_usb_tx_buffer_count();
 uint8_t* get_usb_tx_buffer();
 
+// ---- GPIO Mock Functions -----
+void HAL_GPIO_Init(GPIO_TypeDef *GPIOx, GPIO_InitTypeDef *GPIO_Init);
+GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
+void HAL_GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState);
+void HAL_GPIO_TogglePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
 
 // ----- Injector and Deleter Functions ------
 void inject_can_rx_message(CAN_RxHeaderTypeDef header, uint8_t data[]);
@@ -158,6 +183,7 @@ void clear_uart_rx_buffer();
 void clear_uart_tx_buffer();
 void inject_i2c_mem_data(uint16_t DevAddress, uint16_t MemAddress,uint8_t *data, uint16_t size);
 void clear_i2c_mem_data();
+
 // Getters to access buffers
 int get_can_tx_buffer_count();
 CAN_TxMessage_t get_can_tx_message(int pos);
@@ -176,6 +202,10 @@ uint32_t HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData,
 extern uint16_t mocked_i2c_dev_address;
 extern uint16_t mocked_i2c_mem_address;
 extern uint16_t mocked_i2c_mem_size;
+
+// GPIO Access Functions
+GPIO_PinState get_gpio_pin_state(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
+void set_gpio_pin_state(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState);
 
 #ifdef __cplusplus
 }
