@@ -99,7 +99,7 @@ GPIO_TypeDef *GPIOC = nullptr;
 #define LED5_Pin GPIO_PIN_8
 #define LED5_GPIO_Port GPIOA
 
-TEST_CASE("TaskCheckMemory")
+TEST_CASE("TaskMainLoop: TaskSendHeartBeat TaskBlinkLED TaskCheckMemory")
 {
     o1heap = o1heapInit(o1heap_buffer, O1HEAP_SIZE);
     CHECK(o1heap != nullptr);
@@ -133,13 +133,20 @@ TEST_CASE("TaskCheckMemory")
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
     LoopManager loop_manager(allocator);
 	
-    for(uint32_t tick=0; tick<=30000; tick+=1000)
+    O1HeapDiagnostics diagnostic_before = o1heapGetDiagnostics(o1heap);
+    clear_uart_tx_buffer();
+
+    for(uint32_t tick=3000; tick<=90000; tick+=3000)
 	{
 		HAL_SetTick(tick);
         log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
 		loop_manager.SerialProcessRxQueue(&serard_cyphal, &service_manager, adapters, serial_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, adapters);
 		service_manager.handleServices();
-	}
-
+	
+        CHECK(get_uart_tx_buffer_count() != 0);
+        clear_uart_tx_buffer();
+    }
+    O1HeapDiagnostics diagnostic_after = o1heapGetDiagnostics(o1heap);
+    CHECK(diagnostic_before.allocated == diagnostic_after.allocated);
 }
