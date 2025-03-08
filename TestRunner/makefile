@@ -29,11 +29,14 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSendHeartBeat.cpp \
              TestBoxSet.cpp \
              TestBoxSetIterator.cpp \
-             TestCircularBuffer.cpp 
+             TestCircularBuffer.cpp \
+             TestMainLoop.cpp 
 
 SRC_FILES = ../Src/Logger.cpp \
             ../Src/ServiceManager.cpp \
-            ../Src/mock_hal.c   # Keep C source files separate if needed.
+			../Src/TaskBlinkLED.cpp \
+			../Src/TaskCheckMemory.cpp \
+            ../Src/mock_hal.c
 
 # Extract the names for the targets from the source files
 TEST_NAMES = $(TEST_FILES:.cpp=)
@@ -143,6 +146,14 @@ $(BIN_DIR)/TaskCheckMemory.o : ../Src/TaskCheckMemory.cpp
 
 $(BIN_DIR)/TestTaskCheckMemory : $(BIN_DIR)/TestTaskCheckMemory.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/TaskCheckMemory.o 
 	$(CXX) $(BIN_DIR)/TestTaskCheckMemory.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/TaskCheckMemory.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
+
+# Rule for TestMainLoop with extra sources
+$(BIN_DIR)/TestMainLoop.o : TestMainLoop.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMainLoop : $(BIN_DIR)/TestMainLoop.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/TaskCheckMemory.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/ServiceManager.o
+	$(CXX) $(BIN_DIR)/TestMainLoop.o $(BIN_DIR)/mock_hal.o $(BIN_DIR)/TaskCheckMemory.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/ServiceManager.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Rule for TestProcessRxQueue with extra sources
 $(BIN_DIR)/TestProcessRxQueue.o : TestProcessRxQueue.cpp

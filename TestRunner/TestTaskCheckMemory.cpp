@@ -61,5 +61,5 @@ TEST_CASE("TaskCheckMemory")
 
     // Check that handleTaskImpl() was called after interval has passed
     O1HeapDiagnostics diagnostic_after = o1heapGetDiagnostics(heap);
-
+    CHECK(diagnostic_before.allocated == diagnostic_after.allocated);
 }
