@@ -36,7 +36,7 @@ public:
 	void initialize(uint32_t now) { last_tick_ = now + shift_; }
 
 protected:
-	bool check() { return HAL_GetTick() > interval_ + last_tick_; }
+	bool check() { return HAL_GetTick() >= interval_ + last_tick_; }
 	virtual void update(uint32_t now) { last_tick_ = now; }
 
 public:
