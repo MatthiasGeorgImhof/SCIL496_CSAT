@@ -674,3 +674,44 @@ TEST_CASE("Full Loop Test with LoopardAdapter and MockTaskFromBuffer")
         allocated = diagnostics.allocated;
     }
 }
+
+// TEST_CASE("CanProcessTxQueue with CanardAdapter")
+// {
+//     // Setup
+//     constexpr CyphalPortID port_id = 123;
+//     constexpr CyphalNodeID node_id = 11;
+
+//     char buffer[4192] __attribute__((aligned(256)));
+//     O1HeapInstance *o1heap = o1heapInit(buffer, 4192);
+
+//     CanardAdapter canard_adapter;
+//     canard_adapter.ins = canardInit(canardMemoryAllocate, canardMemoryFree);
+//     canard_adapter.ins.node_id = node_id;
+//     canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
+//     Cyphal<CanardAdapter> cyphal(&canard_adapter);
+
+//     CyphalTransfer transfer;
+//     transfer.metadata.priority = CyphalPriorityNominal;
+//     transfer.metadata.transfer_kind = CyphalTransferKindMessage;
+//     transfer.metadata.port_id = port_id;
+//     transfer.metadata.remote_node_id = CYPHAL_NODE_ID_UNSET;
+//     transfer.metadata.transfer_id = 0;
+//     transfer.payload_size = 5;
+//     char payload[6] = "hello";
+//     transfer.payload = payload;
+
+//     // Push a transfer into the Canard queue
+//     CHECK(cyphal.cyphalTxPush(0, &transfer.metadata, transfer.payload_size, transfer.payload) == 1);
+
+//     // Exercise
+//     O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+//     LoopManager loop_manager(allocator);
+//     CAN_HandleTypeDef hcan_mock; //Create a mock
+//     loop_manager.CanProcessTxQueue(&canard_adapter.que, &hcan_mock);
+
+//     // Verify that a message was added to the mock CAN hardware
+//     CHECK(canard_adapter.que.size == 0); // Ensure the queue has been emptied.
+//     CHECK(get_can_tx_buffer_count() == 1); //Check tx buffer count.
+
+//     // Optional: Add more assertions to check specific contents of the sent message if needed.
+// }
