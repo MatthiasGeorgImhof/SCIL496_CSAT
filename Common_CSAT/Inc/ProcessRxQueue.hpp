@@ -22,6 +22,7 @@ struct SerialFrame
     size_t size;
     uint8_t data[SERIAL_MTU];
 };
+
 struct CanRxFrame
 {
     CAN_RxHeaderTypeDef header;
@@ -105,6 +106,24 @@ public:
             processTransfer(transfer, service_manager, adapters);
         }
     }
+
+    void CanProcessTxQueue(CanardTxQueue* queue, CAN_HandleTypeDef *hcan)
+    {
+        for (const CanardTxQueueItem *ti = NULL; (ti = canardTxPeek(queue)) != NULL;)
+        {
+            if (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0) return;
+    
+            CAN_TxHeaderTypeDef header;
+            header.ExtId = ti->frame.extended_can_id;
+            header.DLC = ti->frame.payload_size;
+            header.RTR = CAN_RTR_DATA;
+            header.IDE = CAN_ID_EXT;
+
+            uint32_t mailbox;
+            HAL_CAN_AddTxMessage(hcan, &header, static_cast<uint8_t*>(const_cast<void*>(ti->frame.payload)), &mailbox);
+        }
+    }
+
 };
 
 #endif // RX_PROCESSING_HPP
