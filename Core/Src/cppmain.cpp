@@ -40,6 +40,8 @@ DMA_HandleTypeDef *hdma_usart2_tx_;
 UART_HandleTypeDef *huart3_;
 DMA_HandleTypeDef *hdma_usart3_rx_;
 DMA_HandleTypeDef *hdma_usart3_tx_;
+CAN_HandleTypeDef hcan1_;
+CAN_HandleTypeDef hcan2_;
 
 constexpr size_t O1HEAP_SIZE = 16384;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
@@ -75,8 +77,11 @@ bool serialSendHuart3(void* user_reference, uint8_t data_size, const uint8_t* da
 	return (HAL_UART_Transmit(huart3_, data, data_size, 1000) == HAL_OK);
 }
 
-constexpr CyphalNodeID cyphal_node_id = 11;
+#ifndef CYPHAL_NODE_ID
+#define CYPHAL_NODE_ID 11
+#endif
 
+constexpr CyphalNodeID cyphal_node_id = CYPHAL_NODE_ID;
 
 constexpr uint32_t SERIAL_TIMEOUT = 1000;
 constexpr size_t SERIAL_BUFFER_SIZE = 4;
@@ -133,8 +138,41 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 #ifdef __cplusplus
 extern "C" {
 #endif
+void log_string(unsigned int level, const char *message, const char *str)
+{
+    log(level, message, str);
+}
+
+int uchar_buffer_to_hex(const unsigned char* uchar_buffer, size_t uchar_len, char* hex_string_buffer, size_t hex_string_buffer_size) {
+    if (uchar_buffer == NULL || hex_string_buffer == NULL || uchar_len == 0 || hex_string_buffer_size == 0) {
+        return -1; // Error: Invalid input
+    }
+
+    // Calculate the required buffer size (2 hex chars per byte + 1 space per byte + null terminator)
+    size_t required_size = uchar_len * 3 + 1;
+
+    if (hex_string_buffer_size < required_size) {
+        return -1; // Error: Buffer too small
+    }
+
+    // Convert each uchar to its hexadecimal representation with spaces
+    for (size_t i = 0; i < uchar_len; i++) {
+        snprintf(hex_string_buffer + (i * 3), 3, "%02X", uchar_buffer[i]);  //Write 2 hex characters
+        hex_string_buffer[(i * 3) + 2] = ' ';                            //Write a space after the hex characters
+    }
+
+    hex_string_buffer[uchar_len * 3 -1] = '\0'; //Remove trailing space and Null-terminate the string
+
+    return 0; // Success
+}
+
 bool serial_send(void* user_reference, uint8_t data_size, const uint8_t* data)
 {
+	constexpr size_t BUFFER_SIZE = 256;
+	char hex_string_buffer[BUFFER_SIZE];
+	uchar_buffer_to_hex(data, data_size, hex_string_buffer, BUFFER_SIZE);
+	log_string(LOG_LEVEL_INFO, "serial send: %s \r\n", hex_string_buffer);
+
 	HAL_StatusTypeDef status = HAL_UART_Transmit(huart2_, data, data_size, 1000);
 // 	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&huart2_, data, data_size);
 
@@ -149,6 +187,9 @@ void cppmain(HAL_Handles handles)
 {
 	huart2_ = handles.huart2;
 	huart3_ = handles.huart3;
+	hcan1_ = handles.hcan1;
+	hcan2_ = handles.hcan2;
+
 
 	o1heap = o1heapInit(o1heap_buffer, O1HEAP_SIZE);
 	O1HeapAllocator<CanardRxTransfer> alloc(o1heap);
@@ -157,12 +198,12 @@ void cppmain(HAL_Handles handles)
     Cyphal<LoopardAdapter> loopard_cyphal(&loopard_adapter);
     loopard_cyphal.setNodeID(cyphal_node_id);
 
-////    CanardAdapter canard_adapter;
-////    canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
-////    canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
-////    Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
-////    canard_cyphal.setNodeID(cyphal_node_id);
-//
+    CanardAdapter canard_adapter;
+    canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
+    canard_adapter.que = canardTxInit(16, CANARD_MTU_CAN_CLASSIC);
+    Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
+    canard_cyphal.setNodeID(cyphal_node_id);
+
     SerardAdapter serard_adapter;
     struct SerardMemoryResource serard_memory_resource = {&serard_adapter.ins, serardMemoryDeallocate, serardMemoryAllocate};
     serard_adapter.ins = serardInit(serard_memory_resource, serard_memory_resource);
@@ -170,12 +211,15 @@ void cppmain(HAL_Handles handles)
     Cyphal<SerardAdapter> serard_cyphal(&serard_adapter);
     serard_cyphal.setNodeID(cyphal_node_id);
 
-	std::tuple<Cyphal<SerardAdapter>> adapters = { serard_cyphal };
+	std::tuple<Cyphal<SerardAdapter>, Cyphal<CanardAdapter>> sercan_adapters = { serard_cyphal, canard_cyphal };
+	std::tuple<Cyphal<SerardAdapter>> serard_adapters = { serard_cyphal };
+	std::tuple<Cyphal<CanardAdapter>> canard_adapters = { canard_cyphal };
+	std::tuple<> empty_adapters = {} ;
 
     RegistrationManager registration_manager;
 
-	O1HeapAllocator<TaskSendHeartBeat<Cyphal<SerardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<SerardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, adapters));
+	O1HeapAllocator<TaskSendHeartBeat<Cyphal<SerardAdapter>, Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<SerardAdapter>, Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, sercan_adapters));
 
 	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOC, LED1_Pin, 1000, 100));
@@ -190,8 +234,11 @@ void cppmain(HAL_Handles handles)
 	while(1)
 	{
 		log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
-		loop_manager.SerialProcessRxQueue(&serard_cyphal, &service_manager, adapters, serial_buffer);
-		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, adapters);
+		log(LOG_LEVEL_DEBUG, "canard queue: %2d %2d\r\n", canard_adapter.que.capacity, canard_adapter.que.size);
+//		loop_manager.CanProcessTxQueue(&canard_adapter, &hcan1_);
+		loop_manager.SerialProcessRxQueue(&serard_cyphal, &service_manager, canard_adapters, serial_buffer);
+		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, serard_adapters, can_rx_buffer);
+		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 	}
 }

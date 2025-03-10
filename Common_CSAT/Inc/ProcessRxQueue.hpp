@@ -13,6 +13,7 @@
 #include "ServiceManager.hpp"
 #include "o1heap.h"
 #include "Allocator.hpp"
+#include "Logger.hpp"
 
 constexpr size_t SERIAL_MTU = 640;
 constexpr size_t CAN_MTU = 8;
@@ -107,9 +108,10 @@ public:
         }
     }
 
-    void CanProcessTxQueue(CanardTxQueue* queue, CAN_HandleTypeDef *hcan)
+    void CanProcessTxQueue(CanardAdapter* adapter, CAN_HandleTypeDef *hcan)
     {
-        for (const CanardTxQueueItem *ti = NULL; (ti = canardTxPeek(queue)) != NULL;)
+    	log(LOG_LEVEL_DEBUG, "CanProcessTxQueue: %2d %2d %8x\r\n", adapter->que.capacity, adapter->que.size, canardTxPeek(&adapter->que));
+    	for (const CanardTxQueueItem *ti = NULL; (ti = canardTxPeek(&adapter->que)) != NULL;)
         {
             if (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0) return;
     
@@ -118,9 +120,12 @@ public:
             header.DLC = ti->frame.payload_size;
             header.RTR = CAN_RTR_DATA;
             header.IDE = CAN_ID_EXT;
-
+    		log(LOG_LEVEL_DEBUG, "CanProcessTxQueue: %2d %2d\r\n", adapter->que.capacity, adapter->que.size);
+            log(LOG_LEVEL_DEBUG, "CanProcessTxQueue: %4d %4d\r\n", header.ExtId, header.DLC);
             uint32_t mailbox;
-            HAL_CAN_AddTxMessage(hcan, &header, static_cast<uint8_t*>(const_cast<void*>(ti->frame.payload)), &mailbox);
+//            if (HAL_CAN_AddTxMessage(hcan, &header, static_cast<uint8_t*>(const_cast<void*>(ti->frame.payload)), &mailbox) != HAL_OK) return;
+            adapter->ins.memory_free(&adapter->ins, canardTxPop(&adapter->que, ti));
+    		log(LOG_LEVEL_DEBUG, "CanProcessTxQueue: %2d %2d\r\n", adapter->que.capacity, adapter->que.size);
         }
     }
 
