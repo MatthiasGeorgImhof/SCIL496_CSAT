@@ -69,6 +69,10 @@ void Error_Handler(void);
 #define ATTENTION_GPIO_Port GPIOA
 #define EPS_RST_Pin GPIO_PIN_5
 #define EPS_RST_GPIO_Port GPIOA
+#define CAN2_STB_Pin GPIO_PIN_14
+#define CAN2_STB_GPIO_Port GPIOB
+#define CAN2_SHTD_Pin GPIO_PIN_15
+#define CAN2_SHTD_GPIO_Port GPIOB
 #define LED1_Pin GPIO_PIN_6
 #define LED1_GPIO_Port GPIOC
 #define LED2_Pin GPIO_PIN_7
@@ -79,6 +83,10 @@ void Error_Handler(void);
 #define LED4_GPIO_Port GPIOC
 #define LED5_Pin GPIO_PIN_8
 #define LED5_GPIO_Port GPIOA
+#define CAN1_STB_Pin GPIO_PIN_6
+#define CAN1_STB_GPIO_Port GPIOB
+#define CAN1_SHTD_Pin GPIO_PIN_7
+#define CAN1_SHTD_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

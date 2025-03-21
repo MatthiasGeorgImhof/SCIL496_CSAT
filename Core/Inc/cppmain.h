@@ -21,8 +21,8 @@ struct HAL_Handles {
 	DMA_HandleTypeDef *hdma_usart3_rx;
 	DMA_HandleTypeDef *hdma_usart3_tx;
 
-	CAN_HandleTypeDef hcan1;
-	CAN_HandleTypeDef hcan2;
+	CAN_HandleTypeDef *hcan1;
+	CAN_HandleTypeDef *hcan2;
 };
 
 void cppmain(struct HAL_Handles handles);
