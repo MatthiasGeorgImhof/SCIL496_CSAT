@@ -259,11 +259,11 @@ void cppmain(HAL_Handles handles)
 	while(1)
 	{
 		log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
-		log(LOG_LEVEL_DEBUG, "canard queue: %2d %2d\r\n", canard_adapter.que.capacity, canard_adapter.que.size);
 		loop_manager.CanProcessTxQueue(&canard_adapter, hcan1_);
 		loop_manager.SerialProcessRxQueue(&serard_cyphal, &service_manager, canard_adapters, serial_buffer);
 		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, serard_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
+		HAL_Delay(100);
 	}
 }
