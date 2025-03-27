@@ -1,12 +1,12 @@
 #include "main.h"
-//#include "usb_device.h"
+#include "usb_device.h"
 
 #include <memory>
 
 #include "stdio.h"
 #include "stdint.h"
 #include "string.h"
-//#include "usbd_cdc_if.h"
+#include "usbd_cdc_if.h"
 
 #include "o1heap.h"
 #include "canard.h"
@@ -123,10 +123,10 @@ void cppmain(HAL_Handles handles)
 	hcan1_ = handles.hcan1;
 	hcan2_ = handles.hcan2;
 
-	HAL_GPIO_WritePin(GPIOB, CAN1_STB_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, CAN1_SHTD_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, CAN2_STB_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, CAN2_SHTD_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOD, CAN1_STB_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOD, CAN1_SHTD_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOE, CAN2_STB_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOE, CAN2_SHTD_Pin, GPIO_PIN_RESET);
 
 	if (HAL_CAN_Start(hcan1_) != HAL_OK) {
 		Error_Handler();
@@ -171,7 +171,7 @@ void cppmain(HAL_Handles handles)
 	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, canard_adapters));
 
 	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOC, LED1_Pin, 1000, 100));
+	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
 
 	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
