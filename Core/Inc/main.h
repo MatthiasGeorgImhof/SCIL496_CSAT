@@ -57,36 +57,24 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define AVI_RST_Pin GPIO_PIN_0
-#define AVI_RST_GPIO_Port GPIOC
-#define SCI_RST_Pin GPIO_PIN_1
-#define SCI_RST_GPIO_Port GPIOC
-#define COMM1_RST_Pin GPIO_PIN_2
-#define COMM1_RST_GPIO_Port GPIOC
-#define COMM2_RST_Pin GPIO_PIN_3
-#define COMM2_RST_GPIO_Port GPIOC
-#define ATTENTION_Pin GPIO_PIN_4
-#define ATTENTION_GPIO_Port GPIOA
-#define EPS_RST_Pin GPIO_PIN_5
-#define EPS_RST_GPIO_Port GPIOA
-#define CAN2_STB_Pin GPIO_PIN_14
-#define CAN2_STB_GPIO_Port GPIOB
-#define CAN2_SHTD_Pin GPIO_PIN_15
-#define CAN2_SHTD_GPIO_Port GPIOB
-#define LED1_Pin GPIO_PIN_6
-#define LED1_GPIO_Port GPIOC
-#define LED2_Pin GPIO_PIN_7
-#define LED2_GPIO_Port GPIOC
-#define LED3_Pin GPIO_PIN_8
-#define LED3_GPIO_Port GPIOC
-#define LED4_Pin GPIO_PIN_9
-#define LED4_GPIO_Port GPIOC
-#define LED5_Pin GPIO_PIN_8
+#define LED1_Pin GPIO_PIN_12
+#define LED1_GPIO_Port GPIOB
+#define CAN1_STB_Pin GPIO_PIN_8
+#define CAN1_STB_GPIO_Port GPIOD
+#define CAN1_SHTD_Pin GPIO_PIN_9
+#define CAN1_SHTD_GPIO_Port GPIOD
+#define LED2_Pin GPIO_PIN_10
+#define LED2_GPIO_Port GPIOD
+#define LED3_Pin GPIO_PIN_15
+#define LED3_GPIO_Port GPIOD
+#define LED4_Pin GPIO_PIN_8
+#define LED4_GPIO_Port GPIOA
+#define LED5_Pin GPIO_PIN_15
 #define LED5_GPIO_Port GPIOA
-#define CAN1_STB_Pin GPIO_PIN_6
-#define CAN1_STB_GPIO_Port GPIOB
-#define CAN1_SHTD_Pin GPIO_PIN_7
-#define CAN1_SHTD_GPIO_Port GPIOB
+#define CAN2_STB_Pin GPIO_PIN_0
+#define CAN2_STB_GPIO_Port GPIOE
+#define CAN2_SHTD_Pin GPIO_PIN_1
+#define CAN2_SHTD_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 
