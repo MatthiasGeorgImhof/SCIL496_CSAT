@@ -73,6 +73,7 @@ CircularBuffer<CanRxFrame, CAN_RX_BUFFER_SIZE> can_rx_buffer;
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
 	uint32_t num_messages = HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0);
+	log(LOG_LEVEL_TRACE, "HAL_CAN_RxFifo0MsgPendingCallback %d\r\n", num_messages);
 	for(uint32_t n=0; n<num_messages; ++n)
 	{
 		if (can_rx_buffer.is_full()) return;
@@ -123,11 +124,6 @@ void cppmain(HAL_Handles handles)
 	hcan1_ = handles.hcan1;
 	hcan2_ = handles.hcan2;
 
-	HAL_GPIO_WritePin(GPIOD, CAN1_STB_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, CAN1_SHTD_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOE, CAN2_STB_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOE, CAN2_SHTD_Pin, GPIO_PIN_RESET);
-
 	if (HAL_CAN_Start(hcan1_) != HAL_OK) {
 		Error_Handler();
 	}
@@ -168,7 +164,7 @@ void cppmain(HAL_Handles handles)
 	RegistrationManager registration_manager;
 
 	O1HeapAllocator<TaskSendHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, canard_adapters));
+	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 2000, 100, 0, canard_adapters));
 
 	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
@@ -184,7 +180,15 @@ void cppmain(HAL_Handles handles)
 	while(1)
 	{
 		log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
+		log(LOG_LEVEL_DEBUG, "RegistrationManager: (%d %d) (%d %d) \r\n",
+				registration_manager.getHandlers().capacity(), registration_manager.getHandlers().size(),
+				registration_manager.getSubscriptions().capacity(), registration_manager.getSubscriptions().size());
+		log(LOG_LEVEL_DEBUG, "ServiceManager: (%d %d) \r\n",
+				service_manager.getHandlers().capacity(), service_manager.getHandlers().size());
+		log(LOG_LEVEL_DEBUG, "CanProcessRxQueue: (%d %d) \r\n",
+				can_rx_buffer.capacity(), can_rx_buffer.size());
 		loop_manager.CanProcessTxQueue(&canard_adapter, hcan1_);
+		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, empty_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 		HAL_Delay(100);
