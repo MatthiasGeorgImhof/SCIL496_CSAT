@@ -52,15 +52,13 @@ CyphalSubscription TaskSendHeartBeat<Adapters...>::createSubscription()
 template <typename... Adapters>
 void TaskSendHeartBeat<Adapters...>::registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
-	CyphalSubscription subscription = createSubscription();
-	manager->subscribe(subscription, task, this->adapters_);
+	manager->publish(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_, task);
 }
 
 template <typename... Adapters>
 void TaskSendHeartBeat<Adapters...>::unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
-	CyphalSubscription subscription = createSubscription();
-	manager->unsubscribe(subscription, task, this->adapters_);
+	manager->unpublish(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_, task);
 }
 
 

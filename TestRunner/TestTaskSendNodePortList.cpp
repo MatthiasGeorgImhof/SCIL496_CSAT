@@ -46,10 +46,11 @@ TEST_CASE("TaskSendNodePortList: handleTask publishes NodePortList") {
     registration_manager.add(heartbeat_task);
 
     // Instantiate the TaskSendNodePortList
-    TaskSendNodePortList task(&registration_manager, 1000, 0, 0, adapters); // Interval: 1 second, shift: 0, transfer ID: 0
+    auto task_sendnodeportlist = std::make_shared<TaskSendNodePortList<Cyphal<LoopardAdapter>, Cyphal<LoopardAdapter>>>(&registration_manager, 1000, 0, 0, adapters); // Interval: 1 second, shift: 0, transfer ID: 0
+    registration_manager.add(task_sendnodeportlist);
 
     // Execute the task
-    task.handleTaskImpl();
+    task_sendnodeportlist->handleTaskImpl();
 
     // Check that a NodePortList message was published on both adapters
     REQUIRE(loopard1.buffer.size() == 1);
@@ -70,12 +71,12 @@ TEST_CASE("TaskSendNodePortList: handleTask publishes NodePortList") {
     int8_t deserialization_result1 = uavcan_node_port_List_1_0_deserialize_(&received_port_list1, static_cast<const uint8_t*>(transfer1.payload), &deserialized_size1);
 
     REQUIRE(deserialization_result1 >= 0);
-    REQUIRE(received_port_list1.publishers.sparse_list.count == 0);  // Expecting zero publisher
-    REQUIRE(received_port_list1.subscribers.sparse_list.count == 1); // Expecting one subscribers
+    REQUIRE(received_port_list1.publishers.sparse_list.count == 2);  // Expecting 1 publisher now!
+    REQUIRE(received_port_list1.subscribers.sparse_list.count == 0); // Expecting one subscriber
 
-    // // The first publisher should be Heartbeat
-    // REQUIRE(received_port_list1.publishers.sparse_list.elements[0] == uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
-
+    // The first publisher should be Heartbeat
+    REQUIRE(received_port_list1.publishers.sparse_list.elements[0].value == uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+    REQUIRE(received_port_list1.publishers.sparse_list.elements[1].value == uavcan_node_port_List_1_0_FIXED_PORT_ID_);
 
     delete[] static_cast<uint8_t*>(transfer1.payload);
 
@@ -91,11 +92,12 @@ TEST_CASE("TaskSendNodePortList: handleTask publishes NodePortList") {
     int8_t deserialization_result2 = uavcan_node_port_List_1_0_deserialize_(&received_port_list2, static_cast<const uint8_t*>(transfer2.payload), &deserialized_size2);
 
     REQUIRE(deserialization_result2 >= 0);
-    REQUIRE(received_port_list2.publishers.sparse_list.count == 0);  // Expecting zero publisher
-    REQUIRE(received_port_list2.subscribers.sparse_list.count == 1); // Expecting one subscribers
+    REQUIRE(received_port_list2.publishers.sparse_list.count == 2);  // Expecting 1 publisher now!
+    REQUIRE(received_port_list2.subscribers.sparse_list.count == 0); // Expecting one subscriber
 
     // The first publisher should be Heartbeat
-    // REQUIRE(received_port_list2.publishers.sparse_list.elements[0] == uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+    REQUIRE(received_port_list2.publishers.sparse_list.elements[0].value == uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+    REQUIRE(received_port_list2.publishers.sparse_list.elements[1].value == uavcan_node_port_List_1_0_FIXED_PORT_ID_);
     delete[] static_cast<uint8_t*>(transfer2.payload);
 }
 
@@ -119,16 +121,16 @@ TEST_CASE("TaskSendNodePortList: snippet to registration with std::alloc") {
     registration_manager.add(task_sendheartbeat);
 
     auto task_sendnodeportlist = std::make_shared<TaskSendNodePortList<Cyphal<LoopardAdapter>, Cyphal<LoopardAdapter>>>(&registration_manager, 1000, 0, 0, adapters);
-    CHECK(task_sendnodeportlist.use_count() == 1);
+    REQUIRE(task_sendnodeportlist.use_count() == 1);
 
     registration_manager.add(task_sendnodeportlist);
-    CHECK(task_sendnodeportlist.use_count() == 2);
+    REQUIRE(task_sendnodeportlist.use_count() == 2);
     
-    CHECK(registration_manager.containsTask(task_sendnodeportlist));
+    REQUIRE(registration_manager.containsTask(task_sendnodeportlist));
 
     registration_manager.remove(task_sendnodeportlist);
-    CHECK(! registration_manager.containsTask(task_sendnodeportlist));
-    CHECK(task_sendnodeportlist.use_count() == 1);
+    REQUIRE(! registration_manager.containsTask(task_sendnodeportlist));
+    REQUIRE(task_sendnodeportlist.use_count() == 1);
 
     registration_manager.remove(task_sendheartbeat);
 }
@@ -166,15 +168,15 @@ TEST_CASE("TaskSendNodePortList: snippet to registration with O1HeapAllocator") 
         taskAllocator, &registration_manager, 1000, 0, 0, adapters);
     diagnostics = o1heapGetDiagnostics(heap);
     CHECK(diagnostics.allocated > allocated);
-    CHECK(task_sendnodeportlist.use_count() == 1);
+    REQUIRE(task_sendnodeportlist.use_count() == 1);
 
     registration_manager.add(task_sendnodeportlist);
-    CHECK(registration_manager.containsTask(task_sendnodeportlist));
-    CHECK(task_sendnodeportlist.use_count() == 2);
+    REQUIRE(registration_manager.containsTask(task_sendnodeportlist));
+    REQUIRE(task_sendnodeportlist.use_count() == 2);
 
     registration_manager.remove(task_sendnodeportlist);
-    CHECK(! registration_manager.containsTask(task_sendnodeportlist));    
-    CHECK(task_sendnodeportlist.use_count() == 1);
+    REQUIRE(! registration_manager.containsTask(task_sendnodeportlist));    
+    REQUIRE(task_sendnodeportlist.use_count() == 1);
     task_sendnodeportlist.reset();
 
     registration_manager.remove(heartbeat_task);

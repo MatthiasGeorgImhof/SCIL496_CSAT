@@ -53,8 +53,8 @@ private:
 class MockTask : public Task
 {
 public:
-    MockTask(uint32_t interval, uint32_t tick, CyphalPortID port_id, size_t extent, CyphalTransferKind transfer_kind, std::tuple<DummyAdapter &, DummyAdapter &> &adapters)
-        : Task(interval, tick), port_id_(port_id), extent_(extent), transfer_kind_(transfer_kind), adapters_(adapters), registered_(false), unregistered_(false) {}
+    MockTask(uint32_t interval, uint32_t tick, CyphalPortID port_id)
+        : Task(interval, tick), port_id_(port_id), registered_(false), unregistered_(false) {}
     ~MockTask() override {}
 
     void handleMessage(std::shared_ptr<CyphalTransfer> transfer) override {}
@@ -65,11 +65,8 @@ public:
     {
         RegistrationManager *manager = static_cast<RegistrationManager *>(manager_ptr);
 
-        CyphalSubscription subscription = {port_id_, extent_, transfer_kind_};
-        manager->subscribe(subscription, task, adapters_); // Pass the tuple
-
-        CyphalPublication publication = {port_id_, extent_, transfer_kind_};
-        manager->publish(publication, task, adapters_); // Pass the tuple
+        manager->subscribe(port_id_, task);
+        manager->publish(port_id_, task);
 
         registered_ = true;
     }
@@ -78,11 +75,8 @@ public:
     {
         RegistrationManager *manager = static_cast<RegistrationManager *>(manager_ptr);
 
-        CyphalSubscription subscription = {port_id_, extent_, transfer_kind_};
-        manager->unsubscribe(subscription, task, adapters_); // Pass the tuple
-
-        CyphalPublication publication = {port_id_, extent_, transfer_kind_};
-        manager->unpublish(publication, task, adapters_); // Pass the tuple
+        manager->unsubscribe(port_id_, task);
+        manager->unpublish(port_id_, task);
 
         unregistered_ = true;
     }
@@ -92,25 +86,16 @@ public:
 
 private:
     CyphalPortID port_id_;
-    size_t extent_;
-    CyphalTransferKind transfer_kind_;
-    std::tuple<DummyAdapter &, DummyAdapter &> &adapters_;
     bool registered_;
     bool unregistered_;
 };
 
-TEST_CASE("RegistrationManager: Register and Unregister Task with Tuple")
+TEST_CASE("RegistrationManager: Register and Unregister Task")
 {
     // Create a RegistrationManager with a dummy adapter
-    DummyAdapter adapter1(42); // Create an instance of DummyAdapter
-    DummyAdapter adapter2(43); // Create an instance of DummyAdapter
-
     RegistrationManager manager; // Pass the instance to the constructor
     CyphalPortID port_id = 123;
-    size_t extent = 456;
-    CyphalTransferKind transfer_kind = CyphalTransferKind::CyphalTransferKindMessage;
-    std::tuple<DummyAdapter &, DummyAdapter &> adapters(adapter1, adapter2);
-    std::shared_ptr<MockTask> task = std::make_shared<MockTask>(100, 0, port_id, extent, transfer_kind, adapters);
+    std::shared_ptr<MockTask> task = std::make_shared<MockTask>(100, 0, port_id);
 
     // Initially, task should not be registered
     CHECK(task->isRegistered() == false);
@@ -126,9 +111,7 @@ TEST_CASE("RegistrationManager: Register and Unregister Task with Tuple")
         CHECK(entries.size() == expected_size);
         for (size_t i = 0; i < entries.size(); ++i)
         {
-            if (entries[i].port_id == expected_entry.port_id &&
-                entries[i].extent == expected_entry.extent &&
-                entries[i].transfer_kind == expected_entry.transfer_kind)
+            if (entries[i] == expected_entry)
             {
                 found = true;
                 break;
@@ -154,35 +137,21 @@ TEST_CASE("RegistrationManager: Register and Unregister Task with Tuple")
 
     // Verify that the subscription and handler are added to the manager
     {
-        const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &handlers = manager.getHandlers(); // Use the getter
+        const ArrayList<::TaskHandler, RegistrationManager::NUM_TASK_HANDLERS> &handlers = manager.getHandlers(); // Use the getter
         verifyHandlerEntries(handlers, task, port_id, 1, true);
 
-        CyphalSubscription expected_subscription = {port_id, extent, transfer_kind};
-        const ArrayList<CyphalSubscription, NUM_SUBSCRIPTIONS> &subscriptions = manager.getSubscriptions(); // Use the getter
+        CyphalPortID expected_subscription = port_id;
+        const ArrayList<CyphalPortID, RegistrationManager::NUM_SUBSCRIPTIONS> &subscriptions = manager.getSubscriptions(); // Use the getter
         verifyManagerEntries(subscriptions, expected_subscription, 1, true);
 
-        CyphalPublication expected_publication = {port_id, extent, transfer_kind};
-        const ArrayList<CyphalPublication, NUM_PUBLICATIONS> &publications = manager.getPublications(); // Use the getter
+        CyphalPortID expected_publication = port_id;
+        const ArrayList<CyphalPortID, RegistrationManager::NUM_PUBLICATIONS> &publications = manager.getPublications(); // Use the getter
         verifyManagerEntries(publications, expected_publication, 1, true);
     }
 
     // Now, the task should be registered (MockTask's registerTask *is* now calling subscribe)
     CHECK(task->isRegistered() == true);
     CHECK(task->isUnregistered() == false);
-
-    // Check that cyphalRxSubscribe was called
-    CHECK(std::get<0>(adapters).cyphalRxSubscribeCallCount == 1);
-    CHECK(std::get<0>(adapters).lastTransferKind == transfer_kind);
-    CHECK(std::get<0>(adapters).lastPortID == port_id);
-    CHECK(std::get<0>(adapters).lastExtent == extent);
-    CHECK(std::get<0>(adapters).lastTimeout == 1000);
-
-    // Check that cyphalRxSubscribe was called
-    CHECK(std::get<1>(adapters).cyphalRxSubscribeCallCount == 1);
-    CHECK(std::get<1>(adapters).lastTransferKind == transfer_kind);
-    CHECK(std::get<1>(adapters).lastPortID == port_id);
-    CHECK(std::get<1>(adapters).lastExtent == extent);
-    CHECK(std::get<1>(adapters).lastTimeout == 1000);
 
     // Unregister the task
     task->unregisterTask(&manager, task);
@@ -191,20 +160,17 @@ TEST_CASE("RegistrationManager: Register and Unregister Task with Tuple")
     CHECK(task->isRegistered() == true); // registered stays as true since the variable is not changed in the task class.
     CHECK(task->isUnregistered() == true);
 
-    CHECK(std::get<0>(adapters).cyphalRxUnsubscribeCallCount == 1);
-    CHECK(std::get<1>(adapters).cyphalRxUnsubscribeCallCount == 1);
-
     // Verify that the subscription and handler are removed from the manager
     {
-        const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &handlers = manager.getHandlers(); // Use the getter
+        const ArrayList<::TaskHandler, RegistrationManager::NUM_TASK_HANDLERS> &handlers = manager.getHandlers(); // Use the getter
         verifyHandlerEntries(handlers, task, port_id, 0, false);
 
-        CyphalSubscription expected_subscription = {port_id, extent, transfer_kind};
-        const ArrayList<CyphalSubscription, NUM_SUBSCRIPTIONS> &subscriptions = manager.getSubscriptions(); // Use the getter
+        CyphalPortID expected_subscription = port_id;
+        const ArrayList<CyphalPortID, RegistrationManager::NUM_SUBSCRIPTIONS> &subscriptions = manager.getSubscriptions(); // Use the getter
         verifyManagerEntries(subscriptions, expected_subscription, 0, false);
 
-        CyphalPublication expected_publication = {port_id, extent, transfer_kind};
-        const ArrayList<CyphalPublication, NUM_PUBLICATIONS> &publications = manager.getPublications(); // Use the getter
+        CyphalPortID expected_publication = port_id;
+        const ArrayList<CyphalPortID, RegistrationManager::NUM_PUBLICATIONS> &publications = manager.getPublications(); // Use the getter
         verifyManagerEntries(publications, expected_publication, 0, false);
     }
 }
@@ -237,11 +203,8 @@ public:
 
     void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
     {
-        std::tuple<> adapters;
-        CyphalSubscription subscription = {CYPHALPORT, 2, CyphalTransferKindMessage};
-        manager->subscribe(subscription, task, adapters);
-        CyphalPublication publication = {CYPHALPORT, 2, CyphalTransferKindMessage};
-        manager->publish(publication, task, adapters);
+        manager->subscribe(CYPHALPORT, task);
+        manager->publish(CYPHALPORT,task);
     }
 
     void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) {}
@@ -267,7 +230,7 @@ TEST_CASE("RegistrationManager: TaskFromBuffer")
     HAL_SetTick(1000);
 
     basic_task_buffer->registerTask(&manager, basic_task_buffer);
-    const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &handlers = manager.getHandlers();
+    const ArrayList<::TaskHandler, RegistrationManager::NUM_TASK_HANDLERS> &handlers = manager.getHandlers();
     CHECK(handlers.size() == 1);
 
     std::shared_ptr<CyphalTransfer> transfer_ptr = std::make_shared<CyphalTransfer>(transfer);

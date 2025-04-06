@@ -34,12 +34,12 @@ void TaskSendNodePortList<Adapters...>::handleTaskImpl()
     uavcan_node_port_List_1_0 data;
     size_t publication_size = registration_manager_->getPublications().size();
     data.publishers.sparse_list.count = publication_size;
-    for(uint i=0; i<publication_size; ++i) data.publishers.sparse_list.elements[i].value = registration_manager_->getPublications()[i].port_id;
+    for(uint i=0; i<publication_size; ++i) data.publishers.sparse_list.elements[i].value = registration_manager_->getPublications()[i];
     data.publishers._tag_ = uavcan_node_port_SubjectIDList_1_0_sparse_list_ARRAY_IS_VARIABLE_LENGTH_;
     
     size_t subscription_size = registration_manager_->getSubscriptions().size();
     data.subscribers.sparse_list.count = subscription_size;
-    for(uint i=0; i<subscription_size; ++i) data.subscribers.sparse_list.elements[i].value = registration_manager_->getSubscriptions()[i].port_id;
+    for(uint i=0; i<subscription_size; ++i) data.subscribers.sparse_list.elements[i].value = registration_manager_->getSubscriptions()[i];
     data.subscribers._tag_ = uavcan_node_port_SubjectIDList_1_0_sparse_list_ARRAY_IS_VARIABLE_LENGTH_;
     
     
@@ -66,21 +66,13 @@ CyphalPublication TaskSendNodePortList<Adapters...>::createPublication()
 template <typename... Adapters>
 void TaskSendNodePortList<Adapters...>::registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
-    CyphalSubscription subscription = createSubscription();
-    manager->subscribe(subscription, task, this->adapters_);
-
-    CyphalPublication publication = createPublication();
-    manager->publish(publication, task, this->adapters_);
+    manager->publish(uavcan_node_port_List_1_0_FIXED_PORT_ID_, task);
 }
 
 template <typename... Adapters>
 void TaskSendNodePortList<Adapters...>::unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
-    CyphalSubscription subscription = createSubscription();
-    manager->unsubscribe(subscription, task, this->adapters_);
-
-    CyphalPublication publication = createPublication();
-    manager->unpublish(publication, task, this->adapters_);
+    manager->unpublish(uavcan_node_port_List_1_0_FIXED_PORT_ID_, task);
 }
 
 #endif /* INC_TASKSENDNODEPORTLIST_HPP_ */
