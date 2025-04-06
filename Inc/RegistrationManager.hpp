@@ -14,6 +14,7 @@
  * @brief Maximum number of Cyphal subscriptions supported by the RegistrationManager.
  */
 constexpr size_t NUM_SUBSCRIPTIONS = 16;
+constexpr size_t NUM_PUBLICATIONS = 16;
 
 /**
  * @brief Manages the registration and unregistration of tasks, and their subscriptions
@@ -59,6 +60,26 @@ public:
     void unsubscribe(const CyphalSubscription &subscription, std::shared_ptr<Task> task, std::tuple<Adapters...> &adapters);
 
     /**
+     * @brief publishes a task to a Cyphal port using the provided adapters.
+     * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
+     * @param publication The Cyphal subscription details.
+     * @param task A shared pointer to the task to be published.
+     * @param adapters A tuple containing the Cyphal adapter instances.
+     */
+    template <typename... Adapters>
+    void publish(const CyphalPublication &publication, std::shared_ptr<Task> task, std::tuple<Adapters...> &adapters);
+
+    /**
+     * @brief Unpublishes a task from a Cyphal port using the provided adapters.
+     * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
+     * @param publication The Cyphal subscription details.
+     * @param task A shared pointer to the task to be unpublished.
+     * @param adapters A tuple containing the Cyphal adapter instances.
+     */
+    template <typename... Adapters>
+    void unpublish(const CyphalPublication &publication, std::shared_ptr<Task> task, std::tuple<Adapters...> &adapters);
+
+    /**
      * @brief Gets the list of task handlers.
      * @return A const reference to the ArrayList of task handlers.
      */
@@ -69,6 +90,7 @@ public:
      * @return A const reference to the ArrayList of Cyphal subscriptions.
      */
     inline const ArrayList<CyphalSubscription, NUM_SUBSCRIPTIONS> &getSubscriptions() const;
+    inline const ArrayList<CyphalPublication, NUM_SUBSCRIPTIONS> &getPublications() const;
 
     inline bool containsTask(const std::shared_ptr<Task> &task) const;
 
@@ -82,6 +104,7 @@ private:
      * @brief List of Cyphal subscriptions.
      */
     ArrayList<CyphalSubscription, NUM_SUBSCRIPTIONS> subscriptions_;
+    ArrayList<CyphalPublication, NUM_PUBLICATIONS> publications_;
 };
 
 /**
@@ -110,6 +133,7 @@ inline bool RegistrationManager::containsTask(const std::shared_ptr<Task> &task)
                            return handler.task == task; // Compare the shared_ptr directly
                        });
 }
+
 /**
  * @brief Subscribes a task to a Cyphal port using the provided adapters.
  * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
@@ -154,6 +178,29 @@ void RegistrationManager::unsubscribe(const CyphalSubscription &subscription, st
 }
 
 /**
+ * @brief publishes a task to a Cyphal port using the provided adapters.
+ * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
+ * @param publication The Cyphal publication details.
+ */
+template <typename... Adapters>
+void RegistrationManager::publish(const CyphalPublication &publication, std::shared_ptr<Task> task, std::tuple<Adapters...> &adapters)
+{
+    publications_.push(publication);
+}
+
+/**
+ * @brief Unpublishes a task from a Cyphal port using the provided adapters.
+ * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
+ * @param publication The Cyphal publication details.
+ */
+template <typename... Adapters>
+void RegistrationManager::unpublish(const CyphalPublication &publication, std::shared_ptr<Task> task, std::tuple<Adapters...> &adapters)
+{
+    publications_.removeIf([&](const CyphalPublication &pub)
+                            { return pub.port_id == publication.port_id && pub.extent == publication.extent && pub.transfer_kind == publication.transfer_kind; });
+}
+
+/**
  * @brief Gets the list of task handlers.
  * @return A const reference to the ArrayList of task handlers.
  */
@@ -164,5 +211,6 @@ inline const ArrayList<TaskHandler, NUM_TASK_HANDLERS> &RegistrationManager::get
  * @return A const reference to the ArrayList of Cyphal subscriptions.
  */
 inline const ArrayList<CyphalSubscription, NUM_SUBSCRIPTIONS> &RegistrationManager::getSubscriptions() const { return subscriptions_; }
+inline const ArrayList<CyphalPublication, NUM_PUBLICATIONS> &RegistrationManager::getPublications() const { return publications_; }
 
 #endif
