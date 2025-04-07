@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <utility>
 #include <type_traits>
+#include <initializer_list>
 
 #include "cyphal.hpp"
 #include "nunavut_assert.h"
@@ -16,13 +17,13 @@
 #include "_4111spyglass/sat/sensor/GNSS_0_1.h"
 
 
-constexpr static std::array<CyphalSubscription, 4> CYPHAL_MESSAGES =
-    {
-        CyphalSubscription{uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_, uavcan_node_Heartbeat_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
-        CyphalSubscription{uavcan_node_port_List_1_0_FIXED_PORT_ID_, uavcan_node_port_List_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
-        CyphalSubscription{_4111spyglass_sat_sensor_Magnetometer_0_1_PORT_ID_, _4111spyglass_sat_sensor_Magnetometer_0_1_EXTENT_BYTES_, CyphalTransferKindMessage},
-        CyphalSubscription{_4111spyglass_sat_sensor_GNSS_0_1_PORT_ID_, _4111spyglass_sat_sensor_GNSS_0_1_EXTENT_BYTES_, CyphalTransferKindMessage}
-    };
+constexpr static std::array CYPHAL_MESSAGES =
+{
+    CyphalSubscription{uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_, uavcan_node_Heartbeat_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
+    CyphalSubscription{uavcan_node_port_List_1_0_FIXED_PORT_ID_, uavcan_node_port_List_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
+    CyphalSubscription{_4111spyglass_sat_sensor_Magnetometer_0_1_PORT_ID_, _4111spyglass_sat_sensor_Magnetometer_0_1_EXTENT_BYTES_, CyphalTransferKindMessage},
+    CyphalSubscription{_4111spyglass_sat_sensor_GNSS_0_1_PORT_ID_, _4111spyglass_sat_sensor_GNSS_0_1_EXTENT_BYTES_, CyphalTransferKindMessage}
+};
 
 constexpr CyphalSubscription const *findByPortIdCompileTime(CyphalPortID port_id)
 {
