@@ -123,13 +123,13 @@ TEST_CASE("TaskMainLoop: TaskSendHeartBeat TaskBlinkLED TaskCheckMemory")
 	O1HeapAllocator<TaskSendHeartBeat<Cyphal<SerardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<SerardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, 0, adapters));
 
-	// O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
-	// registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOC, LED1_Pin, 1000, 100));
+	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOC, LED1_Pin, 1000, 100));
 
-	// O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
-	// registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
+	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
 
-    REQUIRE(registration_manager.getHandlers().size() == 1);
+    REQUIRE(registration_manager.getHandlers().size() == 3);
 
 	ServiceManager service_manager(registration_manager.getHandlers());
 	SubscriptionManager subscription_manager;
@@ -141,7 +141,7 @@ TEST_CASE("TaskMainLoop: TaskSendHeartBeat TaskBlinkLED TaskCheckMemory")
     O1HeapDiagnostics diagnostic_before = o1heapGetDiagnostics(o1heap);
     clear_uart_tx_buffer();
 
-    REQUIRE(service_manager.getHandlers().size() == 1);
+    REQUIRE(service_manager.getHandlers().size() == 3);
     REQUIRE(subscription_manager.getSubscriptions().size() == 0);
 
     for(uint32_t tick=3000; tick<=90000; tick+=3000)

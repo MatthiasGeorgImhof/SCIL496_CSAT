@@ -8,9 +8,10 @@ void RegistrationManager::subscribe(const CyphalPortID port_id, std::shared_ptr<
 {
     TaskHandler handler = {port_id, task};
     handlers_.pushOrReplace(handler, [&](const TaskHandler &existing_handler, const TaskHandler &new_handler)
-    { return existing_handler.port_id == new_handler.port_id && existing_handler.task == new_handler.task; });
+                            { return existing_handler.port_id == new_handler.port_id && existing_handler.task == new_handler.task; });
 
-    subscriptions_.push(port_id);
+    subscriptions_.pushOrReplace(port_id, [&](const CyphalPortID &existing_port_id, const CyphalPortID &new_port_id)
+                                 { return existing_port_id == new_port_id; });
 }
 
 /**
@@ -22,8 +23,12 @@ void RegistrationManager::unsubscribe(const CyphalPortID port_id, std::shared_pt
     handlers_.removeIf([&](const TaskHandler &handler)
                        { return handler.port_id == port_id && handler.task == task; });
 
-    subscriptions_.removeIf([&](const CyphalPortID &port_id_)
-                            { return port_id_ == port_id; });
+    if (!handlers_.containsIf([&](const TaskHandler &handler)
+                              { return handler.port_id == port_id; }))
+    {
+        subscriptions_.removeIf([&](const CyphalPortID &port_id_)
+                                { return port_id_ == port_id; });
+    }
 }
 
 /**
@@ -34,9 +39,10 @@ void RegistrationManager::publish(const CyphalPortID port_id, std::shared_ptr<Ta
 {
     TaskHandler handler = {port_id, task};
     handlers_.pushOrReplace(handler, [&](const TaskHandler &existing_handler, const TaskHandler &new_handler)
-    { return existing_handler.port_id == new_handler.port_id && existing_handler.task == new_handler.task; });
+                            { return existing_handler.port_id == new_handler.port_id && existing_handler.task == new_handler.task; });
 
-    publications_.push(port_id);
+    publications_.pushOrReplace(port_id, [&](const CyphalPortID &existing_port_id, const CyphalPortID &new_port_id)
+                                 { return existing_port_id == new_port_id; });
 }
 
 /**
@@ -47,6 +53,10 @@ void RegistrationManager::unpublish(const CyphalPortID port_id, std::shared_ptr<
 {
     handlers_.removeIf([&](const TaskHandler &handler)
                        { return handler.port_id == port_id && handler.task == task; });
-    publications_.removeIf([&](const CyphalPortID &port_id_)
-                           { return port_id_ == port_id; });
+    if (!handlers_.containsIf([&](const TaskHandler &handler)
+                              { return handler.port_id == port_id; }))
+    {
+        publications_.removeIf([&](const CyphalPortID &port_id_)
+                                { return port_id_ == port_id; });
+    }
 }
