@@ -3,6 +3,7 @@
 
 #include "Task.hpp"
 #include "RegistrationManager.hpp"
+#include "Logger.hpp"
 
 #include <cstddef>
 
