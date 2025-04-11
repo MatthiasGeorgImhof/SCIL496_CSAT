@@ -34,15 +34,15 @@ struct UdpardHeader
     uint8_t header_crc16_big_endian[2];
 };
 
-UdpardNodeID cyphalNodeIdToUdpard(const CyphalNodeID node_id)
+inline UdpardNodeID cyphalNodeIdToUdpard(const CyphalNodeID node_id)
 {
     return node_id == CYPHAL_NODE_ID_UNSET ? UDPARD_NODE_ID_UNSET : static_cast<UdpardNodeID>(node_id);
 }
-CyphalNodeID udpardNodeIdToCyphal(const UdpardNodeID node_id) { return static_cast<CyphalNodeID>(node_id & CYPHAL_NODE_ID_UNSET); }
-UdpardTransferID cyphalTransferIdToUdpard(const CyphalTransferID transfer_id) { return static_cast<UdpardTransferID>(transfer_id); }
-CyphalTransferID udpardTransferIdToCyphal(const UdpardTransferID transfer_id) { return static_cast<CyphalTransferID>(transfer_id); }
+inline CyphalNodeID udpardNodeIdToCyphal(const UdpardNodeID node_id) { return static_cast<CyphalNodeID>(node_id & CYPHAL_NODE_ID_UNSET); }
+inline UdpardTransferID cyphalTransferIdToUdpard(const CyphalTransferID transfer_id) { return static_cast<UdpardTransferID>(transfer_id); }
+inline CyphalTransferID udpardTransferIdToCyphal(const UdpardTransferID transfer_id) { return static_cast<CyphalTransferID>(transfer_id); }
 
-void udpartToCyphalMetadata(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransferMetadata *cyphal)
+inline void udpartToCyphalMetadata(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransferMetadata *cyphal)
 {
     cyphal->priority = static_cast<CyphalPriority>(udpard->priority);
     cyphal->transfer_kind = CyphalTransferKindMessage;
@@ -51,7 +51,7 @@ void udpartToCyphalMetadata(const UdpardRxTransfer *udpard, const UdpardHeader *
     cyphal->transfer_id = udpard->transfer_id;
 }
 
-void udpartToCyphalTransfer(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransfer *cyphal)
+inline void udpartToCyphalTransfer(const UdpardRxTransfer *udpard, const UdpardHeader *header, CyphalTransfer *cyphal)
 {
     udpartToCyphalMetadata(udpard, header, &cyphal->metadata);
     cyphal->payload = static_cast<uint8_t *>(const_cast<void *>(udpard->payload.view.data));
