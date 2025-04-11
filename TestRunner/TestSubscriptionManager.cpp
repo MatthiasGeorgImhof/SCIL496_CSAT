@@ -15,6 +15,7 @@ class DummyAdapter
 public:
     DummyAdapter(int value) : value_(value), cyphalRxSubscribeCallCount(0), cyphalRxUnsubscribeCallCount(0), lastTransferKind(CyphalTransferKind::CyphalTransferKindMessage), lastPortID(0), lastExtent(0), lastTimeout(0) {}
     int getValue() const { return value_; }
+    
     int8_t cyphalRxSubscribe(const CyphalTransferKind transfer_kind,
                              const CyphalPortID port_id,
                              const size_t extent,
@@ -39,6 +40,10 @@ public:
         return 1; // Dummy implementation
     }
 
+private:
+    int value_;
+
+    public:
     int cyphalRxSubscribeCallCount;
     int cyphalRxUnsubscribeCallCount;
     CyphalTransferKind lastTransferKind;
@@ -46,8 +51,6 @@ public:
     size_t lastExtent;
     size_t lastTimeout;
 
-private:
-    int value_;
 };
 
 TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Port")

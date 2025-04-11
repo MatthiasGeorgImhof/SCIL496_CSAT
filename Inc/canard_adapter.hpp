@@ -45,8 +45,7 @@ private:
     CanardAdapter *adapter_;
 
 public:
-    Cyphal<CanardAdapter>() = delete;
-    Cyphal<CanardAdapter>(CanardAdapter *adapter) : adapter_(adapter) {}
+    Cyphal(CanardAdapter *adapter) : adapter_(adapter) {}
 
     int32_t cyphalTxPush(const CyphalMicrosecond tx_deadline_usec,
                          const CyphalTransferMetadata *const metadata,
@@ -77,19 +76,21 @@ public:
                              const size_t extent,
                              const CyphalMicrosecond transfer_id_timeout_usec)
     {
-        CanardRxSubscription stub{.port_id = port_id};
+        CanardRxSubscription stub = {};
+        stub.port_id = port_id;
         CanardRxSubscription *subscription = adapter_->subscriptions.find_or_create(stub, [](const CanardRxSubscription &a, const CanardRxSubscription &b)
                                                                                     { return a.port_id == b.port_id; });
-        return canardRxSubscribe(&adapter_->ins, static_cast<const CanardTransferKind>(transfer_kind), port_id, extent, transfer_id_timeout_usec, subscription);
+        return canardRxSubscribe(&adapter_->ins, static_cast<CanardTransferKind>(transfer_kind), port_id, extent, transfer_id_timeout_usec, subscription);
     }
 
     int8_t cyphalRxUnsubscribe(const CyphalTransferKind transfer_kind,
                                const CyphalPortID port_id)
     {
-        CanardRxSubscription stub{.port_id = port_id};
+        CanardRxSubscription stub = {};
+        stub.port_id = port_id;
         CanardRxSubscription *subscription = adapter_->subscriptions.find(stub, [](const CanardRxSubscription &a, const CanardRxSubscription &b)
                                                                           { return a.port_id == b.port_id; });
-        auto result = canardRxUnsubscribe(&adapter_->ins, static_cast<const CanardTransferKind>(transfer_kind), port_id);
+        auto result = canardRxUnsubscribe(&adapter_->ins, static_cast<CanardTransferKind>(transfer_kind), port_id);
         if (subscription)
             adapter_->subscriptions.remove(subscription);
         return result;

@@ -159,7 +159,7 @@ TEST_CASE("ArrayList pushOrReplace operation"){
 	CHECK(list[3] == 4);
 
 	//Replace 4 if it exists
-	list.pushOrReplace(5, [](int a, int b) {return a == 4;});
+	list.pushOrReplace(5, [](int a, int /*b*/) {return a == 4;});
 
 	CHECK(list[0] == 1);
 	CHECK(list[1] == 2);
@@ -176,7 +176,7 @@ TEST_CASE("ArrayList pushOrReplace operation"){
 	CHECK(names[1] == "Bob");
 
 	// Replace "Bob" if exists with "Charlie"
-	names.pushOrReplace("Charlie", [](std::string a, std::string b) { return a == "Bob";});
+	names.pushOrReplace("Charlie", [](std::string a, std::string /*b*/) { return a == "Bob";});
 
 	CHECK(names[0] == "Alice");
 	CHECK(names[1] == "Charlie");
@@ -254,7 +254,7 @@ TEST_CASE("ArrayList RemoveIf Operation") {
     CHECK(list[1] == 3);
 
     // Remove all numbers (should be empty)
-    list.removeIf([](int x) { return true; });
+    list.removeIf([](int /*x*/) { return true; });
     CHECK(list.empty());
 
     ArrayList<std::string, 4> names;
@@ -358,10 +358,11 @@ TEST_CASE("ArrayList Iterator Arithmetic out of bounds"){
 
 	//Moving end beyond is still valid. Note that you should avoid dereferencing it
 	auto it2 = end += 5;
-
-	auto it3 = begin -=3;
+	CHECK(it2 == end);
 
 	// Moving it3 backwards is valid.
+	auto it3 = begin -=3;
+	CHECK(it3 == begin);
 }
 
 TEST_CASE("ArrayList Copy Constructor and Assignment") {
@@ -445,10 +446,10 @@ TEST_CASE("ArrayList pushOrReplace - Stressed") {
     CHECK(list[0] == 1);
 
     // Consecutive replacements
-    list.pushOrReplace(2, [](int a, int b) { return a == 1; });
+    list.pushOrReplace(2, [](int a, int /*b*/) { return a == 1; });
     CHECK(list.size() == 1);
     CHECK(list[0] == 2);
-    list.pushOrReplace(3, [](int a, int b) { return a == 2; });
+    list.pushOrReplace(3, [](int a, int /*b*/) { return a == 2; });
     CHECK(list.size() == 1);
     CHECK(list[0] == 3);
 
@@ -458,7 +459,7 @@ TEST_CASE("ArrayList pushOrReplace - Stressed") {
 	CHECK(list.size() == 3);
 
 	// pushOrReplace with multiple existing elements that would match the same predicate
-	list.pushOrReplace(6, [](int a, int b) { return a > 0;});
+	list.pushOrReplace(6, [](int a, int /*b*/) { return a > 0;});
 	CHECK(list[0] == 6);
 	CHECK(list[1] == 4);
 	CHECK(list[2] == 5);
@@ -467,7 +468,7 @@ TEST_CASE("ArrayList pushOrReplace - Stressed") {
     list.push(7);
     list.push(8);
     CHECK(list.full());
-    list.pushOrReplace(9, [](int a, int b) { return a == 6; }); // Replace existing element
+    list.pushOrReplace(9, [](int a, int /*b*/) { return a == 6; }); // Replace existing element
     CHECK(list.size() == 5);
     CHECK(list[0] == 9);
     CHECK(list[1] == 4);
@@ -494,7 +495,7 @@ TEST_CASE("ArrayList pushOrReplace - Complex Comparison") {
 	CHECK(list[1].name == "Bob");
 
 	// Replacement where the compared value is same, but other members change.
-	list.pushOrReplace({1, "David"}, [](const MyStruct& a, const MyStruct& b) { return a.id == 1; });
+	list.pushOrReplace({1, "David"}, [](const MyStruct& a, const MyStruct& /*b*/) { return a.id == 1; });
 	CHECK(list[0].id == 1);
 	CHECK(list[0].name == "David");
 	CHECK(list[1].id == 2);
@@ -510,7 +511,7 @@ TEST_CASE("ArrayList removeIf - Stressed") {
     list.push(5);
 
     // Remove all elements
-    list.removeIf([](int x) { return true; });
+    list.removeIf([](int /*x*/) { return true; });
     CHECK(list.empty());
 
     // Repopulate
@@ -519,7 +520,7 @@ TEST_CASE("ArrayList removeIf - Stressed") {
     list.push(3);
 
     // Remove no elements
-    list.removeIf([](int x) { return false; });
+    list.removeIf([](int /*x*/) { return false; });
     CHECK(list.size() == 3);
 
     // Consecutive removeIf calls

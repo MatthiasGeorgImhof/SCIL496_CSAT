@@ -31,32 +31,32 @@ constexpr size_t SERIAL_BUFFER_SIZE = 4;
 using SerialCircularBuffer = CircularBuffer<SerialFrame, SERIAL_BUFFER_SIZE>;
 SerialCircularBuffer serial_buffer;
 
-void* canardMemoryAllocate(CanardInstance *const canard, const size_t size)
+void* canardMemoryAllocate(CanardInstance *const /*canard*/, const size_t size)
 {
 	return o1heapAllocate(o1heap, size);
 }
 
-void canardMemoryDeallocate(CanardInstance *const canard, void *const pointer)
+void canardMemoryDeallocate(CanardInstance *const /*canard*/, void *const pointer)
 {
 	o1heapFree(o1heap, pointer);
 }
 
-void* serardMemoryAllocate(void *const user_reference, const size_t size)
+void* serardMemoryAllocate(void *const /*user_reference*/, const size_t size)
 {
 	return o1heapAllocate(o1heap, size);
 }
 
-void serardMemoryDeallocate(void *const user_reference, const size_t size, void *const pointer)
+void serardMemoryDeallocate(void *const /*user_reference*/, const size_t /*size*/, void *const pointer)
 {
 	o1heapFree(o1heap, pointer);
 };
 
-bool serialSendHuart2(void* user_reference, uint8_t data_size, const uint8_t* data)
+bool serialSendHuart2(void* /*user_reference*/, uint8_t data_size, const uint8_t* data)
 {
 	return (HAL_UART_Transmit(huart2_, const_cast<uint8_t*>(data), data_size, 1000) == HAL_OK);
 }
 
-bool serialSendHuart3(void* user_reference, uint8_t data_size, const uint8_t* data)
+bool serialSendHuart3(void* /*user_reference*/, uint8_t data_size, const uint8_t* data)
 {
 	return (HAL_UART_Transmit(huart3_, const_cast<uint8_t*>(data), data_size, 1000) == HAL_OK);
 }
@@ -64,7 +64,7 @@ bool serialSendHuart3(void* user_reference, uint8_t data_size, const uint8_t* da
 #ifdef __cplusplus
 extern "C" {
 #endif
-bool serial_send(void* user_reference, uint8_t data_size, const uint8_t* data)
+bool serial_send(void* /*user_reference*/, uint8_t data_size, const uint8_t* data)
 {
 	HAL_StatusTypeDef status = HAL_UART_Transmit(huart2_, const_cast<uint8_t*>(data), data_size, 1000);
 // 	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&huart2_, const_cast<uint8_t*>(data), data_size);

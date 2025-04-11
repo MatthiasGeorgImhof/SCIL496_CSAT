@@ -19,45 +19,52 @@
 #endif
 
 // Dummy Adapter (replace with your real adapter)
-class DummyAdapter {
+class DummyAdapter
+{
 public:
     DummyAdapter(int id) : id_(id), subscribe_count(0), unsubscribe_count(0) {}
 
-    int8_t cyphalRxSubscribe(CyphalTransferKind transfer_kind, CyphalPortID port_id, size_t extent, CyphalMicrosecond timeout) {
+    int8_t cyphalRxSubscribe(CyphalTransferKind /*transfer_kind*/, CyphalPortID port_id, size_t /*extent*/, CyphalMicrosecond /*timeout*/)
+    {
         subscribe_count++;
         last_port_id = port_id;
         return 1;
     }
 
-    int8_t cyphalRxUnsubscribe(CyphalTransferKind transfer_kind, CyphalPortID port_id) {
+    int8_t cyphalRxUnsubscribe(CyphalTransferKind /*transfer_kind*/, CyphalPortID port_id)
+    {
         unsubscribe_count++;
         last_port_id = port_id;
         return 1;
     }
 
-    int id() const {return id_;}
-
-    int subscribe_count;
-    int unsubscribe_count;
-    CyphalPortID last_port_id;
+    int id() const { return id_; }
 
 private:
     int id_;
+
+public:
+    int subscribe_count;
+    int unsubscribe_count;
+    CyphalPortID last_port_id;
 };
 
 // Helper function to create a CyphalTransfer message
-std::shared_ptr<CyphalTransfer> createNodePortListTransfer(const std::vector<CyphalPortID>& publishers, const std::vector<CyphalPortID>& subscribers) {
+std::shared_ptr<CyphalTransfer> createNodePortListTransfer(const std::vector<CyphalPortID> &publishers, const std::vector<CyphalPortID> &subscribers)
+{
     uavcan_node_port_List_1_0 data = {};
 
     // Populate publishers
     data.publishers.sparse_list.count = publishers.size();
-    for (size_t i = 0; i < publishers.size(); ++i) {
+    for (size_t i = 0; i < publishers.size(); ++i)
+    {
         data.publishers.sparse_list.elements[i].value = publishers[i];
     }
 
     // Populate subscribers
     data.subscribers.sparse_list.count = subscribers.size();
-    for (size_t i = 0; i < subscribers.size(); ++i) {
+    for (size_t i = 0; i < subscribers.size(); ++i)
+    {
         data.subscribers.sparse_list.elements[i].value = subscribers[i];
     }
 
@@ -79,15 +86,16 @@ std::shared_ptr<CyphalTransfer> createNodePortListTransfer(const std::vector<Cyp
     return std::make_shared<CyphalTransfer>(transfer);
 }
 
-TEST_CASE("TaskSubscribeNodePortList: handleTaskImpl subscribes to ports in NodePortList") {
+TEST_CASE("TaskSubscribeNodePortList: handleTaskImpl subscribes to ports in NodePortList")
+{
     // Create instances
     SubscriptionManager subscription_manager;
     RegistrationManager registration_manager;
     DummyAdapter adapter1(1), adapter2(2); // Replace with your actual adapter
-    std::tuple<DummyAdapter&, DummyAdapter&> adapters(adapter1, adapter2);
+    std::tuple<DummyAdapter &, DummyAdapter &> adapters(adapter1, adapter2);
 
     // Create the task
-    auto task = std::make_shared<TaskSubscribeNodePortList<DummyAdapter&, DummyAdapter&>>(&subscription_manager, 100, 0, 0, adapters); // Replace with your real adapter types
+    auto task = std::make_shared<TaskSubscribeNodePortList<DummyAdapter &, DummyAdapter &>>(&subscription_manager, 100, 0, adapters); // Replace with your real adapter types
 
     // Create the Registration manager;
     registration_manager.add(std::static_pointer_cast<Task>(task));
@@ -103,27 +111,27 @@ TEST_CASE("TaskSubscribeNodePortList: handleTaskImpl subscribes to ports in Node
     // Execute the task's handleTaskImpl
     task->handleTaskImpl();
 
-    //Check registration manager state
+    // Check registration manager state
     REQUIRE(registration_manager.getHandlers().size() == 1);
 
-    //Check adapter calls
-    REQUIRE(adapter1.subscribe_count == 2); //This moved to SubscriptionManager;
-    REQUIRE(adapter2.subscribe_count == 2); //This moved to SubscriptionManager;
+    // Check adapter calls
+    REQUIRE(adapter1.subscribe_count == 2); // This moved to SubscriptionManager;
+    REQUIRE(adapter2.subscribe_count == 2); // This moved to SubscriptionManager;
     REQUIRE(adapter1.last_port_id == _4111spyglass_sat_sensor_GNSS_0_1_PORT_ID_);
     REQUIRE(adapter2.last_port_id == _4111spyglass_sat_sensor_GNSS_0_1_PORT_ID_);
-
 
     // Clean up by unsubscribing (optional, but good practice)
     registration_manager.remove(std::static_pointer_cast<Task>(task));
 }
 
-TEST_CASE("TaskSubscribeNodePortList: registerTask and unregisterTask work correctly") {
+TEST_CASE("TaskSubscribeNodePortList: registerTask and unregisterTask work correctly")
+{
     SubscriptionManager subscription_manager;
     RegistrationManager registration_manager;
     DummyAdapter adapter1(1), adapter2(2);
-    std::tuple<DummyAdapter&, DummyAdapter&> adapters(adapter1, adapter2);
+    std::tuple<DummyAdapter &, DummyAdapter &> adapters(adapter1, adapter2);
 
-    auto task = std::make_shared<TaskSubscribeNodePortList<DummyAdapter&, DummyAdapter&>>(&subscription_manager, 100, 0, 0, adapters);
+    auto task = std::make_shared<TaskSubscribeNodePortList<DummyAdapter &, DummyAdapter &>>(&subscription_manager, 100, 0, adapters);
 
     // Initial state
     REQUIRE(registration_manager.getHandlers().size() == 0);

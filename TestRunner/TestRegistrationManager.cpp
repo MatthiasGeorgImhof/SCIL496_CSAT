@@ -39,6 +39,9 @@ public:
         return 1;    // Dummy implementation
     }
 
+private:
+    int value_;
+public:
     int cyphalRxSubscribeCallCount;
     int cyphalRxUnsubscribeCallCount;
     CyphalTransferKind lastTransferKind;
@@ -46,8 +49,6 @@ public:
     size_t lastExtent;
     size_t Timeout;
 
-private:
-    int value_;
 };
 
 // Mock Task class that interacts with the RegistrationManager
@@ -58,7 +59,7 @@ public:
         : Task(interval, tick), port_id_(port_id), registered_(false), unregistered_(false) {}
     ~MockTask() override {}
 
-    void handleMessage(std::shared_ptr<CyphalTransfer> transfer) override {}
+    void handleMessage(std::shared_ptr<CyphalTransfer> /*transfer*/) override {}
     void handleTaskImpl() override {}
 
     // Override the non-template virtual functions
@@ -98,7 +99,7 @@ public:
         : Task(interval, tick), port_ids_(port_ids), registered_(false), unregistered_(false) {}
     ~MockTaskArray() override {}
 
-    void handleMessage(std::shared_ptr<CyphalTransfer> transfer) override {}
+    void handleMessage(std::shared_ptr<CyphalTransfer> /*transfer*/) override {}
     void handleTaskImpl() override {}
 
     // Override the non-template virtual functions
@@ -456,7 +457,7 @@ public:
     {
         CHECK(buffer.size() == 1);
 
-        for (int i = 0; i < buffer.size(); ++i)
+        for (size_t i = 0; i < buffer.size(); ++i)
         {
             auto transfer = buffer.pop();
             checkTransfers(transfer_, *transfer);
@@ -469,7 +470,7 @@ public:
         manager->publish(CYPHALPORT, task);
     }
 
-    void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) {}
+    void unregisterTask(RegistrationManager */*manager*/, std::shared_ptr<Task> /*task*/) {}
 
     CyphalTransfer transfer_;
 };

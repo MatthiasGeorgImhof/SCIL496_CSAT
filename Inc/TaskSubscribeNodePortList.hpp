@@ -13,22 +13,22 @@ class TaskSubscribeNodePortList : public TaskFromBuffer
 {
 public:
     TaskSubscribeNodePortList() = delete;
-    TaskSubscribeNodePortList(SubscriptionManager *subscription_manager, uint32_t interval, uint32_t tick, CyphalTransferID transfer_id, std::tuple<Adapters...>& adapters) : TaskFromBuffer(interval, tick), adapters_(adapters), subscription_manager_(subscription_manager) {}
+    TaskSubscribeNodePortList(SubscriptionManager *subscription_manager, uint32_t interval, uint32_t tick, std::tuple<Adapters...>& adapters) : TaskFromBuffer(interval, tick), adapters_(adapters), subscription_manager_(subscription_manager) {}
 
     virtual void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
     virtual void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
     virtual void handleTaskImpl() override;
 
 private:
-    SubscriptionManager *subscription_manager_;
     std::tuple<Adapters...>& adapters_;
+    SubscriptionManager *subscription_manager_;
 };
 
 template <typename... Adapters>
 void TaskSubscribeNodePortList<Adapters...>::handleTaskImpl()
 {
     size_t count = buffer.size();
-    for (int i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         std::shared_ptr<CyphalTransfer> transfer = buffer.pop();
         size_t payload_size = transfer->payload_size;

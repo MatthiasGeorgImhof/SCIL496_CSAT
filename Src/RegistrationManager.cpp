@@ -45,6 +45,12 @@ void RegistrationManager::publish(const CyphalPortID port_id, std::shared_ptr<Ta
                                  { return existing_port_id == new_port_id; });
 }
 
+void RegistrationManager::publish(const CyphalPortID port_id)
+{
+    publications_.pushOrReplace(port_id, [&](const CyphalPortID &existing_port_id, const CyphalPortID &new_port_id)
+                                 { return existing_port_id == new_port_id; });
+}
+
 /**
  * @brief Unpublishes a task from a Cyphal port using the provided adapters.
  * @param publication The Cyphal publication details.

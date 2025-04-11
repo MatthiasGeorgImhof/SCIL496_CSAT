@@ -60,6 +60,7 @@ public:
      * @param task A shared pointer to the task to be published.
      */
     void publish(const CyphalPortID port_id, std::shared_ptr<Task> task);
+    void publish(const CyphalPortID port_id);
 
     /**
      * @brief Unpublishes a task from a Cyphal port using the provided adapters.

@@ -18,7 +18,7 @@ public:
     virtual void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
     virtual void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
     virtual void handleTaskImpl() override;
-    virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) override {}
+    virtual void handleMessage(std::shared_ptr<CyphalTransfer> /*transfer*/) override {}
 
 private:
     CyphalSubscription createSubscription();

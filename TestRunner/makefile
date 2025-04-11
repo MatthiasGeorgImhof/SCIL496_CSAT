@@ -1,5 +1,6 @@
 CXX = g++
-CXXFLAGS = -g -MMD -std=c++17
+EXTRA_CXXFLAGS = -Wall -Wextra -pedantic -Werror
+CXXFLAGS = -g -MMD -std=c++20 $(EXTRA_CXXFLAGS)
 
 INCLUDE_PATHS = -I ../Inc \
 				-I $(HOME)/Data/github/can/libcanard/libcanard \

@@ -77,7 +77,7 @@ public:
 void log(unsigned int level, const char *format, ...);
 #else
 // Dummy inline log function for disabled case.
-inline void log(unsigned int level, const char *format, ...) {}
+inline void log(unsigned int /*level*/, const char */*format*/, ...) {}
 #endif /* LOGGER_ENABLED */
 
 #endif /* LOGGER_HPP_ */

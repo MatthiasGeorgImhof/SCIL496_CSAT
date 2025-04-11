@@ -36,8 +36,8 @@ public:
     }
 
     // Correct override signature (now taking void* as the manager)
-    void registerTask(RegistrationManager* manager, std::shared_ptr<Task> task) {}
-    void unregisterTask(RegistrationManager* manager, std::shared_ptr<Task> task) {}
+    void registerTask(RegistrationManager* /*manager*/, std::shared_ptr<Task> /*task*/) override {}
+    void unregisterTask(RegistrationManager* /*manager*/, std::shared_ptr<Task> /*task*/) override {}
 
     bool message_handled;
     bool task_handled;
