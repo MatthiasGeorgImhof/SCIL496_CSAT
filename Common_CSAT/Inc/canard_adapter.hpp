@@ -10,22 +10,22 @@ static_assert(CYPHAL_NODE_ID_UNSET == CANARD_NODE_ID_UNSET, "unset lengths diffe
 static_assert(sizeof(CyphalTransferMetadata) == sizeof(CanardTransferMetadata), "metadata sizes differ");
 static_assert(sizeof(CyphalTransfer) == sizeof(CanardRxTransfer), "rxtransfer sizes differ");
 
-void cyphalMetadataToCanard(const CyphalTransferMetadata *cyphal, CanardTransferMetadata *canard)
+inline void cyphalMetadataToCanard(const CyphalTransferMetadata *cyphal, CanardTransferMetadata *canard)
 {
     memcpy(canard, cyphal, sizeof(CyphalTransferMetadata));
 }
 
-void cyphalTransferToCanard(const CyphalTransfer *cyphal, CanardRxTransfer *canard)
+inline void cyphalTransferToCanard(const CyphalTransfer *cyphal, CanardRxTransfer *canard)
 {
     memcpy(canard, cyphal, sizeof(CyphalTransfer));
 }
 
-void canardMetadataToCyphal(const CanardTransferMetadata *canard, CyphalTransferMetadata *cyphal)
+inline void canardMetadataToCyphal(const CanardTransferMetadata *canard, CyphalTransferMetadata *cyphal)
 {
     memcpy(cyphal, canard, sizeof(CanardTransferMetadata));
 }
 
-void canardTransferToCyphal(const CanardRxTransfer *canard, CyphalTransfer *cyphal)
+inline void canardTransferToCyphal(const CanardRxTransfer *canard, CyphalTransfer *cyphal)
 {
     memcpy(cyphal, canard, sizeof(CanardRxTransfer));
 }
