@@ -20,16 +20,19 @@
 #ifndef NUNAVUT_ASSERT
 #define NUNAVUT_ASSERT(x) assert(x)
 #endif
+#include "uavcan/diagnostic/Record_1_1.h"
 
 #include <CircularBuffer.hpp>
 #include <ArrayList.hpp>
 #include "Allocator.hpp"
 #include "RegistrationManager.hpp"
 #include "ServiceManager.hpp"
+#include "SubscriptionManager.hpp"
 #include "ProcessRxQueue.hpp"
 #include "TaskCheckMemory.hpp"
 #include "TaskBlinkLED.hpp"
 #include "TaskSendHeartBeat.hpp"
+#include "TaskSendNodePortList.hpp"
 
 #include <cppmain.h>
 #include "Logger.hpp"
@@ -158,13 +161,18 @@ void cppmain(HAL_Handles handles)
 	Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
 	canard_cyphal.setNodeID(cyphal_node_id);
 
+//	Logger::setCyphalCanardAdapter(&canard_cyphal);
 	std::tuple<Cyphal<CanardAdapter>> canard_adapters = { canard_cyphal };
 	std::tuple<> empty_adapters = {} ;
 
 	RegistrationManager registration_manager;
+	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
 	O1HeapAllocator<TaskSendHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 2000, 100, 0, canard_adapters));
+
+	O1HeapAllocator<TaskSendNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSendNodePortList(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000, 100, 0, canard_adapters));
 
 	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
@@ -174,6 +182,8 @@ void cppmain(HAL_Handles handles)
 
 	ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
+	SubscriptionManager subscription_manager;
+    subscription_manager.subscribe(registration_manager.getSubscriptions(), canard_adapters);
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
