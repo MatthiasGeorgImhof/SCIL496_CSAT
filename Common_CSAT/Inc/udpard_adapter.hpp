@@ -66,8 +66,7 @@ private:
     UdpardAdapter *adapter_;
 
 public:
-    Cyphal<UdpardAdapter>() = delete;
-    Cyphal<UdpardAdapter>(UdpardAdapter *adapter) : adapter_(adapter) {}
+    Cyphal(UdpardAdapter *adapter) : adapter_(adapter) {}
 
     int32_t cyphalTxPush(const CyphalMicrosecond tx_deadline_usec,
                          const CyphalTransferMetadata *const metadata,
@@ -95,10 +94,10 @@ public:
         return res;
     }
 
-    int8_t cyphalRxSubscribe(const CyphalTransferKind transfer_kind,
+    int8_t cyphalRxSubscribe(const CyphalTransferKind /*transfer_kind*/,
                              const CyphalPortID port_id,
                              const size_t extent,
-                             const CyphalMicrosecond transfer_id_timeout_usec)
+                             const CyphalMicrosecond /*transfer_id_timeout_usec*/)
     {
         UdpardPortSubscription stub = {port_id, {}};
         UdpardPortSubscription *subscription = adapter_->subscriptions.find_or_create(stub, [](const UdpardPortSubscription &a, const UdpardPortSubscription &b)
@@ -109,7 +108,7 @@ public:
         return result >= 0 ? 1 : result;
     }
 
-    int8_t cyphalRxUnsubscribe(const CyphalTransferKind transfer_kind,
+    int8_t cyphalRxUnsubscribe(const CyphalTransferKind /*transfer_kind*/,
                                const CyphalPortID port_id)
     {
         UdpardPortSubscription stub = {port_id, {}};

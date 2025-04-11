@@ -84,10 +84,9 @@ private:
     SerardAdapter *adapter_;
 
 public:
-    Cyphal<SerardAdapter>() = delete;
-    Cyphal<SerardAdapter>(SerardAdapter *adapter) : adapter_(adapter) {}
+    Cyphal(SerardAdapter *adapter) : adapter_(adapter) {}
 
-    int32_t cyphalTxPush(const CyphalMicrosecond tx_deadline_usec,
+    int32_t cyphalTxPush(const CyphalMicrosecond /*tx_deadline_usec*/,
                          const CyphalTransferMetadata *const metadata,
                          const size_t payload_size,
                          const void *const payload)
@@ -118,8 +117,9 @@ public:
                              const CyphalMicrosecond transfer_id_timeout_usec)
     {
         SerardRxSubscription stub{};
+        stub.port_id = port_id;
         SerardRxSubscription *subscription = adapter_->subscriptions.find_or_create(stub, [port_id](const SerardRxSubscription &a, const SerardRxSubscription &b)
-                                                                                    { return port_id == b.port_id; });
+                                                                                    { return a.port_id == b.port_id; });
         return serardRxSubscribe(&adapter_->ins, static_cast<SerardTransferKind>(transfer_kind), port_id, extent, transfer_id_timeout_usec, subscription);
     }
 
@@ -127,8 +127,9 @@ public:
                                const CyphalPortID port_id)
     {
         SerardRxSubscription stub{};
+        stub.port_id = port_id;
         auto it = adapter_->subscriptions.find(stub, [port_id](const SerardRxSubscription &a, const SerardRxSubscription &b)
-                                               { return port_id == b.port_id; });
+                                               { return a.port_id == b.port_id; });
         auto result = serardRxUnsubscribe(&adapter_->ins, static_cast<SerardTransferKind>(transfer_kind), port_id);
         if (it)
             adapter_->subscriptions.remove(it);
