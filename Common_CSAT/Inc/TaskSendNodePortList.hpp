@@ -3,6 +3,7 @@
 
 #include "Task.hpp"
 #include "RegistrationManager.hpp"
+#include "Logger.hpp"
 
 #include <cstddef>
 
@@ -57,10 +58,10 @@ void TaskSendNodePortList<Adapters...>::handleTaskImpl()
         sprintf(vstring, "% 5d", registration_manager_->getSubscriptions()[i]);
         strcat(subscribers, vstring);
     }
-    
-    log(LOG_LEVEL_DEBUG, "TaskSendNodePortList: (%s ) (%s )\r\n", publishers, subscribers);
-    
     data.subscribers._tag_ = uavcan_node_port_SubjectIDList_1_0_sparse_list_ARRAY_IS_VARIABLE_LENGTH_;
+    
+    log(LOG_LEVEL_DEBUG, "TaskSendNodePortList: %d (%s ) %d (%s )\r\n", publication_size, publishers, subscription_size, subscribers);
+    
 
     constexpr size_t PAYLOAD_SIZE = uavcan_node_port_List_1_0_SERIALIZATION_BUFFER_SIZE_BYTES_;
     uint8_t payload[PAYLOAD_SIZE];

@@ -4,6 +4,7 @@
 #include "Task.hpp"
 #include "RegistrationManager.hpp"
 #include "SubscriptionManager.hpp"
+#include "Logger.hpp"
 
 #include "nunavut_assert.h"
 #include "uavcan/node/port/List_1_0.h"
@@ -36,7 +37,16 @@ void TaskSubscribeNodePortList<Adapters...>::handleTaskImpl()
         strcat(subscribers, vstring);
 	}
 
-	log(LOG_LEVEL_DEBUG, "TaskSubscribeNodePortList: %d ( %s)\r\n", buffer.size(), subscribers);
+	log(LOG_LEVEL_DEBUG, "TaskSubscribeNodePortList: %d %d ( %s)\r\n", buffer.size(), subscriptions.size(), subscribers);
+
+    // Check if the buffer is empty
+    if (buffer.is_empty())
+    {
+        return;
+    }
+
+    // Process all transfers in the buffer
+    // Use a loop to process all items in the buffer
 	size_t count = buffer.size();
     for (size_t i = 0; i < count; ++i)
     {
