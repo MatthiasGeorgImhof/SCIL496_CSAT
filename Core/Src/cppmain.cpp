@@ -33,6 +33,7 @@
 #include "TaskBlinkLED.hpp"
 #include "TaskSendHeartBeat.hpp"
 #include "TaskSendNodePortList.hpp"
+#include "TaskSubscribeNodePortList.hpp"
 
 #include <cppmain.h>
 #include "Logger.hpp"
@@ -40,7 +41,7 @@
 CAN_HandleTypeDef *hcan1_;
 CAN_HandleTypeDef *hcan2_;
 
-constexpr size_t O1HEAP_SIZE = 16384;
+constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
 O1HeapInstance *o1heap;
 
@@ -70,7 +71,7 @@ void serardMemoryDeallocate(void *const user_reference, const size_t size, void 
 
 constexpr CyphalNodeID cyphal_node_id = CYPHAL_NODE_ID;
 
-constexpr size_t CAN_RX_BUFFER_SIZE = 32;
+constexpr size_t CAN_RX_BUFFER_SIZE = 64;
 CircularBuffer<CanRxFrame, CAN_RX_BUFFER_SIZE> can_rx_buffer;
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
@@ -130,6 +131,12 @@ void cppmain(HAL_Handles handles)
 	std::tuple<> empty_adapters = {} ;
 
 	RegistrationManager registration_manager;
+	SubscriptionManager subscription_manager;
+	registration_manager.subscribe(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+	registration_manager.subscribe(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
+	registration_manager.subscribe(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
+	registration_manager.publish(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+	registration_manager.publish(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
 	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
 	O1HeapAllocator<TaskSendHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
@@ -138,16 +145,18 @@ void cppmain(HAL_Handles handles)
 	O1HeapAllocator<TaskSendNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSendNodePortList(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000, 100, 0, canard_adapters));
 
+	O1HeapAllocator<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSubscribeNodePortList(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSubscribeNodePortList, &subscription_manager, 10000, 100, canard_adapters));
+
 	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
 
 	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
 	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
 
+    subscription_manager.subscribe(registration_manager.getSubscriptions(), canard_adapters);
 	ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
-	SubscriptionManager subscription_manager;
-    subscription_manager.subscribe(registration_manager.getSubscriptions(), canard_adapters);
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
@@ -165,6 +174,7 @@ void cppmain(HAL_Handles handles)
 		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, empty_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
+
 		HAL_Delay(100);
 	}
 }
