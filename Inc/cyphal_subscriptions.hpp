@@ -22,41 +22,48 @@
 #include "_4111spyglass/sat/sensor/Magnetometer_0_1.h"
 #include "_4111spyglass/sat/sensor/GNSS_0_1.h"
 
-
 constexpr static std::array CYPHAL_MESSAGES =
 {
-    CyphalSubscription{uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_, uavcan_node_Heartbeat_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{uavcan_node_port_List_1_0_FIXED_PORT_ID_, uavcan_node_port_List_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_, uavcan_diagnostic_Record_1_1_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{uavcan_time_Synchronization_1_0_FIXED_PORT_ID_, uavcan_time_Synchronization_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{uavcan_time_GetSynchronizationMasterInfo_0_1_FIXED_PORT_ID_, uavcan_time_GetSynchronizationMasterInfo_Request_0_1_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{_4111spyglass_sat_sensor_Magnetometer_0_1_PORT_ID_, _4111spyglass_sat_sensor_Magnetometer_0_1_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{_4111spyglass_sat_sensor_GNSS_0_1_PORT_ID_, _4111spyglass_sat_sensor_GNSS_0_1_EXTENT_BYTES_, CyphalTransferKindMessage},
-    CyphalSubscription{uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, uavcan_node_GetInfo_Request_1_0_EXTENT_BYTES_, CyphalTransferKindRequest}
+CyphalSubscription{uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_, uavcan_node_Heartbeat_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
+CyphalSubscription{uavcan_node_port_List_1_0_FIXED_PORT_ID_, uavcan_node_port_List_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
+CyphalSubscription{uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_, uavcan_diagnostic_Record_1_1_EXTENT_BYTES_, CyphalTransferKindMessage},
+CyphalSubscription{uavcan_time_Synchronization_1_0_FIXED_PORT_ID_, uavcan_time_Synchronization_1_0_EXTENT_BYTES_, CyphalTransferKindMessage},
+CyphalSubscription{uavcan_time_GetSynchronizationMasterInfo_0_1_FIXED_PORT_ID_, uavcan_time_GetSynchronizationMasterInfo_Request_0_1_EXTENT_BYTES_, CyphalTransferKindMessage},
+// CyphalSubscription{4111spyglass_sat_sensor_Magnetometer_0_1_PORT_ID, 4111spyglass_sat_sensor_Magnetometer_0_1_EXTENT_BYTES, CyphalTransferKindMessage},
+// CyphalSubscription{4111spyglass_sat_sensor_GNSS_0_1_PORT_ID, 4111spyglass_sat_sensor_GNSS_0_1_EXTENT_BYTES, CyphalTransferKindMessage},
+CyphalSubscription{uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, uavcan_node_GetInfo_Request_1_0_EXTENT_BYTES_, CyphalTransferKindRequest}
 };
 
-constexpr CyphalSubscription const *findByPortIdCompileTime(CyphalPortID port_id)
+constexpr static std::array CYPHAL_REQUESTS =
 {
-    for (auto const &item : CYPHAL_MESSAGES)
-    {
-        if (item.port_id == port_id)
-        {
-            return &item;
-        }
-    }
-    return nullptr;
+CyphalSubscription{uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, uavcan_node_GetInfo_Request_1_0_EXTENT_BYTES_, CyphalTransferKindRequest}
+};
+
+constexpr static std::array CYPHAL_RESPONSES =
+{
+CyphalSubscription{uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, uavcan_node_GetInfo_Response_1_0_EXTENT_BYTES_, CyphalTransferKindResponse} // Corrected extent
+};
+
+// Template function for compile-time lookup
+template <size_t Size, CyphalPortID port_id>
+constexpr CyphalSubscription const *findByPortIdCompileTime(const std::array<CyphalSubscription, Size>& arr) {
+for (auto const &item : arr) {
+if (item.port_id == port_id) {
+return &item;
+}
+}
+return nullptr;
 }
 
-CyphalSubscription const *findByPortIdRuntime(CyphalPortID port_id)
-{
-    for (auto const &item : CYPHAL_MESSAGES)
-    {
-        if (item.port_id == port_id)
-        {
-            return &item;
-        }
-    }
-    return nullptr;
+// Template function for runtime lookup
+template <size_t Size>
+CyphalSubscription const *findByPortIdRuntime(const std::array<CyphalSubscription, Size>& arr, CyphalPortID port_id) {
+for (auto const &item : arr) {
+if (item.port_id == port_id) {
+return &item;
+}
+}
+return nullptr;
 }
 
 #endif // CYPHAL_SUBSCRIPTIONS_HPP_
