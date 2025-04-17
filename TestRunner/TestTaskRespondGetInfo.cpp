@@ -79,8 +79,8 @@ public:
     MockTaskRespondGetInfo(uint8_t unique_id_[16], char name_[50], uint32_t interval, uint32_t tick, std::tuple<Adapters...> &adapters) : TaskRespondGetInfo<Adapters...>(unique_id_, name_, interval, tick, adapters) {}
 
     using TaskRespondGetInfo<Adapters...>::handleMessage;
-    size_t getBufferSize() const { return TaskRespondGetInfo<Adapters...>::buffer.size(); }
-    using TaskRespondGetInfo<Adapters...>::buffer;
+    size_t getBufferSize() const { return TaskRespondGetInfo<Adapters...>::buffer_.size(); }
+    using TaskRespondGetInfo<Adapters...>::buffer_;
 };
 
 TEST_CASE("TaskRespondGetInfo: Handles GetInfo request and publishes response")
@@ -184,8 +184,8 @@ TEST_CASE("TaskRespondGetInfo: registers and unregisters correctly")
 
     // Register the task
     task_sendheartbeat->registerTask(&registration_manager, task_sendheartbeat);
-    CHECK(registration_manager.getSubscriptions().size() == 1);
-    CHECK(registration_manager.getSubscriptions().containsIf([&](const CyphalPortID& port_id) {
+    CHECK(registration_manager.getServers().size() == 1);
+    CHECK(registration_manager.getServers().containsIf([&](const CyphalPortID& port_id) {
         return port_id == uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
     }));
     // Unregister the task

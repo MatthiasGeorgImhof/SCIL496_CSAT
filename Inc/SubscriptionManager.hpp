@@ -12,7 +12,7 @@
 #include "cyphal_subscriptions.hpp"
 
 /**
- * @brief Manages subscriptions to Cyphal ports.  It also handles the interaction with the Cyphal adapters.
+ * @brief Manages subscriptions to Cyphal ports and interacts with Cyphal adapters.
  */
 class SubscriptionManager
 {
@@ -25,118 +25,185 @@ public:
     SubscriptionManager &operator=(const SubscriptionManager &) = delete;
 
     /**
-     * @brief Subscribes a task to a Cyphal port using the provided adapters.
-     * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
-     * @param subscription The Cyphal subscription details.
-     * @param adapters A tuple containing the Cyphal adapter instances.
-     */
-    template <typename List, typename... Adapters>
-    void subscribe(const List &port_ids, std::tuple<Adapters...> &adapters);
-
-    /**
-     * @brief Subscribes a task to a Cyphal port using the provided adapters.
-     * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
-     * @param subscription The Cyphal subscription details.
-     * @param adapters A tuple containing the Cyphal adapter instances.
+     * @brief Subscribes to a single Cyphal port using the provided adapters.
+     * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
+     * @param subscription     The Cyphal subscription to subscribe to.
+     * @param adapters    A tuple containing the Cyphal adapter instances.
      */
     template <typename... Adapters>
+    void subscribe(const CyphalSubscription *subscription, std::tuple<Adapters...> &adapters);
+
+    /**
+     * @brief Subscribes to Cyphal ports using the provided adapters.
+     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam PortIDs   Container type of port IDs (e.g., std::vector).
+     * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
+     * @param port_ids    Container of Cyphal port IDs to subscribe to.
+     * @param adapters    A tuple containing the Cyphal adapter instances.
+     */
+    template <typename Messages, typename PortIDs, typename... Adapters>
+    void subscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters);
+
+    /**
+     * @brief Subscribes to a single Cyphal port using the provided adapters.
+     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
+     * @param port_id     The Cyphal port ID to subscribe to.
+     * @param adapters    A tuple containing the Cyphal adapter instances.
+     */
+    template <typename Messages, typename... Adapters>
     void subscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters);
 
     /**
-     * @brief Unsubscribes a task from a Cyphal port using the provided adapters.
-     * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
-     * @param subscription The Cyphal subscription details.
-     * @param adapters A tuple containing the Cyphal adapter instances.
-     */
-    template <typename List, typename... Adapters>
-
-    void unsubscribe(const List &port_ids, std::tuple<Adapters...> &adapters);
-    /**
-     * @brief Unsubscribes a task from a Cyphal port using the provided adapters.
-     * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
-     * @param subscription The Cyphal subscription details.
-     * @param adapters A tuple containing the Cyphal adapter instances.
+     * @brief Unsubscribes from a single Cyphal port using the provided adapters.
+     * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
+     * @param subscription     The Cyphal subscription to unsubscribe from.
+     * @param adapters    A tuple containing the Cyphal adapter instances.
      */
     template <typename... Adapters>
+    void unsubscribe(const CyphalSubscription *subscription, std::tuple<Adapters...> &adapters);
+
+    /**
+     * @brief Unsubscribes from Cyphal ports using the provided adapters.
+     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam PortIDs   Container type of port IDs (e.g., std::vector).
+     * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
+     * @param port_ids    Container of Cyphal port IDs to unsubscribe from.
+     * @param adapters    A tuple containing the Cyphal adapter instances.
+     */
+    template <typename Messages, typename PortIDs, typename... Adapters>
+    void unsubscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters);
+
+    /**
+     * @brief Unsubscribes from a single Cyphal port using the provided adapters.
+     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
+     * @param port_id     The Cyphal port ID to unsubscribe from.
+     * @param adapters    A tuple containing the Cyphal adapter instances.
+     */
+    template <typename Messages, typename... Adapters>
     void unsubscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters);
 
     /**
      * @brief Gets the list of Cyphal subscriptions.
      * @return A const reference to the ArrayList of Cyphal subscriptions.
      */
-    inline const ArrayList<const CyphalSubscription *, NUM_SUBSCRIPTIONS> &getSubscriptions() const;
+    inline const ArrayList<const CyphalSubscription *, NUM_SUBSCRIPTIONS> &getSubscriptions() const { return subscriptions_; }
 
 private:
-    /**
-     * @brief List of Cyphal subscriptions.
-     */
     ArrayList<const CyphalSubscription *, NUM_SUBSCRIPTIONS> subscriptions_;
 };
 
 /**
- * @brief Subscribes a task to a Cyphal port using the provided adapters.
- * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
- * @param subscription The Cyphal subscription details.
+ * @brief Subscribes to Cyphal ports using the provided adapters.
  */
-
-template <typename List, typename... Adapters>
-void SubscriptionManager::subscribe(const List &port_ids, std::tuple<Adapters...> &adapters)
+template <typename... Adapters>
+void SubscriptionManager::subscribe(const CyphalSubscription *subscription, std::tuple<Adapters...> &adapters)
 {
-    for (auto port_id : port_ids)
-        subscribe(port_id, adapters);
+    subscriptions_.push(subscription);
+    bool all_successful = true;
+    std::apply([&](auto &...adapter)
+               { (([&]()
+                   {
+                 int8_t res = (adapter.cyphalRxSubscribe(subscription->transfer_kind, subscription->port_id, subscription->extent, 1000) > 0);
+                 all_successful = all_successful && res; }()),
+                  ...); }, adapters);
 }
 
-template <typename... Adapters>
+template <typename Messages, typename PortIDs, typename... Adapters>
+void SubscriptionManager::subscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters)
+{
+    for (auto port_id : port_ids)
+    {
+        subscribe<Messages>(port_id, adapters);
+    }
+}
+
+template <typename Messages, typename... Adapters>
 void SubscriptionManager::subscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters)
 {
-    const CyphalSubscription *subscription = findByPortIdRuntime(port_id);
+    static_assert(std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)> ||
+                      std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)> ||
+                      std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>,
+                  "Messages must be one of CYPHAL_MESSAGES, CYPHAL_REQUESTS, or CYPHAL_RESPONSES");
+
+    const CyphalSubscription *subscription = nullptr;
+
+    if constexpr (std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)>)
+    {
+        subscription = findMessageByPortIdRuntime(port_id);
+    }
+    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)>)
+    {
+        subscription = findRequestByPortIdRuntime(port_id);
+    }
+    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>)
+    {
+        subscription = findResponseByPortIdRuntime(port_id);
+    }
+
     if (subscription == nullptr)
+    {
         return;
-
-    subscriptions_.push(subscription);
-
-    bool all_successful = true;
-    std::apply([&](auto &...adapter)
-               { ([&]()
-                  {
-            int8_t res = (adapter.cyphalRxSubscribe(subscription->transfer_kind, subscription->port_id, subscription->extent, 1000) > 0);
-            all_successful = all_successful && res; }(), ...); }, adapters);
+    }
+    subscribe(subscription, adapters);
 }
 
 /**
- * @brief Unsubscribes a task from a Cyphal port using the provided adapters.
- * @tparam Adapters Variadic template parameter representing the Cyphal adapter types.
- * @param subscription The Cyphal subscription details.
+ * @brief Unsubscribes from Cyphal ports using the provided adapters.
  */
-template <typename List, typename... Adapters>
-void SubscriptionManager::unsubscribe(const List &port_ids, std::tuple<Adapters...> &adapters)
-{
-    for (auto port_id : port_ids)
-        unsubscribe(port_id, adapters);
-}
-
 template <typename... Adapters>
-void SubscriptionManager::unsubscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters)
+void SubscriptionManager::unsubscribe(const CyphalSubscription *subscription, std::tuple<Adapters...> &adapters)
 {
-    const CyphalSubscription *subscription = findByPortIdRuntime(port_id);
-    if (subscription == nullptr)
-        return;
+    bool all_successful = true;
+    std::apply([&](auto &...adapter)
+               { (([&]()
+                   {
+                int8_t res = (adapter.cyphalRxUnsubscribe(subscription->transfer_kind, subscription->port_id) > 0);
+                all_successful = all_successful && res; }()),
+                  ...); }, adapters);
 
     subscriptions_.removeIf([&](const CyphalSubscription *sub)
-                            { return sub == subscription; });
-
-    bool all_successful = true;
-    std::apply([&](auto &...adapter)
-               { ([&]()
-                  {
-            int8_t res = (adapter.cyphalRxUnsubscribe(subscription->transfer_kind, subscription->port_id) > 0);
-            all_successful = all_successful && res; }(), ...); }, adapters);
+                             { return sub == subscription; });
 }
 
-/**
- * @brief Gets the list of Cyphal subscriptions.
- * @return A const reference to the ArrayList of Cyphal subscriptions.
- */
-inline const ArrayList<const CyphalSubscription *, SubscriptionManager::NUM_SUBSCRIPTIONS> &SubscriptionManager::getSubscriptions() const { return subscriptions_; }
+template <typename Messages, typename PortIDs, typename... Adapters>
+void SubscriptionManager::unsubscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters)
+{
+    for (auto port_id : port_ids)
+    {
+        unsubscribe<Messages>(port_id, adapters);
+    }
+}
 
-#endif
+template <typename Messages, typename... Adapters>
+void SubscriptionManager::unsubscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters)
+{
+    static_assert(std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)> ||
+                      std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)> ||
+                      std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>,
+                  "Messages must be one of CYPHAL_MESSAGES, CYPHAL_REQUESTS, or CYPHAL_RESPONSES");
+
+    const CyphalSubscription *subscription = nullptr;
+
+    if constexpr (std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)>)
+    {
+        subscription = findMessageByPortIdRuntime(port_id);
+    }
+    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)>)
+    {
+        subscription = findRequestByPortIdRuntime(port_id);
+    }
+    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>)
+    {
+        subscription = findResponseByPortIdRuntime(port_id);
+    }
+
+    if (subscription == nullptr)
+    {
+        return;
+    }
+    unsubscribe(subscription, adapters);
+}
+
+#endif // INC_SubscriptionManager_HPP_

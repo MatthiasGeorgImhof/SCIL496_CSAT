@@ -133,7 +133,7 @@ TEST_CASE("TaskMainLoop: TaskSendHeartBeat TaskBlinkLED TaskCheckMemory")
 
 	ServiceManager service_manager(registration_manager.getHandlers());
 	SubscriptionManager subscription_manager;
-    subscription_manager.subscribe(registration_manager.getSubscriptions(), adapters);
+    subscription_manager.subscribe<decltype(CYPHAL_REQUESTS)>(registration_manager.getSubscriptions(), adapters);
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
     LoopManager loop_manager(allocator);
