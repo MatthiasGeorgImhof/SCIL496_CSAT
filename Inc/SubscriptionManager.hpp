@@ -20,6 +20,11 @@ public:
     static constexpr size_t NUM_SUBSCRIPTIONS = 16;
     static constexpr size_t NUM_PUBLICATIONS = 16;
 
+    struct MessageTag {};
+    struct RequestTag {};
+    struct ResponseTag {};
+
+public:
     SubscriptionManager() = default;
     SubscriptionManager(const SubscriptionManager &) = delete;
     SubscriptionManager &operator=(const SubscriptionManager &) = delete;
@@ -35,23 +40,23 @@ public:
 
     /**
      * @brief Subscribes to Cyphal ports using the provided adapters.
-     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam Tag  Cyphal messages array type (MessageTag, RequestTag, ResponseTag).
      * @tparam PortIDs   Container type of port IDs (e.g., std::vector).
      * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
      * @param port_ids    Container of Cyphal port IDs to subscribe to.
      * @param adapters    A tuple containing the Cyphal adapter instances.
      */
-    template <typename Messages, typename PortIDs, typename... Adapters>
+    template <typename Tag, typename PortIDs, typename... Adapters>
     void subscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters);
 
     /**
      * @brief Subscribes to a single Cyphal port using the provided adapters.
-     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam Tag  Cyphal messages array type (MessageTag, RequestTag, ResponseTag).
      * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
      * @param port_id     The Cyphal port ID to subscribe to.
      * @param adapters    A tuple containing the Cyphal adapter instances.
      */
-    template <typename Messages, typename... Adapters>
+    template <typename Tag, typename... Adapters>
     void subscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters);
 
     /**
@@ -65,23 +70,22 @@ public:
 
     /**
      * @brief Unsubscribes from Cyphal ports using the provided adapters.
-     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam Tag  Cyphal messages array type (MessageTag, RequestTag, ResponseTag).
      * @tparam PortIDs   Container type of port IDs (e.g., std::vector).
      * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
      * @param port_ids    Container of Cyphal port IDs to unsubscribe from.
      * @param adapters    A tuple containing the Cyphal adapter instances.
      */
-    template <typename Messages, typename PortIDs, typename... Adapters>
+    template <typename Tag, typename PortIDs, typename... Adapters>
     void unsubscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters);
 
     /**
      * @brief Unsubscribes from a single Cyphal port using the provided adapters.
-     * @tparam Messages  Cyphal messages array type (CYPHAL_MESSAGES, CYPHAL_REQUESTS, CYPHAL_RESPONSES).
+     * @tparam Tag  Cyphal messages array type (MessageTag, RequestTag, ResponseTag).
      * @tparam Adapters  Variadic template parameter representing the Cyphal adapter types.
      * @param port_id     The Cyphal port ID to unsubscribe from.
-     * @param adapters    A tuple containing the Cyphal adapter instances.
      */
-    template <typename Messages, typename... Adapters>
+    template <typename Tag, typename... Adapters>
     void unsubscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters);
 
     /**
@@ -100,6 +104,10 @@ private:
 template <typename... Adapters>
 void SubscriptionManager::subscribe(const CyphalSubscription *subscription, std::tuple<Adapters...> &adapters)
 {
+    if (subscriptions_.full()) {
+        return;
+    }
+
     subscriptions_.push(subscription);
     bool all_successful = true;
     std::apply([&](auto &...adapter)
@@ -110,34 +118,38 @@ void SubscriptionManager::subscribe(const CyphalSubscription *subscription, std:
                   ...); }, adapters);
 }
 
-template <typename Messages, typename PortIDs, typename... Adapters>
+template <typename Tag, typename PortIDs, typename... Adapters>
 void SubscriptionManager::subscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters)
 {
+    static_assert(std::is_same_v<Tag, SubscriptionManager::MessageTag> ||
+        std::is_same_v<Tag, SubscriptionManager::RequestTag> ||
+        std::is_same_v<Tag, SubscriptionManager::ResponseTag>,
+        "Invalid tag type. Tag must be MessageTag, RequestTag, or ResponseTag.");
+    
     for (auto port_id : port_ids)
     {
-        subscribe<Messages>(port_id, adapters);
+        subscribe<Tag>(port_id, adapters);
     }
 }
 
-template <typename Messages, typename... Adapters>
+template <typename Tag, typename... Adapters>
 void SubscriptionManager::subscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters)
 {
-    static_assert(std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)> ||
-                      std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)> ||
-                      std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>,
-                  "Messages must be one of CYPHAL_MESSAGES, CYPHAL_REQUESTS, or CYPHAL_RESPONSES");
-
     const CyphalSubscription *subscription = nullptr;
+    static_assert(std::is_same_v<Tag, SubscriptionManager::MessageTag> ||
+        std::is_same_v<Tag, SubscriptionManager::RequestTag> ||
+        std::is_same_v<Tag, SubscriptionManager::ResponseTag>,
+        "Invalid tag type. Tag must be MessageTag, RequestTag, or ResponseTag.");
 
-    if constexpr (std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)>)
+    if constexpr (std::is_same_v<Tag, SubscriptionManager::MessageTag>)
     {
         subscription = findMessageByPortIdRuntime(port_id);
     }
-    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)>)
+    else if constexpr (std::is_same_v<Tag, SubscriptionManager::RequestTag>)
     {
         subscription = findRequestByPortIdRuntime(port_id);
     }
-    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>)
+    else if constexpr (std::is_same_v<Tag, SubscriptionManager::ResponseTag>)
     {
         subscription = findResponseByPortIdRuntime(port_id);
     }
@@ -167,34 +179,38 @@ void SubscriptionManager::unsubscribe(const CyphalSubscription *subscription, st
                              { return sub == subscription; });
 }
 
-template <typename Messages, typename PortIDs, typename... Adapters>
+template <typename Tag, typename PortIDs, typename... Adapters>
 void SubscriptionManager::unsubscribe(const PortIDs &port_ids, std::tuple<Adapters...> &adapters)
 {
+    static_assert(std::is_same_v<Tag, SubscriptionManager::MessageTag> ||
+        std::is_same_v<Tag, SubscriptionManager::RequestTag> ||
+        std::is_same_v<Tag, SubscriptionManager::ResponseTag>,
+        "Invalid tag type. Tag must be MessageTag, RequestTag, or ResponseTag.");
+
     for (auto port_id : port_ids)
     {
-        unsubscribe<Messages>(port_id, adapters);
+        unsubscribe<Tag>(port_id, adapters);
     }
 }
 
-template <typename Messages, typename... Adapters>
+template <typename Tag, typename... Adapters>
 void SubscriptionManager::unsubscribe(const CyphalPortID port_id, std::tuple<Adapters...> &adapters)
 {
-    static_assert(std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)> ||
-                      std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)> ||
-                      std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>,
-                  "Messages must be one of CYPHAL_MESSAGES, CYPHAL_REQUESTS, or CYPHAL_RESPONSES");
-
     const CyphalSubscription *subscription = nullptr;
+    static_assert(std::is_same_v<Tag, SubscriptionManager::MessageTag> ||
+        std::is_same_v<Tag, SubscriptionManager::RequestTag> ||
+        std::is_same_v<Tag, SubscriptionManager::ResponseTag>,
+        "Invalid tag type. Tag must be MessageTag, RequestTag, or ResponseTag.");
 
-    if constexpr (std::is_same_v<Messages, decltype(CYPHAL_MESSAGES)>)
+    if constexpr (std::is_same_v<Tag, SubscriptionManager::MessageTag>)
     {
         subscription = findMessageByPortIdRuntime(port_id);
     }
-    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_REQUESTS)>)
+    else if constexpr (std::is_same_v<Tag, SubscriptionManager::RequestTag>)
     {
         subscription = findRequestByPortIdRuntime(port_id);
     }
-    else if constexpr (std::is_same_v<Messages, decltype(CYPHAL_RESPONSES)>)
+    else if constexpr (std::is_same_v<Tag, SubscriptionManager::ResponseTag>)
     {
         subscription = findResponseByPortIdRuntime(port_id);
     }

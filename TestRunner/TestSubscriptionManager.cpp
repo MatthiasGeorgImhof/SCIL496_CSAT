@@ -75,7 +75,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Message Port")
     auto adapters = createAdapters(adapter1, adapter2);
     const CyphalPortID port_id = uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_;
 
-    manager.subscribe<decltype(CYPHAL_MESSAGES)>(port_id, adapters);
+    manager.subscribe<SubscriptionManager::MessageTag>(port_id, adapters);
 
     const auto &subscriptions = manager.getSubscriptions();
     CHECK(subscriptions.size() == 1);
@@ -83,7 +83,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Message Port")
     CHECK(adapter1.cyphalRxSubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 1);
 
-    manager.unsubscribe<decltype(CYPHAL_MESSAGES)>(port_id, adapters);
+    manager.unsubscribe<SubscriptionManager::MessageTag>(port_id, adapters);
     CHECK(subscriptions.size() == 0);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 1);
@@ -96,7 +96,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Request Port")
     auto adapters = createAdapters(adapter1, adapter2);
     const CyphalPortID port_id = uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
 
-    manager.subscribe<decltype(CYPHAL_REQUESTS)>(port_id, adapters);
+    manager.subscribe<SubscriptionManager::RequestTag>(port_id, adapters);
 
     const auto &subscriptions = manager.getSubscriptions();
     CHECK(subscriptions.size() == 1);
@@ -104,7 +104,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Request Port")
     CHECK(adapter1.cyphalRxSubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 1);
 
-    manager.unsubscribe<decltype(CYPHAL_REQUESTS)>(port_id, adapters);
+    manager.unsubscribe<SubscriptionManager::RequestTag>(port_id, adapters);
     CHECK(subscriptions.size() == 0);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 1);
@@ -117,7 +117,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Response Port")
     auto adapters = createAdapters(adapter1, adapter2);
     const CyphalPortID port_id = uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
 
-    manager.subscribe<decltype(CYPHAL_RESPONSES)>(port_id, adapters);
+    manager.subscribe<SubscriptionManager::ResponseTag>(port_id, adapters);
 
     const auto &subscriptions = manager.getSubscriptions();
     CHECK(subscriptions.size() == 1);
@@ -125,7 +125,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Single Response Port")
     CHECK(adapter1.cyphalRxSubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 1);
 
-    manager.unsubscribe<decltype(CYPHAL_RESPONSES)>(port_id, adapters);
+    manager.unsubscribe<SubscriptionManager::ResponseTag>(port_id, adapters);
     CHECK(subscriptions.size() == 0);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 1);
@@ -141,7 +141,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe List of Message Ports"
         uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_,
         uavcan_node_port_List_1_0_FIXED_PORT_ID_};
 
-    manager.subscribe<decltype(CYPHAL_MESSAGES), std::vector<CyphalPortID>>(port_ids, adapters);
+    manager.subscribe<SubscriptionManager::MessageTag, std::vector<CyphalPortID>>(port_ids, adapters);
 
     const auto &subscriptions = manager.getSubscriptions();
     CHECK(subscriptions.size() == 2);
@@ -150,7 +150,7 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe List of Message Ports"
     CHECK(adapter1.cyphalRxSubscribeCallCount == 2);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 2);
 
-    manager.unsubscribe<decltype(CYPHAL_MESSAGES), std::vector<CyphalPortID>>(port_ids, adapters);
+    manager.unsubscribe<SubscriptionManager::MessageTag, std::vector<CyphalPortID>>(port_ids, adapters);
     CHECK(subscriptions.size() == 0);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 2);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 2);
@@ -163,14 +163,14 @@ TEST_CASE("SubscriptionManager: Subscribe to non existent port")
     auto adapters = createAdapters(adapter1, adapter2);
     const CyphalPortID port_id = 65535;  // Non-existent port
 
-    manager.subscribe<decltype(CYPHAL_MESSAGES)>(port_id, adapters);
+    manager.subscribe<SubscriptionManager::MessageTag>(port_id, adapters);
 
     const auto &subscriptions = manager.getSubscriptions();
     CHECK(subscriptions.size() == 0);
     CHECK(adapter1.cyphalRxSubscribeCallCount == 0);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 0);
 
-    manager.unsubscribe<decltype(CYPHAL_MESSAGES)>(port_id, adapters);
+    manager.unsubscribe<SubscriptionManager::MessageTag>(port_id, adapters);
     CHECK(subscriptions.size() == 0);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 0);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 0);
@@ -184,25 +184,25 @@ TEST_CASE("SubscriptionManager: Multiple Subscriptions and Unsubscriptions") {
     const CyphalPortID getinfo_port = uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
 
     // Subscribe to Heartbeat
-    manager.subscribe<decltype(CYPHAL_MESSAGES)>(heartbeat_port, adapters);
+    manager.subscribe<SubscriptionManager::MessageTag>(heartbeat_port, adapters);
     CHECK(manager.getSubscriptions().size() == 1);
     CHECK(adapter1.cyphalRxSubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 1);
 
     // Subscribe to GetInfo (Request)
-    manager.subscribe<decltype(CYPHAL_REQUESTS)>(getinfo_port, adapters);
+    manager.subscribe<SubscriptionManager::RequestTag>(getinfo_port, adapters);
     CHECK(manager.getSubscriptions().size() == 2);
     CHECK(adapter1.cyphalRxSubscribeCallCount == 2);
     CHECK(adapter2.cyphalRxSubscribeCallCount == 2);
 
     // Unsubscribe from Heartbeat
-    manager.unsubscribe<decltype(CYPHAL_MESSAGES)>(heartbeat_port, adapters);
+    manager.unsubscribe<SubscriptionManager::MessageTag>(heartbeat_port, adapters);
     CHECK(manager.getSubscriptions().size() == 1);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 1);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 1);
 
     // Unsubscribe from GetInfo
-    manager.unsubscribe<decltype(CYPHAL_REQUESTS)>(getinfo_port, adapters);
+    manager.unsubscribe<SubscriptionManager::RequestTag>(getinfo_port, adapters);
     CHECK(manager.getSubscriptions().size() == 0);
     CHECK(adapter1.cyphalRxUnsubscribeCallCount == 2);
     CHECK(adapter2.cyphalRxUnsubscribeCallCount == 2);
@@ -215,7 +215,7 @@ TEST_CASE("SubscriptionManager: Correct Transfer Kind, Extent and Timeout are pa
     const CyphalPortID heartbeat_port = uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_;
 
     // Subscribe to Heartbeat
-    manager.subscribe<decltype(CYPHAL_MESSAGES)>(heartbeat_port, adapters);
+    manager.subscribe<SubscriptionManager::MessageTag>(heartbeat_port, adapters);
 
     // Validate that the subscription information was correctly passed to the adapters
     CHECK(adapter1.lastPortID == heartbeat_port);
@@ -229,7 +229,7 @@ TEST_CASE("SubscriptionManager: Correct Transfer Kind, Extent and Timeout are pa
     CHECK(adapter2.lastTimeout == 1000);
 
     // Unsubscribe from Heartbeat and then reset state in adapter
-    manager.unsubscribe<decltype(CYPHAL_MESSAGES)>(heartbeat_port, adapters);
+    manager.unsubscribe<SubscriptionManager::MessageTag>(heartbeat_port, adapters);
 
     //Reset the state in the adapter
     adapter1.resetCounts();
@@ -237,7 +237,7 @@ TEST_CASE("SubscriptionManager: Correct Transfer Kind, Extent and Timeout are pa
 
     const CyphalPortID getinfo_port = uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
     // Subscribe to GetInfo (Request)
-    manager.subscribe<decltype(CYPHAL_REQUESTS)>(getinfo_port, adapters);
+    manager.subscribe<SubscriptionManager::RequestTag>(getinfo_port, adapters);
 
     CHECK(adapter1.lastPortID == getinfo_port);
     CHECK(adapter1.lastExtent == uavcan_node_GetInfo_Request_1_0_EXTENT_BYTES_);
@@ -312,3 +312,109 @@ TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe using CyphalSubscripti
     CHECK(adapter1.lastPortID == bad_sub.port_id);
     CHECK(adapter2.lastPortID == bad_sub.port_id);
 }
+
+TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Message")
+{
+    SubscriptionManager manager;
+    DummyAdapter adapter1(42), adapter2(43);
+    auto adapters = createAdapters(adapter1, adapter2);
+    constexpr CyphalPortID port_id = uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_;
+
+    const CyphalSubscription* subscription = findMessageByPortIdRuntime(port_id);
+    REQUIRE(subscription == findMessageByPortIdCompileTime<port_id>());
+    REQUIRE(subscription != nullptr); // Ensure the subscription is found
+
+    // Subscribe using the CyphalSubscription*
+    manager.subscribe(subscription, adapters);
+    const auto &subscriptions = manager.getSubscriptions();
+    CHECK(subscriptions.size() == 1);
+    CHECK(subscriptions[0] == subscription);
+    CHECK(subscriptions[0]->port_id == subscription->port_id);
+    CHECK(subscriptions[0]->extent == subscription->extent);
+    CHECK(subscriptions[0]->extent == uavcan_node_Heartbeat_1_0_EXTENT_BYTES_);
+    CHECK(subscriptions[0]->transfer_kind == subscription->transfer_kind);
+    
+    // Unsubscribe using the CyphalSubscription*
+    manager.unsubscribe(subscription, adapters);
+    CHECK(subscriptions.size() == 0);
+
+    manager.subscribe<SubscriptionManager::MessageTag>(port_id, adapters);
+    const auto &subscriptions_ = manager.getSubscriptions();
+    CHECK(subscriptions_.size() == 1);
+    CHECK(subscriptions_[0] == subscription);
+    CHECK(subscriptions_[0]->port_id == subscription->port_id);
+    CHECK(subscriptions_[0]->extent == subscription->extent);
+    CHECK(subscriptions_[0]->extent == uavcan_node_Heartbeat_1_0_EXTENT_BYTES_);
+    CHECK(subscriptions_[0]->transfer_kind == subscription->transfer_kind);
+}
+
+TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Request")
+{
+    SubscriptionManager manager;
+    DummyAdapter adapter1(42), adapter2(43);
+    auto adapters = createAdapters(adapter1, adapter2);
+    constexpr CyphalPortID port_id = uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
+
+    const CyphalSubscription* subscription = findRequestByPortIdRuntime(port_id);
+    REQUIRE(subscription == findRequestByPortIdCompileTime<port_id>());
+    REQUIRE(subscription != nullptr); // Ensure the subscription is found
+
+    // Subscribe using the CyphalSubscription*
+    manager.subscribe(subscription, adapters);
+    const auto &subscriptions = manager.getSubscriptions();
+    CHECK(subscriptions.size() == 1);
+    CHECK(subscriptions[0] == subscription);
+    CHECK(subscriptions[0]->port_id == subscription->port_id);
+    CHECK(subscriptions[0]->extent == subscription->extent);
+    CHECK(subscriptions[0]->extent == uavcan_node_GetInfo_Request_1_0_EXTENT_BYTES_);
+    CHECK(subscriptions[0]->transfer_kind == subscription->transfer_kind);
+    
+    // Unsubscribe using the CyphalSubscription*
+    manager.unsubscribe(subscription, adapters);
+    CHECK(subscriptions.size() == 0);
+
+    manager.subscribe<SubscriptionManager::RequestTag>(port_id, adapters);
+    const auto &subscriptions_ = manager.getSubscriptions();
+    CHECK(subscriptions_.size() == 1);
+    CHECK(subscriptions_[0] == subscription);
+    CHECK(subscriptions_[0]->port_id == subscription->port_id);
+    CHECK(subscriptions_[0]->extent == subscription->extent);
+    CHECK(subscriptions_[0]->extent == uavcan_node_GetInfo_Request_1_0_EXTENT_BYTES_);
+    CHECK(subscriptions_[0]->transfer_kind == subscription->transfer_kind);
+}
+
+TEST_CASE("SubscriptionManager: Subscribe and Unsubscribe Response")
+{
+    SubscriptionManager manager;
+    DummyAdapter adapter1(42), adapter2(43);
+    auto adapters = createAdapters(adapter1, adapter2);
+    constexpr CyphalPortID port_id = uavcan_node_GetInfo_1_0_FIXED_PORT_ID_;
+
+    const CyphalSubscription* subscription = findResponseByPortIdRuntime(port_id);
+    REQUIRE(subscription == findResponseByPortIdCompileTime<port_id>());
+    REQUIRE(subscription != nullptr); // Ensure the subscription is found
+
+    // Subscribe using the CyphalSubscription*
+    manager.subscribe(subscription, adapters);
+    const auto &subscriptions = manager.getSubscriptions();
+    CHECK(subscriptions.size() == 1);
+    CHECK(subscriptions[0] == subscription);
+    CHECK(subscriptions[0]->port_id == subscription->port_id);
+    CHECK(subscriptions[0]->extent == subscription->extent);
+    CHECK(subscriptions[0]->extent == uavcan_node_GetInfo_Response_1_0_EXTENT_BYTES_);
+    CHECK(subscriptions[0]->transfer_kind == subscription->transfer_kind);
+    
+    // Unsubscribe using the CyphalSubscription*
+    manager.unsubscribe(subscription, adapters);
+    CHECK(subscriptions.size() == 0);
+
+    manager.subscribe<SubscriptionManager::ResponseTag>(port_id, adapters);
+    const auto &subscriptions_ = manager.getSubscriptions();
+    CHECK(subscriptions_.size() == 1);
+    CHECK(subscriptions_[0] == subscription);
+    CHECK(subscriptions_[0]->port_id == subscription->port_id);
+    CHECK(subscriptions_[0]->extent == subscription->extent);
+    CHECK(subscriptions_[0]->extent == uavcan_node_GetInfo_Response_1_0_EXTENT_BYTES_);
+    CHECK(subscriptions_[0]->transfer_kind == subscription->transfer_kind);
+}
+

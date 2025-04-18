@@ -42,36 +42,6 @@ std::shared_ptr<CyphalTransfer> createGetInfoRequest()
     return transfer;
 }
 
-// class MockRegistrationManager : public RegistrationManager
-// {
-// public:
-//     // Simulate subscription success or failure
-//     bool should_succeed = true;
-
-//     void subscribe(CyphalPortID port_id, std::shared_ptr<Task> task)
-//     {
-//         if (should_succeed) {
-//             subscriptions[port_id] = task;
-//         } else {
-//             // Simulate a failure (e.g., throw an exception, log an error)
-//             std::cerr << "Subscription failed!" << std::endl;
-//             // You could also throw an exception here:
-//             // throw std::runtime_error("Subscription failed");
-//         }
-//     }
-
-//     void unsubscribe(CyphalPortID port_id, std::shared_ptr<Task> /*task*/)
-//     {
-//         auto it = subscriptions.find(port_id);
-//         if (it != subscriptions.end())
-//         {
-//             subscriptions.erase(it);
-//         }
-//     }
-
-//     std::map<CyphalPortID, std::shared_ptr<Task>> subscriptions;
-// };
-
 template <typename... Adapters>
 class MockTaskRespondGetInfo : public TaskRespondGetInfo<Adapters...>
 {

@@ -51,11 +51,11 @@ void TaskSubscribeNodePortList<Adapters...>::handleTaskImpl()
 
         for (size_t j = 0; j < data.publishers.sparse_list.count; ++j)
         {
-            subscription_manager_->subscribe<decltype(CYPHAL_MESSAGES)>(data.publishers.sparse_list.elements[j].value, adapters_);
+            subscription_manager_->subscribe<SubscriptionManager::MessageTag>(data.publishers.sparse_list.elements[j].value, adapters_);
         }
         for (size_t j = 0; j < data.subscribers.sparse_list.count; ++j)
         {
-            subscription_manager_->subscribe<decltype(CYPHAL_MESSAGES)>(data.subscribers.sparse_list.elements[j].value, adapters_);
+            subscription_manager_->subscribe<SubscriptionManager::MessageTag>(data.subscribers.sparse_list.elements[j].value, adapters_);
         }
         for(const CyphalSubscription &subscription : CYPHAL_REQUESTS)
         {

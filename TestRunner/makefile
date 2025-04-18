@@ -33,6 +33,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTaskRespondGetInfo.cpp \
 			 TestTaskRequestGetInfo.cpp \
+			 TestTaskRegistrationSubscription.cpp \
              TestBoxSet.cpp \
              TestBoxSetIterator.cpp \
              TestCircularBuffer.cpp \
@@ -132,6 +133,14 @@ $(BIN_DIR)/TestServiceManager : $(BIN_DIR)/TestServiceManager.o $(BIN_DIR)/Servi
 
 $(BIN_DIR)/ServiceManager.o : ../Src/ServiceManager.cpp
 	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+# Rule for TestTaskRegistrationSubscription with extra sources
+$(BIN_DIR)/TestTaskRegistrationSubscription.o : TestTaskRegistrationSubscription.cpp
+	@echo "Compiling $< with extra sources"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskRegistrationSubscription : $(BIN_DIR)/TestTaskRegistrationSubscription.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/mock_hal.o
+	$(CXX) $(BIN_DIR)/TestTaskRegistrationSubscription.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/mock_hal.o $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) $(LIBS) -o $@
 
 # Rule for TestTaskSendHeartBeat with extra sources
 $(BIN_DIR)/TestTaskSendHeartBeat.o : TestTaskSendHeartBeat.cpp
