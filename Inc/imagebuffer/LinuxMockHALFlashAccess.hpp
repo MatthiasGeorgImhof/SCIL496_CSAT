@@ -10,24 +10,27 @@
 class LinuxMockHALFlashAccess
 {
 public:
-    LinuxMockHALFlashAccess(uint32_t flash_start, uint32_t total_size)
-        : FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
+    LinuxMockHALFlashAccess() = delete;
+    
+    LinuxMockHALFlashAccess(I2C_HandleTypeDef *hi2c, uint32_t flash_start, uint32_t total_size)
+        : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
     {
-        flash_memory.resize(TOTAL_BUFFER_SIZE, 0xff); // Allocate and zero-initialize the buffer
+        flash_memory.resize(TOTAL_BUFFER_SIZE, 0xff);
     }
 
     int32_t write(uint32_t address, const uint8_t *data, size_t size);
     int32_t read(uint32_t address, uint8_t *data, size_t size);
     int32_t erase(uint32_t address);
+    std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
 
 private:
     int32_t checkBounds(uint32_t address, size_t size);
 
 private:
-    std::vector<uint8_t> flash_memory;  // Use a vector for dynamic allocation
-    const uint32_t FLASH_START_ADDRESS; // Make it a class member
-    const uint32_t TOTAL_BUFFER_SIZE;   // Make it a class member
-    I2C_HandleTypeDef hi2c_;
+    I2C_HandleTypeDef *hi2c_;
+    const uint32_t FLASH_START_ADDRESS;
+    const uint32_t TOTAL_BUFFER_SIZE;
+    std::vector<uint8_t> flash_memory;
 };
 
 int32_t LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
@@ -40,7 +43,7 @@ int32_t LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data, si
 
     size_t offset = address - FLASH_START_ADDRESS;
     // Now, call the mocked HAL_I2C_Mem_Write function to simulate the I2C write
-    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(&hi2c_, 0xA0, offset, 2, (uint8_t *)data, static_cast<uint16_t>(size), 100);
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(hi2c_, 0xA0, offset, 2, (uint8_t *)data, static_cast<uint16_t>(size), 100);
     if (status != HAL_OK)
     {
         std::cerr << "I2C Write Failed (Mock HAL)" << std::endl;
@@ -63,7 +66,7 @@ int32_t LinuxMockHALFlashAccess::read(uint32_t address, uint8_t *data, size_t si
 
     size_t offset = address - FLASH_START_ADDRESS;
     // Now, call the mocked HAL_I2C_Mem_Read function to simulate the I2C read
-    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(&hi2c_, 0xA0, offset, 2, (uint8_t *)data, static_cast<uint16_t>(size), 100);
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(hi2c_, 0xA0, offset, 2, (uint8_t *)data, static_cast<uint16_t>(size), 100);
     if (status != HAL_OK)
     {
         std::cerr << "I2C Read Failed (Mock HAL)" << std::endl;

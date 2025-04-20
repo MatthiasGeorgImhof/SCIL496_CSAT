@@ -20,14 +20,15 @@ public:
     int32_t write(uint32_t address, const uint8_t *data, size_t size);
     int32_t read(uint32_t address, uint8_t *data, size_t size);
     int32_t erase(uint32_t address);
+    std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
 
 private:
     int32_t checkBounds(uint32_t address, size_t size);
 
 private:
-    std::vector<uint8_t> flash_memory; // Use a vector for dynamic allocation
     const uint32_t FLASH_START_ADDRESS; // Make it a class member
     const uint32_t TOTAL_BUFFER_SIZE;   // Make it a class member
+    std::vector<uint8_t> flash_memory; // Use a vector for dynamic allocation
 };
 
 int32_t DirectMemoryAccess::write(uint32_t address, const uint8_t *data, size_t size)

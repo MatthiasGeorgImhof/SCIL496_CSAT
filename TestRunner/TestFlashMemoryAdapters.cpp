@@ -61,7 +61,8 @@ TEST_CASE("LinuxMockHALFlashAccess")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
-    LinuxMockHALFlashAccess hal(FLASH_START, FLASH_SIZE);
+    I2C_HandleTypeDef hi2c; 
+    LinuxMockHALFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
 
     SUBCASE("Write and Read within bounds")
     {
@@ -106,8 +107,10 @@ TEST_CASE("DirectMemoryAccess and LinuxMockHALFlashAccess API consistency")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
+    I2C_HandleTypeDef hi2c; 
+
     DirectMemoryAccess dma(FLASH_START, FLASH_SIZE);
-    LinuxMockHALFlashAccess hal(FLASH_START, FLASH_SIZE);
+    LinuxMockHALFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
 
     uint32_t address = FLASH_START + 10;
     uint8_t data[] = {0x09, 0x0A, 0x0B, 0x0C};
