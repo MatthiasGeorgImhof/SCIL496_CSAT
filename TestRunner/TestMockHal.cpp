@@ -230,13 +230,13 @@ TEST_CASE("HAL_I2C_Mem_Read Fail invalid address") {
     clear_i2c_mem_data();
 }
 
-TEST_CASE("HAL_I2C_Mem_Read Fail invalid size") {
+TEST_CASE("HAL_I2C_Mem_Read Different size") {
     I2C_HandleTypeDef hi2c;
      uint8_t expected_data[] = {0xAA, 0xBB, 0xCC};
     uint8_t read_data[4];
     inject_i2c_mem_data(0x50, 0x10, expected_data, 3);
     
-    CHECK(HAL_I2C_Mem_Read(&hi2c, 0x50, 0x10, 1, read_data, 4, 100) == HAL_ERROR);
+    CHECK(HAL_I2C_Mem_Read(&hi2c, 0x50, 0x10, 1, read_data, 4, 100) == HAL_OK);
      clear_i2c_mem_data();
 }
 

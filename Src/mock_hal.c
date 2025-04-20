@@ -23,11 +23,6 @@ uint16_t i2c_mem_buffer_dev_address;
 uint16_t i2c_mem_buffer_mem_address;
 uint16_t i2c_mem_buffer_size = 0;
 
-// Store I2C transfer parameters for verification
-uint16_t mocked_i2c_dev_address;
-uint16_t mocked_i2c_mem_address;
-uint16_t mocked_i2c_mem_size;
-
 // Mock Variables
 uint32_t current_tick = 0;
 int current_free_mailboxes = 3;
@@ -202,13 +197,11 @@ uint32_t HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, u
     }
 
     // Store the parameters for later verification
-    mocked_i2c_dev_address = DevAddress;
-    mocked_i2c_mem_address = 0; // Not a memory transfer
-    mocked_i2c_mem_size = Size;
+    i2c_mem_buffer_dev_address = DevAddress;
+    i2c_mem_buffer_mem_address = 0; // Not a memory transfer
+    i2c_mem_buffer_size = Size;
 
-    // You might want to copy the data to a buffer here to inspect it later
-
-    // Basic mock, just return HAL_OK
+    memcpy(i2c_mem_buffer, pData, Size);
     return 0;
 }
 
@@ -217,17 +210,14 @@ uint32_t HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t
         return 1; //HAL_ERROR;
     }
 
-    if(i2c_mem_buffer_dev_address != DevAddress || i2c_mem_buffer_mem_address != MemAddress || i2c_mem_buffer_size == 0) {
-       return 1; //HAL_ERROR, invalid address
-    }
-    if(Size > i2c_mem_buffer_size) {
-     return 1; //HAL_ERROR, invalid size
+    if(i2c_mem_buffer_dev_address != DevAddress || i2c_mem_buffer_size == 0) {
+            return 1; //HAL_ERROR, invalid address
     }
 
     // Store the parameters for later verification
-    mocked_i2c_dev_address = DevAddress;
-    mocked_i2c_mem_address = MemAddress;
-    mocked_i2c_mem_size = Size;
+    i2c_mem_buffer_dev_address = DevAddress;
+    i2c_mem_buffer_mem_address = MemAddress;
+    i2c_mem_buffer_size = Size;
 
     memcpy(pData, i2c_mem_buffer, Size);
     return 0;
@@ -240,11 +230,11 @@ uint32_t HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_
     }
 
     // Store the parameters for later verification
-    mocked_i2c_dev_address = DevAddress;
-    mocked_i2c_mem_address = MemAddress;
-    mocked_i2c_mem_size = Size;
+    i2c_mem_buffer_dev_address = DevAddress;
+    i2c_mem_buffer_mem_address = MemAddress;
+    i2c_mem_buffer_size = Size;
 
-    // Basic Mock, just returns HAL_OK
+    memcpy(i2c_mem_buffer, pData, Size);
     return 0;
 }
 

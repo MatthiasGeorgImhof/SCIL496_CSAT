@@ -235,10 +235,6 @@ HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_
 extern uint32_t mocked_uart_rx_event_type;
 void set_mocked_uart_rx_event_type(uint32_t event_type);
 
-//--- I2C External Variables ---
-extern uint16_t mocked_i2c_dev_address;
-extern uint16_t mocked_i2c_mem_address;
-extern uint16_t mocked_i2c_mem_size;
 
 //------------------------------------------------------------------------------
 //  HELPER FUNCTION PROTOTYPES
