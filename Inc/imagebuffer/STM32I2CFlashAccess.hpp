@@ -10,9 +10,9 @@ public:
     STM32I2CFlashAccess(I2C_HandleTypeDef* hi2c) : hi2c_(hi2c) {} // Constructor takes I2C handle
 
     // Override the base class methods to use your STM32 HAL and I2C
-    int32_t write(uint32_t address, const uint8_t* data, size_t size);
-    int32_t read(uint32_t address, uint8_t* data, size_t size);
-    int32_t erase(uint32_t address);
+    AdapterError write(uint32_t address, const uint8_t* data, size_t size);
+    AdapterError read(uint32_t address, uint8_t* data, size_t size);
+    AdapterError erase(uint32_t address);
 
 private:
     I2C_HandleTypeDef* hi2c_;  // I2C handle
@@ -40,7 +40,7 @@ int32_t STM32I2CFlashAccess::flash_sendCommand(uint8_t command) {
 }
 
 // Function to send an address to the flash chip (24-bit address)
-int32_t STM32I2CFlashAccess::flash_sendAddress(uint32_t address) {
+AdapterError STM32I2CFlashAccess::flash_sendAddress(uint32_t address) {
   std::array<uint8_t, 3> addressBytes; //Array to hold three address bytes
   addressBytes[0] = (address >> 16) & 0xFF; //Most significant byte
   addressBytes[1] = (address >> 8) & 0xFF;
@@ -49,12 +49,12 @@ int32_t STM32I2CFlashAccess::flash_sendAddress(uint32_t address) {
 }
 
 // Function to write enable
-int32_t STM32I2CFlashAccess::flash_writeEnable() {
+AdapterError STM32I2CFlashAccess::flash_writeEnable() {
     return flash_sendCommand(WRITE_ENABLE_COMMAND);
 }
 
 // Function to write a page to the flash memory
-int32_t STM32I2CFlashAccess::flash_pageWrite(uint32_t address, const uint8_t* data, size_t size) {
+AdapterError STM32I2CFlashAccess::flash_pageWrite(uint32_t address, const uint8_t* data, size_t size) {
 
   if (size > PAGE_SIZE) {
         std::cerr << "Error: Write size exceeds page size." << std::endl;

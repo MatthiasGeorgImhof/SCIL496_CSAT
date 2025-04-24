@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstring>
 #include <vector>
+#include "imagebuffer/access.hpp"
 
 class DirectMemoryAccess
 {
@@ -17,66 +18,66 @@ public:
         flash_memory.resize(TOTAL_BUFFER_SIZE, 0); // Allocate and zero-initialize the buffer
     }
 
-    int32_t write(uint32_t address, const uint8_t *data, size_t size);
-    int32_t read(uint32_t address, uint8_t *data, size_t size);
-    int32_t erase(uint32_t address);
-    std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
+    AccessError write(uint32_t address, const uint8_t *data, size_t size);
+    AccessError read(uint32_t address, uint8_t *data, size_t size);
+    AccessError erase(uint32_t address);
+    std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
 
 private:
-    int32_t checkBounds(uint32_t address, size_t size);
+    AccessError checkBounds(uint32_t address, size_t size);
 
 private:
     const uint32_t FLASH_START_ADDRESS; // Make it a class member
     const uint32_t TOTAL_BUFFER_SIZE;   // Make it a class member
-    std::vector<uint8_t> flash_memory; // Use a vector for dynamic allocation
+    std::vector<uint8_t> flash_memory;  // Use a vector for dynamic allocation
 };
 
-int32_t DirectMemoryAccess::write(uint32_t address, const uint8_t *data, size_t size)
+AccessError DirectMemoryAccess::write(uint32_t address, const uint8_t *data, size_t size)
 {
     // Check if the access is within bounds using base class method
-    if (checkBounds(address, size) != 0)
+    if (checkBounds(address, size) != AccessError::NO_ERROR)
     {
-        return -1; // Return error if out of bounds
+        return AccessError::OUT_OF_BOUNDS;
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
 
     // Perform the memory copy
     std::memcpy(flash_memory.data() + offset, data, size);
-    return 0; // Return success
+    return AccessError::NO_ERROR;
 }
 
-int32_t DirectMemoryAccess::read(uint32_t address, uint8_t *data, size_t size)
+AccessError DirectMemoryAccess::read(uint32_t address, uint8_t *data, size_t size)
 {
     // Check if the access is within bounds using base class method
-    if (checkBounds(address, size) != 0)
+    if (checkBounds(address, size) != AccessError::NO_ERROR)
     {
-        return -1; // Return error if out of bounds
+        return AccessError::OUT_OF_BOUNDS; // Return error if out of bounds
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
     // Perform the memory copy
     std::memcpy(data, flash_memory.data() + offset, size);
-    return 0; // Return success
+    return AccessError::NO_ERROR; // Return success
 }
 
-int32_t DirectMemoryAccess::erase(uint32_t /*address*/)
+AccessError DirectMemoryAccess::erase(uint32_t /*address*/)
 {
     // Simulate erasing a sector (e.g., by setting all bytes in the sector to 0xFF)
     // Implement sector size and erase logic here
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF); // Simulate erasing by filling with 0xFF
-    return 0; // Success
+    return AccessError::NO_ERROR;                             // Success
 }
 
-int32_t DirectMemoryAccess::checkBounds(uint32_t address, size_t size)
+AccessError DirectMemoryAccess::checkBounds(uint32_t address, size_t size)
 {
     if (address < FLASH_START_ADDRESS || address + size > FLASH_START_ADDRESS + TOTAL_BUFFER_SIZE)
     {
         std::cerr << "Error: Access out of bounds. Address: 0x" << std::hex << address
                   << ", Size: " << size << std::dec << std::endl; // Added address and size for debugging
-        return -1;                                                // Return error
+        return AccessError::OUT_OF_BOUNDS;
     }
-    return 0; // Return success
+    return AccessError::NO_ERROR; // Return success
 }
 
 #endif

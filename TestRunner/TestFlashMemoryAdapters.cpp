@@ -2,6 +2,7 @@
 #include "doctest.h"
 #include "imagebuffer/DirectMemoryAccess.hpp"
 #include "imagebuffer/LinuxMockHALFlashAccess.hpp"
+#include "imagebuffer/access.hpp"
 #include "mock_hal.h"
 #include <iostream>
 #include <vector> // Include vector header
@@ -26,8 +27,8 @@ TEST_CASE("DirectMemoryAccess")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size); // Use std::vector
 
-        REQUIRE(dma.write(address, data, size) == 0);
-        REQUIRE(dma.read(address, read_data.data(), size) == 0); // Pass the data pointer
+        REQUIRE(dma.write(address, data, size) == AccessError::NO_ERROR);
+        REQUIRE(dma.read(address, read_data.data(), size) == AccessError::NO_ERROR); // Pass the data pointer
         REQUIRE(compareMemory(data, read_data.data(), size));    // Pass the data pointer
     }
 
@@ -37,7 +38,7 @@ TEST_CASE("DirectMemoryAccess")
         uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
         size_t size = sizeof(data);
 
-        REQUIRE(dma.write(address, data, size) == -1);
+        REQUIRE(dma.write(address, data, size) == AccessError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Read out of bounds")
@@ -46,13 +47,13 @@ TEST_CASE("DirectMemoryAccess")
         std::vector<uint8_t> data(4); // Fixed size
         size_t size = data.size();
 
-        REQUIRE(dma.read(address, data.data(), size) == -1);
+        REQUIRE(dma.read(address, data.data(), size) == AccessError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Erase (simulated)")
     {
         uint32_t address = FLASH_START + 10;
-        REQUIRE(dma.erase(address) == 0); // Simply checks that the function runs without error
+        REQUIRE(dma.erase(address) == AccessError::NO_ERROR); // Simply checks that the function runs without error
     }
 }
 
@@ -71,11 +72,11 @@ TEST_CASE("LinuxMockHALFlashAccess")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size); // Use std::vector
         auto result = hal.write(address, data, size);
-        REQUIRE(result == 0);
+        REQUIRE(result == AccessError::NO_ERROR);
         result = hal.read(address, read_data.data(), size);
-        REQUIRE(result == 0);
-        result = compareMemory(data, read_data.data(), size);
-        REQUIRE(result == 1);
+        REQUIRE(result == AccessError::NO_ERROR);
+        bool result_bool = compareMemory(data, read_data.data(), size);
+        REQUIRE(result_bool == true);
     }
 
     SUBCASE("Write out of bounds")
@@ -84,7 +85,7 @@ TEST_CASE("LinuxMockHALFlashAccess")
         uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
         size_t size = sizeof(data);
 
-        REQUIRE(hal.write(address, data, size) == -1);
+        REQUIRE(hal.write(address, data, size) == AccessError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Read out of bounds")
@@ -93,13 +94,13 @@ TEST_CASE("LinuxMockHALFlashAccess")
         std::vector<uint8_t> data(4); // Fixed size
         size_t size = data.size();
 
-        REQUIRE(hal.read(address, data.data(), size) == -1);
+        REQUIRE(hal.read(address, data.data(), size) == AccessError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Erase (simulated)")
     {
         uint32_t address = FLASH_START + 10;
-        REQUIRE(hal.erase(address) == 0); // Simply checks that the function runs without error
+        REQUIRE(hal.erase(address) == AccessError::NO_ERROR); // Simply checks that the function runs without error
     }
 }
 
@@ -119,17 +120,17 @@ TEST_CASE("DirectMemoryAccess and LinuxMockHALFlashAccess API consistency")
     std::vector<uint8_t> read_data_hal(size); // Use std::vector
 
     // Write using both APIs
-    REQUIRE(dma.write(address, data, size) == 0);
-    REQUIRE(hal.write(address, data, size) == 0);
+    REQUIRE(dma.write(address, data, size) == AccessError::NO_ERROR);
+    REQUIRE(hal.write(address, data, size) == AccessError::NO_ERROR);
 
     // Read using both APIs
-    REQUIRE(dma.read(address, read_data_dma.data(), size) == 0); // Pass the data pointer
-    REQUIRE(hal.read(address, read_data_hal.data(), size) == 0); // Pass the data pointer
+    REQUIRE(dma.read(address, read_data_dma.data(), size) == AccessError::NO_ERROR); // Pass the data pointer
+    REQUIRE(hal.read(address, read_data_hal.data(), size) == AccessError::NO_ERROR); // Pass the data pointer
 
     // Compare the read data
     REQUIRE(compareMemory(read_data_dma.data(), read_data_hal.data(), size)); // Pass the data pointer
 
     // Erase using both APIs
-    REQUIRE(dma.erase(address) == 0);
-    REQUIRE(hal.erase(address) == 0);
+    REQUIRE(dma.erase(address) == AccessError::NO_ERROR);
+    REQUIRE(hal.erase(address) == AccessError::NO_ERROR);
 }

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cstring>
 #include "mock_hal.h"
+#include "imagebuffer/access.hpp"
 
 class LinuxMockHALFlashAccess
 {
@@ -18,13 +19,13 @@ public:
         flash_memory.resize(TOTAL_BUFFER_SIZE, 0xff);
     }
 
-    int32_t write(uint32_t address, const uint8_t *data, size_t size);
-    int32_t read(uint32_t address, uint8_t *data, size_t size);
-    int32_t erase(uint32_t address);
+    AccessError write(uint32_t address, const uint8_t *data, size_t size);
+    AccessError read(uint32_t address, uint8_t *data, size_t size);
+    AccessError erase(uint32_t address);
     std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
 
 private:
-    int32_t checkBounds(uint32_t address, size_t size);
+AccessError checkBounds(uint32_t address, size_t size);
 
 private:
     I2C_HandleTypeDef *hi2c_;
@@ -33,12 +34,12 @@ private:
     std::vector<uint8_t> flash_memory;
 };
 
-int32_t LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
+AccessError LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
 {
     // Check bounds
-    if (checkBounds(address, size) != 0)
+    if (checkBounds(address, size) != AccessError::NO_ERROR)
     {
-        return -1; // Return error if out of bounds
+        return AccessError::OUT_OF_BOUNDS; // Return error if out of bounds
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
@@ -47,21 +48,21 @@ int32_t LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data, si
     if (status != HAL_OK)
     {
         std::cerr << "I2C Write Failed (Mock HAL)" << std::endl;
-        return -1;
+        return AccessError::WRITE_ERROR; // Return error if write fails
     }
 
     // Perform the memory copy to the simulated flash
     std::memcpy(flash_memory.data() + offset, data, size);
 
-    return 0;
+    return AccessError::NO_ERROR; // Return success
 }
 
-int32_t LinuxMockHALFlashAccess::read(uint32_t address, uint8_t *data, size_t size)
+AccessError LinuxMockHALFlashAccess::read(uint32_t address, uint8_t *data, size_t size)
 {
     // Check bounds
-    if (checkBounds(address, size) != 0)
+    if (checkBounds(address, size) != AccessError::NO_ERROR)
     {
-        return -1; // Return error if out of bounds
+        return AccessError::OUT_OF_BOUNDS; // Return error if out of bounds
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
@@ -70,34 +71,34 @@ int32_t LinuxMockHALFlashAccess::read(uint32_t address, uint8_t *data, size_t si
     if (status != HAL_OK)
     {
         std::cerr << "I2C Read Failed (Mock HAL)" << std::endl;
-        return -1;
+        return AccessError::OUT_OF_BOUNDS;
     }
 
     // Perform the memory copy from the simulated flash
     std::memcpy(data, flash_memory.data() + offset, size);
 
-    return 0;
+    return AccessError::NO_ERROR; // Return success
 }
 
-int32_t LinuxMockHALFlashAccess::erase(uint32_t /*address*/)
+AccessError LinuxMockHALFlashAccess::erase(uint32_t /*address*/)
 {
     // Implement the flash erase sequence using the HAL mocks
     // For now, just return success.  In a real implementation, you would need
     // to simulate the flash erase operation, possibly by writing 0xFF to the
     // affected memory region.
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF); // Simulate erasing by filling with 0xFF
-    return 0;                                                  // Success
+    return AccessError::NO_ERROR;                                                  // Success
 }
 
-int32_t LinuxMockHALFlashAccess::checkBounds(uint32_t address, size_t size)
+AccessError LinuxMockHALFlashAccess::checkBounds(uint32_t address, size_t size)
 {
     if (address < FLASH_START_ADDRESS || address + size > FLASH_START_ADDRESS + TOTAL_BUFFER_SIZE)
     {
         std::cerr << "Error: Access out of bounds. Address: 0x" << std::hex << address
                   << ", Size: " << size << std::dec << std::endl; // Added address and size for debugging
-        return -1;                                                // Return error
+        return AccessError::OUT_OF_BOUNDS;                                                // Return error
     }
-    return 0; // Return success
+    return AccessError::NO_ERROR; // Return success
 }
 
 #endif
