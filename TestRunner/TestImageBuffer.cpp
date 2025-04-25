@@ -3,7 +3,7 @@
 #include "ImageBuffer.hpp"
 
 #include "imagebuffer/DirectMemoryAccess.hpp"
-#include "imagebuffer/LinuxMockHALFlashAccess.hpp"
+#include "imagebuffer/LinuxMockI2CFlashAccess.hpp"
 #include "mock_hal.h"
 #include "Checksum.hpp"
 
@@ -279,11 +279,11 @@ TEST_CASE("ImageBuffer with DirectMemoryAccess") {
     }
 }
 
-TEST_CASE("ImageBuffer with LinuxMockHALFlashAccess") {
+TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccess") {
     // Initialize the mocked HAL
     I2C_HandleTypeDef hi2c;
-    LinuxMockHALFlashAccess accessor(&hi2c, 0x08000000, 4096);
-    ImageBuffer<LinuxMockHALFlashAccess> buffer(accessor);
+    LinuxMockI2CFlashAccess accessor(&hi2c, 0x08000000, 4096);
+    ImageBuffer<LinuxMockI2CFlashAccess> buffer(accessor);
 
     ImageMetadata metadata;
     metadata.timestamp = 98765;

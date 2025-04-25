@@ -1,5 +1,5 @@
-#ifndef LINUX_MOCK_HAL_FLASH_ACCESS_H
-#define LINUX_MOCK_HAL_FLASH_ACCESS_H
+#ifndef LINUX_MOCK_I2C_FLASH_ACCESS_H
+#define LINUX_MOCK_I2C_FLASH_ACCESS_H
 
 #include <cstdint>
 #include <cstddef>
@@ -8,12 +8,12 @@
 #include "mock_hal.h"
 #include "imagebuffer/access.hpp"
 
-class LinuxMockHALFlashAccess
+class LinuxMockI2CFlashAccess
 {
 public:
-    LinuxMockHALFlashAccess() = delete;
+    LinuxMockI2CFlashAccess() = delete;
     
-    LinuxMockHALFlashAccess(I2C_HandleTypeDef *hi2c, size_t flash_start, size_t total_size)
+    LinuxMockI2CFlashAccess(I2C_HandleTypeDef *hi2c, size_t flash_start, size_t total_size)
         : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
     {
         flash_memory.resize(TOTAL_BUFFER_SIZE, 0xff);
@@ -37,7 +37,7 @@ private:
     std::vector<uint8_t> flash_memory;
 };
 
-AccessError LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
+AccessError LinuxMockI2CFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
 {
     // Check bounds
     if (checkBounds(address, size) != AccessError::NO_ERROR)
@@ -60,7 +60,7 @@ AccessError LinuxMockHALFlashAccess::write(uint32_t address, const uint8_t *data
     return AccessError::NO_ERROR; // Return success
 }
 
-AccessError LinuxMockHALFlashAccess::read(uint32_t address, uint8_t *data, size_t size)
+AccessError LinuxMockI2CFlashAccess::read(uint32_t address, uint8_t *data, size_t size)
 {
     // Check bounds
     if (checkBounds(address, size) != AccessError::NO_ERROR)
@@ -83,7 +83,7 @@ AccessError LinuxMockHALFlashAccess::read(uint32_t address, uint8_t *data, size_
     return AccessError::NO_ERROR; // Return success
 }
 
-AccessError LinuxMockHALFlashAccess::erase(uint32_t /*address*/)
+AccessError LinuxMockI2CFlashAccess::erase(uint32_t /*address*/)
 {
     // Implement the flash erase sequence using the HAL mocks
     // For now, just return success.  In a real implementation, you would need
@@ -93,7 +93,7 @@ AccessError LinuxMockHALFlashAccess::erase(uint32_t /*address*/)
     return AccessError::NO_ERROR;                                                  // Success
 }
 
-AccessError LinuxMockHALFlashAccess::checkBounds(uint32_t address, size_t size)
+AccessError LinuxMockI2CFlashAccess::checkBounds(uint32_t address, size_t size)
 {
     if (address < FLASH_START_ADDRESS || address + size > FLASH_START_ADDRESS + TOTAL_BUFFER_SIZE)
     {
@@ -104,4 +104,4 @@ AccessError LinuxMockHALFlashAccess::checkBounds(uint32_t address, size_t size)
     return AccessError::NO_ERROR; // Return success
 }
 
-#endif
+#endif /* LinuxMockI2CFlashAccess */

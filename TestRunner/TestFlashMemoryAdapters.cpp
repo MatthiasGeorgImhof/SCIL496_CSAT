@@ -1,7 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "imagebuffer/DirectMemoryAccess.hpp"
-#include "imagebuffer/LinuxMockHALFlashAccess.hpp"
+#include "imagebuffer/LinuxMockI2CFlashAccess.hpp"
+#include "imagebuffer/LinuxMockSPIFlashAccess.hpp"
 #include "imagebuffer/access.hpp"
 #include "mock_hal.h"
 #include <iostream>
@@ -57,13 +58,13 @@ TEST_CASE("DirectMemoryAccess")
     }
 }
 
-// Test case for LinuxMockHALFlashAccess
-TEST_CASE("LinuxMockHALFlashAccess")
+// Test case for LinuxMockI2CFlashAccess
+TEST_CASE("LinuxMockI2CFlashAccess")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
-    I2C_HandleTypeDef hi2c; 
-    LinuxMockHALFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
+    I2C_HandleTypeDef hi2c;
+    LinuxMockI2CFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
 
     SUBCASE("Write and Read within bounds")
     {
@@ -104,14 +105,60 @@ TEST_CASE("LinuxMockHALFlashAccess")
     }
 }
 
-TEST_CASE("DirectMemoryAccess and LinuxMockHALFlashAccess API consistency")
+// Test case for LinuxMockSPIFlashAccess
+TEST_CASE("LinuxMockSPIFlashAccess")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
-    I2C_HandleTypeDef hi2c; 
+    SPI_HandleTypeDef hspi; // Create an instance of the SPI_HandleTypeDef
+    LinuxMockSPIFlashAccess hal(&hspi, FLASH_START, FLASH_SIZE);
+
+    SUBCASE("Write and Read within bounds")
+    {
+        uint32_t address = FLASH_START + 10;
+        uint8_t data[] = {0x05, 0x06, 0x07, 0x08};
+        size_t size = sizeof(data);
+        std::vector<uint8_t> read_data(size);
+
+        REQUIRE(hal.write(address, data, size) == AccessError::NO_ERROR);
+        copy_spi_tx_to_rx();
+        REQUIRE(hal.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(compareMemory(data, read_data.data(), size));
+    }
+
+    SUBCASE("Write out of bounds")
+    {
+        uint32_t address = FLASH_START + FLASH_SIZE;
+        uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
+        size_t size = sizeof(data);
+
+        REQUIRE(hal.write(address, data, size) == AccessError::OUT_OF_BOUNDS);
+    }
+
+    SUBCASE("Read out of bounds")
+    {
+        uint32_t address = FLASH_START + FLASH_SIZE;
+        std::vector<uint8_t> data(4);
+        size_t size = data.size();
+
+        REQUIRE(hal.read(address, data.data(), size) == AccessError::OUT_OF_BOUNDS);
+    }
+
+    SUBCASE("Erase (simulated)")
+    {
+        uint32_t address = FLASH_START + 10;
+        REQUIRE(hal.erase(address) == AccessError::NO_ERROR);
+    }
+}
+
+TEST_CASE("DirectMemoryAccess and LinuxMockI2CFlashAccess API consistency")
+{
+    const uint32_t FLASH_START = 0x08000000;
+    const uint32_t FLASH_SIZE = 1024;
+    I2C_HandleTypeDef hi2c;
 
     DirectMemoryAccess dma(FLASH_START, FLASH_SIZE);
-    LinuxMockHALFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
+    LinuxMockI2CFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
 
     uint32_t address = FLASH_START + 10;
     uint8_t data[] = {0x09, 0x0A, 0x0B, 0x0C};
