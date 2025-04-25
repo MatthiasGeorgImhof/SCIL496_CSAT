@@ -12,7 +12,7 @@
 class DirectMemoryAccess
 {
 public:
-    DirectMemoryAccess(uint32_t flash_start, uint32_t total_size)
+    DirectMemoryAccess(size_t flash_start, size_t total_size)
         : FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
     {
         flash_memory.resize(TOTAL_BUFFER_SIZE, 0); // Allocate and zero-initialize the buffer
@@ -21,14 +21,17 @@ public:
     AccessError write(uint32_t address, const uint8_t *data, size_t size);
     AccessError read(uint32_t address, uint8_t *data, size_t size);
     AccessError erase(uint32_t address);
+    
     std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
+    size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
+    size_t getFlashStartAddress() const { return FLASH_START_ADDRESS; };
 
 private:
     AccessError checkBounds(uint32_t address, size_t size);
 
 private:
-    const uint32_t FLASH_START_ADDRESS; // Make it a class member
-    const uint32_t TOTAL_BUFFER_SIZE;   // Make it a class member
+    const size_t FLASH_START_ADDRESS; // Make it a class member
+    const size_t TOTAL_BUFFER_SIZE;   // Make it a class member
     std::vector<uint8_t> flash_memory;  // Use a vector for dynamic allocation
 };
 

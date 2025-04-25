@@ -13,7 +13,7 @@ class LinuxMockHALFlashAccess
 public:
     LinuxMockHALFlashAccess() = delete;
     
-    LinuxMockHALFlashAccess(I2C_HandleTypeDef *hi2c, uint32_t flash_start, uint32_t total_size)
+    LinuxMockHALFlashAccess(I2C_HandleTypeDef *hi2c, size_t flash_start, size_t total_size)
         : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
     {
         flash_memory.resize(TOTAL_BUFFER_SIZE, 0xff);
@@ -22,15 +22,18 @@ public:
     AccessError write(uint32_t address, const uint8_t *data, size_t size);
     AccessError read(uint32_t address, uint8_t *data, size_t size);
     AccessError erase(uint32_t address);
+    
     std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
+    size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
+    size_t getFlashStartAddress() const { return FLASH_START_ADDRESS; };
 
 private:
 AccessError checkBounds(uint32_t address, size_t size);
 
 private:
     I2C_HandleTypeDef *hi2c_;
-    const uint32_t FLASH_START_ADDRESS;
-    const uint32_t TOTAL_BUFFER_SIZE;
+    const size_t FLASH_START_ADDRESS;
+    const size_t TOTAL_BUFFER_SIZE;
     std::vector<uint8_t> flash_memory;
 };
 

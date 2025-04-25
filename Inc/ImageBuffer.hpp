@@ -83,8 +83,8 @@ template <typename Accessor>
 class ImageBuffer
 {
 public:
-    ImageBuffer(Accessor &access, size_t flash_start, size_t total_size)
-        : buffer_state_(0, 0, 0, flash_start, total_size), access_(access) {}
+    ImageBuffer(Accessor &access)
+        : buffer_state_(0, 0, 0, access.getFlashStartAddress(), access.getFlashMemorySize()), access_(access) {}
 
     ImageBufferError add_image(const ImageMetadata &metadata);
     ImageBufferError add_data_chunk(const uint8_t *data, size_t size);
@@ -196,9 +196,9 @@ ImageBufferError ImageBuffer<Accessor>::add_image(const ImageMetadata &metadata)
     checksum_calculator_.update(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE_WO_CHECKSUM);
     crc_t checksum = checksum_calculator_.get_checksum();
 
-    print(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE_WO_CHECKSUM);
+    // print(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE_WO_CHECKSUM);
     metadata.checksum = checksum;
-    print(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE);
+    // print(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE);
 
     if (write(buffer_state_.tail_, reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE) != ImageBufferError::NO_ERROR)
     {

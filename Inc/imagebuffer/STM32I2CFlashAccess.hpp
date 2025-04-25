@@ -7,15 +7,20 @@
 
 class STM32I2CFlashAccess {
 public:
-    STM32I2CFlashAccess(I2C_HandleTypeDef* hi2c) : hi2c_(hi2c) {} // Constructor takes I2C handle
+    STM32I2CFlashAccess(I2C_HandleTypeDef* hi2c, size_t flash_start, size_t total_size) : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size) {} // Constructor takes I2C handle
 
     // Override the base class methods to use your STM32 HAL and I2C
     AdapterError write(uint32_t address, const uint8_t* data, size_t size);
     AdapterError read(uint32_t address, uint8_t* data, size_t size);
     AdapterError erase(uint32_t address);
 
+    size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
+    size_t getFlashStartAddress() const { return FLASH_START_ADDRESS; };
+
 private:
     I2C_HandleTypeDef* hi2c_;  // I2C handle
+    const size_t FLASH_START_ADDRESS;
+    const size_t TOTAL_BUFFER_SIZE;
 
     // Helper Functions (Implement these using your I2C flash chip's datasheet and commands)
     int32_t flash_sendCommand(uint8_t command);
