@@ -23,11 +23,13 @@ public:
     AccessError write(uint32_t address, const uint8_t *data, size_t size);
     AccessError read(uint32_t address, uint8_t *data, size_t size);
     AccessError erase(uint32_t address); // Erase a sector
-    AccessError full_erase(); // Erase entire flash memory
+    AccessError full_erase();            // Erase entire flash memory
 
-    std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
+    size_t getAlignment() const { return 1; };
     size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
     size_t getFlashStartAddress() const { return FLASH_START_ADDRESS; };
+
+    std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
 
 private:
     AccessError checkBounds(uint32_t address, size_t size);
@@ -50,7 +52,7 @@ AccessError LinuxMockSPIFlashAccess::write(uint32_t address, const uint8_t *data
     size_t offset = address - FLASH_START_ADDRESS;
 
     // Call the mocked HAL_SPI_Transmit function to simulate the SPI write
-    HAL_StatusTypeDef status = HAL_SPI_Transmit(hspi_, (uint8_t*)data, static_cast<uint16_t>(size), 100);  //Cast away const for the mock
+    HAL_StatusTypeDef status = HAL_SPI_Transmit(hspi_, (uint8_t *)data, static_cast<uint16_t>(size), 100); // Cast away const for the mock
     if (status != HAL_OK)
     {
         std::cerr << "SPI Write Failed (Mock HAL)" << std::endl;
@@ -87,23 +89,25 @@ AccessError LinuxMockSPIFlashAccess::read(uint32_t address, uint8_t *data, size_
     return AccessError::NO_ERROR; // Return success
 }
 
-
 AccessError LinuxMockSPIFlashAccess::erase(uint32_t address)
 {
-    if (checkBounds(address, 1) != AccessError::NO_ERROR) {
+    if (checkBounds(address, 1) != AccessError::NO_ERROR)
+    {
         return AccessError::OUT_OF_BOUNDS;
     }
 
-     size_t offset = address - FLASH_START_ADDRESS;
-     // Simulate Sector Erase (usually 4KB)
-    size_t start_of_sector = offset - (offset % 4096);  // Assuming 4KB sectors
-    for (size_t i = start_of_sector; i < start_of_sector + 4096 && i < TOTAL_BUFFER_SIZE; ++i) {
+    size_t offset = address - FLASH_START_ADDRESS;
+    // Simulate Sector Erase (usually 4KB)
+    size_t start_of_sector = offset - (offset % 4096); // Assuming 4KB sectors
+    for (size_t i = start_of_sector; i < start_of_sector + 4096 && i < TOTAL_BUFFER_SIZE; ++i)
+    {
         flash_memory[i] = 0xFF; // Erase to 0xFF
     }
     return AccessError::NO_ERROR;
 }
 
-AccessError LinuxMockSPIFlashAccess::full_erase() {
+AccessError LinuxMockSPIFlashAccess::full_erase()
+{
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF);
     return AccessError::NO_ERROR;
 }
@@ -114,9 +118,11 @@ AccessError LinuxMockSPIFlashAccess::checkBounds(uint32_t address, size_t size)
     {
         std::cerr << "Error: Access out of bounds. Address: 0x" << std::hex << address
                   << ", Size: " << size << std::dec << std::endl; // Added address and size for debugging
-        return AccessError::OUT_OF_BOUNDS;                                                // Return error
+        return AccessError::OUT_OF_BOUNDS;                        // Return error
     }
     return AccessError::NO_ERROR; // Return success
 }
+
+static_assert(Accessor<LinuxMockSPIFlashAccess>, "LinuxMockSPIFlashAccess does not satisfy the Accessor concept!");
 
 #endif /* LINUX_MOCK_SPI_FLASH_ACCESS_H */

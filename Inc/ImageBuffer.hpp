@@ -107,6 +107,7 @@ public:
 private:
     bool has_enough_space(size_t data_size) const { return (buffer_state_.available() >= data_size); };
     void wrap_around(size_t &address);
+    size_t offset_to_alignment(size_t size) const { return (size % access_.getAlignment() == 0) ? 0 : access_.getAlignment() - (size % access_.getAlignment()); }
     ImageBufferError write(size_t address, const uint8_t *data, size_t size);
     ImageBufferError read(size_t address, uint8_t *data, size_t &size);
 
@@ -241,6 +242,7 @@ ImageBufferError ImageBuffer<Accessor>::push_image()
     }
 
     current_offset_ += sizeof(crc_t);
+    current_offset_ += offset_to_alignment(current_offset_);
     buffer_state_.size_ += current_offset_;
     buffer_state_.tail_ += current_offset_;
     wrap_around(buffer_state_.tail_);
@@ -326,6 +328,7 @@ ImageBufferError ImageBuffer<Accessor>::pop_image()
     }
 
     current_offset_ += sizeof(crc_t);
+    current_offset_ += offset_to_alignment(current_offset_);
     buffer_state_.size_ -= current_offset_;
     buffer_state_.head_ += current_offset_;
     wrap_around(buffer_state_.head_);

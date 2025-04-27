@@ -21,18 +21,20 @@ public:
     AccessError write(uint32_t address, const uint8_t *data, size_t size);
     AccessError read(uint32_t address, uint8_t *data, size_t size);
     AccessError erase(uint32_t address);
-    
-    std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
+
+    size_t getAlignment() const { return 1; };
     size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
     size_t getFlashStartAddress() const { return FLASH_START_ADDRESS; };
+
+    std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
 
 private:
     AccessError checkBounds(uint32_t address, size_t size);
 
 private:
-    const size_t FLASH_START_ADDRESS; // Make it a class member
-    const size_t TOTAL_BUFFER_SIZE;   // Make it a class member
-    std::vector<uint8_t> flash_memory;  // Use a vector for dynamic allocation
+    const size_t FLASH_START_ADDRESS;  // Make it a class member
+    const size_t TOTAL_BUFFER_SIZE;    // Make it a class member
+    std::vector<uint8_t> flash_memory; // Use a vector for dynamic allocation
 };
 
 AccessError DirectMemoryAccess::write(uint32_t address, const uint8_t *data, size_t size)
@@ -69,7 +71,7 @@ AccessError DirectMemoryAccess::erase(uint32_t /*address*/)
     // Simulate erasing a sector (e.g., by setting all bytes in the sector to 0xFF)
     // Implement sector size and erase logic here
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF); // Simulate erasing by filling with 0xFF
-    return AccessError::NO_ERROR;                             // Success
+    return AccessError::NO_ERROR;                              // Success
 }
 
 AccessError DirectMemoryAccess::checkBounds(uint32_t address, size_t size)
@@ -82,5 +84,7 @@ AccessError DirectMemoryAccess::checkBounds(uint32_t address, size_t size)
     }
     return AccessError::NO_ERROR; // Return success
 }
+
+static_assert(Accessor<DirectMemoryAccess>, "DirectMemoryAccess does not satisfy the Accessor concept!");
 
 #endif

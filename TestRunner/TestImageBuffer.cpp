@@ -2,6 +2,7 @@
 #include "doctest.h"
 #include "ImageBuffer.hpp"
 
+#include "imagebuffer/access.hpp"
 #include "imagebuffer/DirectMemoryAccess.hpp"
 #include "imagebuffer/LinuxMockI2CFlashAccess.hpp"
 #include "mock_hal.h"
@@ -22,27 +23,33 @@ struct MockAccessor
     std::vector<uint8_t> &getFlashMemory() { return data; }
     size_t getFlashMemorySize() const { return size; };
     size_t getFlashStartAddress() const { return start; };
+    size_t getAlignment() const { return 1; }
 
-    int32_t write(size_t address, const uint8_t *buffer, size_t num_bytes)
+    AccessError write(size_t address, const uint8_t *buffer, size_t num_bytes)
     {
         if (address + num_bytes - start > size)
         {
             std::cerr << "MockAccessor::write: out of bounds write. address=" << address << ", num_bytes=" << num_bytes << ", size=" << size << std::endl;
-            return -1; // Simulate write error
+            return AccessError::WRITE_ERROR; // Simulate write error
         }
         std::memcpy(data.data() + address - start, buffer, num_bytes);
-        return 0; // Simulate successful write
+        return AccessError::NO_ERROR; // Simulate successful write
     }
 
-    int32_t read(size_t address, uint8_t *buffer, size_t num_bytes)
+    AccessError read(size_t address, uint8_t *buffer, size_t num_bytes)
     {
         if (address + num_bytes - start > size)
         {
             std::cerr << "MockAccessor::read: out of bounds read. address=" << address << ", num_bytes=" << num_bytes << ", size=" << size << std::endl;
-            return -1; // Simulate read error
+            return AccessError::READ_ERROR; // Simulate read error
         }
         std::memcpy(buffer, data.data() + address - start, num_bytes);
-        return 0; // Simulate successful read
+        return AccessError::NO_ERROR; // Simulate successful read
+    }
+
+    AccessError erase(uint32_t /*address*/) {
+        // Mock implementation - just return success
+        return AccessError::NO_ERROR;
     }
 
     void reset()
@@ -50,6 +57,8 @@ struct MockAccessor
         std::fill(data.begin(), data.end(), 0);
     }
 };
+
+static_assert(Accessor<MockAccessor>, "MockAccessor does not satisfy the Accessor concept!");
 
 TEST_CASE("ImageBuffer Initialization")
 {

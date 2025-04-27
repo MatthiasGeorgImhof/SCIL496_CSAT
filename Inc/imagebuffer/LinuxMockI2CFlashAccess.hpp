@@ -12,7 +12,7 @@ class LinuxMockI2CFlashAccess
 {
 public:
     LinuxMockI2CFlashAccess() = delete;
-    
+
     LinuxMockI2CFlashAccess(I2C_HandleTypeDef *hi2c, size_t flash_start, size_t total_size)
         : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
     {
@@ -22,13 +22,15 @@ public:
     AccessError write(uint32_t address, const uint8_t *data, size_t size);
     AccessError read(uint32_t address, uint8_t *data, size_t size);
     AccessError erase(uint32_t address);
-    
-    std::vector<uint8_t>& getFlashMemory() { return flash_memory; }
+
+    size_t getAlignment() const { return 1; };
     size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
     size_t getFlashStartAddress() const { return FLASH_START_ADDRESS; };
 
+    std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
+
 private:
-AccessError checkBounds(uint32_t address, size_t size);
+    AccessError checkBounds(uint32_t address, size_t size);
 
 private:
     I2C_HandleTypeDef *hi2c_;
@@ -90,7 +92,7 @@ AccessError LinuxMockI2CFlashAccess::erase(uint32_t /*address*/)
     // to simulate the flash erase operation, possibly by writing 0xFF to the
     // affected memory region.
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF); // Simulate erasing by filling with 0xFF
-    return AccessError::NO_ERROR;                                                  // Success
+    return AccessError::NO_ERROR;                              // Success
 }
 
 AccessError LinuxMockI2CFlashAccess::checkBounds(uint32_t address, size_t size)
@@ -99,9 +101,11 @@ AccessError LinuxMockI2CFlashAccess::checkBounds(uint32_t address, size_t size)
     {
         std::cerr << "Error: Access out of bounds. Address: 0x" << std::hex << address
                   << ", Size: " << size << std::dec << std::endl; // Added address and size for debugging
-        return AccessError::OUT_OF_BOUNDS;                                                // Return error
+        return AccessError::OUT_OF_BOUNDS;                        // Return error
     }
     return AccessError::NO_ERROR; // Return success
 }
+
+static_assert(Accessor<LinuxMockI2CFlashAccess>, "LinuxMockI2CFlashAccess does not satisfy the Accessor concept!");
 
 #endif /* LinuxMockI2CFlashAccess */
