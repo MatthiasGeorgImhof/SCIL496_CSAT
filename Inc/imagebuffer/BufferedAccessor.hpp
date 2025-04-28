@@ -1,7 +1,7 @@
 #ifndef BUFFERED_ACCESSOR_H
 #define BUFFERED_ACCESSOR_H
 
-#include "imagebuffer/access.hpp"
+#include "imagebuffer/accessor.hpp"
 #include <algorithm>
 
 template <typename BaseAccessor, size_t BLOCK_SIZE>
@@ -19,17 +19,17 @@ public:
         }
     }
 
-    AccessError write(uint32_t address, const uint8_t *data, size_t size);
-    AccessError read(uint32_t address, uint8_t *data, size_t size);
-    AccessError erase(uint32_t address);
+    AccessorError write(uint32_t address, const uint8_t *data, size_t size);
+    AccessorError read(uint32_t address, uint8_t *data, size_t size);
+    AccessorError erase(uint32_t address);
 
     size_t getAlignment() const { return BLOCK_SIZE; };
     size_t getFlashMemorySize() const { return base_access_.getFlashMemorySize(); };
     size_t getFlashStartAddress() const { return base_access_.getFlashStartAddress(); };
-    AccessError flush_cache();
+    AccessorError flush_cache();
 
 private:
-    AccessError fill_cache(uint32_t address);
+    AccessorError fill_cache(uint32_t address);
 
 private:
     BaseAccessor &base_access_;
@@ -39,40 +39,40 @@ private:
 };
 
 template <typename BaseAccessor, size_t BLOCK_SIZE>
-AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::flush_cache()
+AccessorError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::flush_cache()
 {
     if (cache_dirty_)
     {
-        AccessError result = base_access_.write(cache_address_, cache_, BLOCK_SIZE);
-        if (result != AccessError::NO_ERROR)
+        AccessorError result = base_access_.write(cache_address_, cache_, BLOCK_SIZE);
+        if (result != AccessorError::NO_ERROR)
         {
             return result;
         }
         cache_dirty_ = false;
     }
-    return AccessError::NO_ERROR;
+    return AccessorError::NO_ERROR;
 }
 
 template <typename BaseAccessor, size_t BLOCK_SIZE>
-AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::fill_cache(uint32_t address)
+AccessorError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::fill_cache(uint32_t address)
 {
-    AccessError result = flush_cache();
-    if (result != AccessError::NO_ERROR)
+    AccessorError result = flush_cache();
+    if (result != AccessorError::NO_ERROR)
     {
         return result;
     }
 
     cache_address_ = address - (address % BLOCK_SIZE); // Block align the address
     result = base_access_.read(cache_address_, cache_, BLOCK_SIZE);
-    if (result != AccessError::NO_ERROR)
+    if (result != AccessorError::NO_ERROR)
     {
         return result;
     }
-    return AccessError::NO_ERROR;
+    return AccessorError::NO_ERROR;
 }
 
 template <typename BaseAccessor, size_t BLOCK_SIZE>
-AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::write(uint32_t address, const uint8_t *data, size_t size)
+AccessorError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::write(uint32_t address, const uint8_t *data, size_t size)
 {
     size_t data_offset = 0;
     while (size > 0)
@@ -85,13 +85,13 @@ AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::write(uint32_t address, 
 
         if (block_start_address != cache_address_)
         {
-            AccessError flush_result = flush_cache();
-            if (flush_result != AccessError::NO_ERROR)
+            AccessorError flush_result = flush_cache();
+            if (flush_result != AccessorError::NO_ERROR)
             {
                 return flush_result;
             }
-            AccessError fill_result = fill_cache(address);
-            if (fill_result != AccessError::NO_ERROR)
+            AccessorError fill_result = fill_cache(address);
+            if (fill_result != AccessorError::NO_ERROR)
             {
                 return fill_result;
             }
@@ -104,11 +104,11 @@ AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::write(uint32_t address, 
         address += done;
         size -= done;
     }
-    return AccessError::NO_ERROR;
+    return AccessorError::NO_ERROR;
 }
 
 template <typename BaseAccessor, size_t BLOCK_SIZE>
-AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::read(uint32_t address, uint8_t *data, size_t size)
+AccessorError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::read(uint32_t address, uint8_t *data, size_t size)
 {
     size_t data_offset = 0;
     while (size > 0)
@@ -121,8 +121,8 @@ AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::read(uint32_t address, u
 
         if (block_start_address != cache_address_)
         {
-            AccessError fill_result = fill_cache(address);
-            if (fill_result != AccessError::NO_ERROR)
+            AccessorError fill_result = fill_cache(address);
+            if (fill_result != AccessorError::NO_ERROR)
             {
                 return fill_result;
             }
@@ -133,15 +133,15 @@ AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::read(uint32_t address, u
         address += done;
         size -= done;
     }
-    return AccessError::NO_ERROR;
+    return AccessorError::NO_ERROR;
 }
 
 template <typename BaseAccessor, size_t BLOCK_SIZE>
-AccessError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::erase(uint32_t address)
+AccessorError BufferedAccessor<BaseAccessor, BLOCK_SIZE>::erase(uint32_t address)
 {
     // Easiest implementation: Flush cache and then erase directly.
-    AccessError flush_result = flush_cache();
-    if (flush_result != AccessError::NO_ERROR)
+    AccessorError flush_result = flush_cache();
+    if (flush_result != AccessorError::NO_ERROR)
     {
         return flush_result;
     }
@@ -155,9 +155,9 @@ namespace BUFFERED_ACCESSOR_H
     public:
         __MockAccessor__() {}
 
-        AccessError write(uint32_t /*address*/, const uint8_t */*data*/, size_t /*size*/) { return AccessError::NO_ERROR; };
-        AccessError read(uint32_t /*address*/, uint8_t */*data*/, size_t /*size*/) { return AccessError::NO_ERROR; };
-        AccessError erase(uint32_t /*address*/) { return AccessError::NO_ERROR; };
+        AccessorError write(uint32_t /*address*/, const uint8_t */*data*/, size_t /*size*/) { return AccessorError::NO_ERROR; };
+        AccessorError read(uint32_t /*address*/, uint8_t */*data*/, size_t /*size*/) { return AccessorError::NO_ERROR; };
+        AccessorError erase(uint32_t /*address*/) { return AccessorError::NO_ERROR; };
 
         size_t getAlignment() const { return 0; }
         size_t getFlashMemorySize() const { return 0; }

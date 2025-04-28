@@ -1,5 +1,5 @@
-#ifndef LINUX_MOCK_SPI_FLASH_ACCESS_H
-#define LINUX_MOCK_SPI_FLASH_ACCESS_H
+#ifndef LINUX_MOCK_SPI_FLASH_ACCESSOR_H
+#define LINUX_MOCK_SPI_FLASH_ACCESSOR_H
 
 #include <cstdint>
 #include <cstddef>
@@ -7,23 +7,23 @@
 #include <cstring>
 #include <vector>
 #include "mock_hal.h"
-#include "imagebuffer/access.hpp"
+#include "imagebuffer/accessor.hpp"
 
-class LinuxMockSPIFlashAccess
+class LinuxMockSPIFlashAccessor
 {
 public:
-    LinuxMockSPIFlashAccess() = delete;
+    LinuxMockSPIFlashAccessor() = delete;
 
-    LinuxMockSPIFlashAccess(SPI_HandleTypeDef *hspi, size_t flash_start, size_t total_size)
+    LinuxMockSPIFlashAccessor(SPI_HandleTypeDef *hspi, size_t flash_start, size_t total_size)
         : hspi_(hspi), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size)
     {
         flash_memory.resize(TOTAL_BUFFER_SIZE, 0xFF); // Initialize with 0xFF (erased state)
     }
 
-    AccessError write(uint32_t address, const uint8_t *data, size_t size);
-    AccessError read(uint32_t address, uint8_t *data, size_t size);
-    AccessError erase(uint32_t address); // Erase a sector
-    AccessError full_erase();            // Erase entire flash memory
+    AccessorError write(uint32_t address, const uint8_t *data, size_t size);
+    AccessorError read(uint32_t address, uint8_t *data, size_t size);
+    AccessorError erase(uint32_t address); // Erase a sector
+    AccessorError full_erase();            // Erase entire flash memory
 
     size_t getAlignment() const { return 1; };
     size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
@@ -32,7 +32,7 @@ public:
     std::vector<uint8_t> &getFlashMemory() { return flash_memory; }
 
 private:
-    AccessError checkBounds(uint32_t address, size_t size);
+    AccessorError checkBounds(uint32_t address, size_t size);
 
 private:
     SPI_HandleTypeDef *hspi_;
@@ -41,12 +41,12 @@ private:
     std::vector<uint8_t> flash_memory;
 };
 
-AccessError LinuxMockSPIFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
+AccessorError LinuxMockSPIFlashAccessor::write(uint32_t address, const uint8_t *data, size_t size)
 {
     // Check bounds
-    if (checkBounds(address, size) != AccessError::NO_ERROR)
+    if (checkBounds(address, size) != AccessorError::NO_ERROR)
     {
-        return AccessError::OUT_OF_BOUNDS; // Return error if out of bounds
+        return AccessorError::OUT_OF_BOUNDS; // Return error if out of bounds
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
@@ -56,21 +56,21 @@ AccessError LinuxMockSPIFlashAccess::write(uint32_t address, const uint8_t *data
     if (status != HAL_OK)
     {
         std::cerr << "SPI Write Failed (Mock HAL)" << std::endl;
-        return AccessError::WRITE_ERROR; // Return error if write fails
+        return AccessorError::WRITE_ERROR; // Return error if write fails
     }
 
     // Perform the memory copy to the simulated flash
     std::memcpy(flash_memory.data() + offset, data, size);
 
-    return AccessError::NO_ERROR; // Return success
+    return AccessorError::NO_ERROR; // Return success
 }
 
-AccessError LinuxMockSPIFlashAccess::read(uint32_t address, uint8_t *data, size_t size)
+AccessorError LinuxMockSPIFlashAccessor::read(uint32_t address, uint8_t *data, size_t size)
 {
     // Check bounds
-    if (checkBounds(address, size) != AccessError::NO_ERROR)
+    if (checkBounds(address, size) != AccessorError::NO_ERROR)
     {
-        return AccessError::OUT_OF_BOUNDS; // Return error if out of bounds
+        return AccessorError::OUT_OF_BOUNDS; // Return error if out of bounds
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
@@ -80,20 +80,20 @@ AccessError LinuxMockSPIFlashAccess::read(uint32_t address, uint8_t *data, size_
     if (status != HAL_OK)
     {
         std::cerr << "SPI Read Failed (Mock HAL)" << std::endl;
-        return AccessError::READ_ERROR; // Return error if read fails
+        return AccessorError::READ_ERROR; // Return error if read fails
     }
 
     // Perform the memory copy from the simulated flash
     std::memcpy(data, flash_memory.data() + offset, size);
 
-    return AccessError::NO_ERROR; // Return success
+    return AccessorError::NO_ERROR; // Return success
 }
 
-AccessError LinuxMockSPIFlashAccess::erase(uint32_t address)
+AccessorError LinuxMockSPIFlashAccessor::erase(uint32_t address)
 {
-    if (checkBounds(address, 1) != AccessError::NO_ERROR)
+    if (checkBounds(address, 1) != AccessorError::NO_ERROR)
     {
-        return AccessError::OUT_OF_BOUNDS;
+        return AccessorError::OUT_OF_BOUNDS;
     }
 
     size_t offset = address - FLASH_START_ADDRESS;
@@ -103,26 +103,26 @@ AccessError LinuxMockSPIFlashAccess::erase(uint32_t address)
     {
         flash_memory[i] = 0xFF; // Erase to 0xFF
     }
-    return AccessError::NO_ERROR;
+    return AccessorError::NO_ERROR;
 }
 
-AccessError LinuxMockSPIFlashAccess::full_erase()
+AccessorError LinuxMockSPIFlashAccessor::full_erase()
 {
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF);
-    return AccessError::NO_ERROR;
+    return AccessorError::NO_ERROR;
 }
 
-AccessError LinuxMockSPIFlashAccess::checkBounds(uint32_t address, size_t size)
+AccessorError LinuxMockSPIFlashAccessor::checkBounds(uint32_t address, size_t size)
 {
     if (address < FLASH_START_ADDRESS || address + size > FLASH_START_ADDRESS + TOTAL_BUFFER_SIZE)
     {
         std::cerr << "Error: Access out of bounds. Address: 0x" << std::hex << address
                   << ", Size: " << size << std::dec << std::endl; // Added address and size for debugging
-        return AccessError::OUT_OF_BOUNDS;                        // Return error
+        return AccessorError::OUT_OF_BOUNDS;                        // Return error
     }
-    return AccessError::NO_ERROR; // Return success
+    return AccessorError::NO_ERROR; // Return success
 }
 
-static_assert(Accessor<LinuxMockSPIFlashAccess>, "LinuxMockSPIFlashAccess does not satisfy the Accessor concept!");
+static_assert(Accessor<LinuxMockSPIFlashAccessor>, "LinuxMockSPIFlashAccessor does not satisfy the Accessor concept!");
 
-#endif /* LINUX_MOCK_SPI_FLASH_ACCESS_H */
+#endif /* LINUX_MOCK_SPI_FLASH_ACCESSOR_H */

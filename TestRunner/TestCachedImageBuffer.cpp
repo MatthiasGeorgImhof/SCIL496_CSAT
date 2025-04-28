@@ -1,11 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
-#include "imagebuffer/access.hpp"
-#include "imagebuffer/DirectMemoryAccess.hpp"
+#include "imagebuffer/accessor.hpp"
+#include "imagebuffer/DirectMemoryAccessor.hpp"
 #include "imagebuffer/BufferedAccessor.hpp"
 #include "ImageBuffer.hpp"
 
-#include "imagebuffer/access.hpp"
 #include "mock_hal.h"
 #include "Checksum.hpp"
 
@@ -21,9 +20,9 @@ TEST_CASE("ImageBuffer with BufferedAccessor")
     constexpr size_t flash_size = 4096;
     constexpr size_t block_size = 512;
 
-    DirectMemoryAccess base_accessor(flash_start, flash_size);
-    BufferedAccessor<DirectMemoryAccess, block_size> buffered_accessor(base_accessor);
-    ImageBuffer<BufferedAccessor<DirectMemoryAccess, block_size>> buffer(buffered_accessor);
+    DirectMemoryAccessor base_accessor(flash_start, flash_size);
+    BufferedAccessor<DirectMemoryAccessor, block_size> buffered_accessor(base_accessor);
+    ImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
 
     ImageMetadata metadata;
     metadata.timestamp = 12345;
@@ -151,9 +150,9 @@ TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
     constexpr size_t chunk_size = 64;
     constexpr size_t image_count = 10;
 
-    DirectMemoryAccess base_accessor(flash_start, flash_size);
-    BufferedAccessor<DirectMemoryAccess, block_size> buffered_accessor(base_accessor);
-    ImageBuffer<BufferedAccessor<DirectMemoryAccess, block_size>> buffer(buffered_accessor);
+    DirectMemoryAccessor base_accessor(flash_start, flash_size);
+    BufferedAccessor<DirectMemoryAccessor, block_size> buffered_accessor(base_accessor);
+    ImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
 
     for (uint i = 0; i < image_count; i++)
     {

@@ -1,20 +1,20 @@
-#ifndef STM32_I2C_FLASH_ACCESS_H
-#define STM32_I2C_FLASH_ACCESS_H
+#ifndef STM32_I2C_FLASH_ACCESSOR_H
+#define STM32_I2C_FLASH_ACCESSOR_H
 
-#include "stm32l4xx_hal.h" // Include your STM32 HAL
+#include "stm32l4xx_hal.h"
 #include <array>
 #include <iostream>
-#include "imagebuffer/access.hpp"
+#include "imagebuffer/accessor.hpp"
 
-class STM32I2CFlashAccess
+class STM32I2CFlashAccessor
 {
 public:
-  STM32I2CFlashAccess(I2C_HandleTypeDef *hi2c, size_t flash_start, size_t total_size) : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size) {} // Constructor takes I2C handle
+  STM32I2CFlashAccessor(I2C_HandleTypeDef *hi2c, size_t flash_start, size_t total_size) : hi2c_(hi2c), FLASH_START_ADDRESS(flash_start), TOTAL_BUFFER_SIZE(total_size) {} // Constructor takes I2C handle
 
   // Override the base class methods to use your STM32 HAL and I2C
-  AdapterError write(uint32_t address, const uint8_t *data, size_t size);
-  AdapterError read(uint32_t address, uint8_t *data, size_t size);
-  AdapterError erase(uint32_t address);
+  AccessorError write(uint32_t address, const uint8_t *data, size_t size);
+  AccessorError read(uint32_t address, uint8_t *data, size_t size);
+  AccessorError erase(uint32_t address);
 
   size_t getAlignment() const { return 1; };
   size_t getFlashMemorySize() const { return TOTAL_BUFFER_SIZE; };
@@ -43,13 +43,13 @@ const uint8_t SECTOR_ERASE_COMMAND = 0xD8; // Example
 const uint32_t PAGE_SIZE = 256;            // Example Page Size
 
 // Function to send a command to the flash chip
-int32_t STM32I2CFlashAccess::flash_sendCommand(uint8_t command)
+int32_t STM32I2CFlashAccessor::flash_sendCommand(uint8_t command)
 {
   return HAL_I2C_Master_Transmit(hi2c_, FLASH_I2C_ADDRESS, &command, 1, HAL_MAX_DELAY);
 }
 
 // Function to send an address to the flash chip (24-bit address)
-AdapterError STM32I2CFlashAccess::flash_sendAddress(uint32_t address)
+AccessorError STM32I2CFlashAccessor::flash_sendAddress(uint32_t address)
 {
   std::array<uint8_t, 3> addressBytes;      // Array to hold three address bytes
   addressBytes[0] = (address >> 16) & 0xFF; // Most significant byte
@@ -59,13 +59,13 @@ AdapterError STM32I2CFlashAccess::flash_sendAddress(uint32_t address)
 }
 
 // Function to write enable
-AdapterError STM32I2CFlashAccess::flash_writeEnable()
+AccessorError STM32I2CFlashAccessor::flash_writeEnable()
 {
   return flash_sendCommand(WRITE_ENABLE_COMMAND);
 }
 
 // Function to write a page to the flash memory
-AdapterError STM32I2CFlashAccess::flash_pageWrite(uint32_t address, const uint8_t *data, size_t size)
+AccessorError STM32I2CFlashAccessor::flash_pageWrite(uint32_t address, const uint8_t *data, size_t size)
 {
 
   if (size > PAGE_SIZE)
@@ -106,7 +106,7 @@ AdapterError STM32I2CFlashAccess::flash_pageWrite(uint32_t address, const uint8_
 }
 
 // Function to read data from the flash memory
-int32_t STM32I2CFlashAccess::flash_readData(uint32_t address, uint8_t *data, size_t size)
+int32_t STM32I2CFlashAccessor::flash_readData(uint32_t address, uint8_t *data, size_t size)
 {
   HAL_StatusTypeDef status;
 
@@ -136,7 +136,7 @@ int32_t STM32I2CFlashAccess::flash_readData(uint32_t address, uint8_t *data, siz
 }
 
 // Function to erase a sector
-int32_t STM32I2CFlashAccess::flash_sectorErase(uint32_t address)
+int32_t STM32I2CFlashAccessor::flash_sectorErase(uint32_t address)
 {
   HAL_StatusTypeDef status;
 
@@ -166,7 +166,7 @@ int32_t STM32I2CFlashAccess::flash_sectorErase(uint32_t address)
   return status;
 }
 
-int32_t STM32I2CFlashAccess::write(uint32_t address, const uint8_t *data, size_t size)
+int32_t STM32I2CFlashAccessor::write(uint32_t address, const uint8_t *data, size_t size)
 {
   // This function need to handle the page boundaries for the Flash Chip!
   HAL_StatusTypeDef status = HAL_OK;
@@ -198,18 +198,18 @@ int32_t STM32I2CFlashAccess::write(uint32_t address, const uint8_t *data, size_t
 }
 
 // flash_read implementation
-int32_t STM32I2CFlashAccess::read(uint32_t address, uint8_t *data, size_t size)
+int32_t STM32I2CFlashAccessor::read(uint32_t address, uint8_t *data, size_t size)
 {
   HAL_StatusTypeDef status = flash_readData(address, data, size);
   return status;
 }
 
-int32_t STM32I2CFlashAccess::erase(uint32_t address)
+int32_t STM32I2CFlashAccessor::erase(uint32_t address)
 {
   HAL_StatusTypeDef status = flash_sectorErase(address);
   return status;
 }
 
-static_assert(Accessor<STM32I2CFlashAccess>, "STM32I2CFlashAccess does not satisfy the Accessor concept!");
+static_assert(Accessor<STM32I2CFlashAccessor>, "STM32I2CFlashAccessor does not satisfy the Accessor concept!");
 
-#endif
+#endif /* STM32_I2C_FLASH_ACCESSOR_H */

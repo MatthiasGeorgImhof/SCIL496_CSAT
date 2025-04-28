@@ -40,7 +40,7 @@ TEST_FILES = TestArrayList.cpp \
              TestMainLoop.cpp \
 			 TestImageBuffer.cpp \
 			 TestCachedImageBuffer.cpp \
-			 TestImageBufferAccess.cpp \
+			 TestImageBufferAccessor.cpp \
 			 TestCyphalSubscriptions.cpp
 
 SRC_FILES = ../Src/Logger.cpp \
@@ -98,14 +98,14 @@ $(BIN_DIR)/TestCyphal : $(BIN_DIR)/TestCyphal.o $(BIN_DIR)/mock_hal.o # Link the
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCyphal.o $(BIN_DIR)/mock_hal.o $(LIBS)
 
-# Rule for TestImageBufferAccess.cpp with extra sources
-$(BIN_DIR)/TestImageBufferAccess.o : TestImageBufferAccess.cpp
+# Rule for TestImageBufferAccessor.cpp with extra sources
+$(BIN_DIR)/TestImageBufferAccessor.o : TestImageBufferAccessor.cpp
 	@echo "Compiling $<"
 	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestImageBufferAccess : $(BIN_DIR)/TestImageBufferAccess.o $(BIN_DIR)/mock_hal.o # Link the object file
+$(BIN_DIR)/TestImageBufferAccessor : $(BIN_DIR)/TestImageBufferAccessor.o $(BIN_DIR)/mock_hal.o # Link the object file
 	@echo "Linking $@"
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferAccess.o $(BIN_DIR)/mock_hal.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferAccessor.o $(BIN_DIR)/mock_hal.o $(LIBS)
 
 # Rule for TestTask with extra sources
 $(BIN_DIR)/TestTask.o : TestTask.cpp

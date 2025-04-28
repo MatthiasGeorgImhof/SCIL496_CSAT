@@ -1,9 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include "imagebuffer/access.hpp"
-#include "imagebuffer/DirectMemoryAccess.hpp"
-#include "imagebuffer/LinuxMockI2CFlashAccess.hpp"
-#include "imagebuffer/LinuxMockSPIFlashAccess.hpp"
+#include "imagebuffer/accessor.hpp"
+#include "imagebuffer/DirectMemoryAccessor.hpp"
+#include "imagebuffer/LinuxMockI2CFlashAccessor.hpp"
+#include "imagebuffer/LinuxMockSPIFlashAccessor.hpp"
 #include "imagebuffer/BufferedAccessor.hpp"
 #include "mock_hal.h"
 #include <iostream>
@@ -15,12 +15,12 @@ bool compareMemory(const uint8_t *mem1, const uint8_t *mem2, size_t size)
     return std::memcmp(mem1, mem2, size) == 0;
 }
 
-// Test case for DirectMemoryAccess
-TEST_CASE("DirectMemoryAccess")
+// Test case for DirectMemoryAccessor
+TEST_CASE("DirectMemoryAccessor")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
-    DirectMemoryAccess dma(FLASH_START, FLASH_SIZE);
+    DirectMemoryAccessor dma(FLASH_START, FLASH_SIZE);
 
     SUBCASE("Write and Read within bounds")
     {
@@ -29,8 +29,8 @@ TEST_CASE("DirectMemoryAccess")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size); // Use std::vector
 
-        REQUIRE(dma.write(address, data, size) == AccessError::NO_ERROR);
-        REQUIRE(dma.read(address, read_data.data(), size) == AccessError::NO_ERROR); // Pass the data pointer
+        REQUIRE(dma.write(address, data, size) == AccessorError::NO_ERROR);
+        REQUIRE(dma.read(address, read_data.data(), size) == AccessorError::NO_ERROR); // Pass the data pointer
         REQUIRE(compareMemory(data, read_data.data(), size));                        // Pass the data pointer
     }
 
@@ -40,7 +40,7 @@ TEST_CASE("DirectMemoryAccess")
         uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
         size_t size = sizeof(data);
 
-        REQUIRE(dma.write(address, data, size) == AccessError::OUT_OF_BOUNDS);
+        REQUIRE(dma.write(address, data, size) == AccessorError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Read out of bounds")
@@ -49,23 +49,23 @@ TEST_CASE("DirectMemoryAccess")
         std::vector<uint8_t> data(4); // Fixed size
         size_t size = data.size();
 
-        REQUIRE(dma.read(address, data.data(), size) == AccessError::OUT_OF_BOUNDS);
+        REQUIRE(dma.read(address, data.data(), size) == AccessorError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Erase (simulated)")
     {
         uint32_t address = FLASH_START + 10;
-        REQUIRE(dma.erase(address) == AccessError::NO_ERROR); // Simply checks that the function runs without error
+        REQUIRE(dma.erase(address) == AccessorError::NO_ERROR); // Simply checks that the function runs without error
     }
 }
 
-// Test case for LinuxMockI2CFlashAccess
-TEST_CASE("LinuxMockI2CFlashAccess")
+// Test case for LinuxMockI2CFlashAccessor
+TEST_CASE("LinuxMockI2CFlashAccessor")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
     I2C_HandleTypeDef hi2c;
-    LinuxMockI2CFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
+    LinuxMockI2CFlashAccessor hal(&hi2c, FLASH_START, FLASH_SIZE);
 
     SUBCASE("Write and Read within bounds")
     {
@@ -74,9 +74,9 @@ TEST_CASE("LinuxMockI2CFlashAccess")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size); // Use std::vector
         auto result = hal.write(address, data, size);
-        REQUIRE(result == AccessError::NO_ERROR);
+        REQUIRE(result == AccessorError::NO_ERROR);
         result = hal.read(address, read_data.data(), size);
-        REQUIRE(result == AccessError::NO_ERROR);
+        REQUIRE(result == AccessorError::NO_ERROR);
         bool result_bool = compareMemory(data, read_data.data(), size);
         REQUIRE(result_bool == true);
     }
@@ -87,7 +87,7 @@ TEST_CASE("LinuxMockI2CFlashAccess")
         uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
         size_t size = sizeof(data);
 
-        REQUIRE(hal.write(address, data, size) == AccessError::OUT_OF_BOUNDS);
+        REQUIRE(hal.write(address, data, size) == AccessorError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Read out of bounds")
@@ -96,23 +96,23 @@ TEST_CASE("LinuxMockI2CFlashAccess")
         std::vector<uint8_t> data(4); // Fixed size
         size_t size = data.size();
 
-        REQUIRE(hal.read(address, data.data(), size) == AccessError::OUT_OF_BOUNDS);
+        REQUIRE(hal.read(address, data.data(), size) == AccessorError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Erase (simulated)")
     {
         uint32_t address = FLASH_START + 10;
-        REQUIRE(hal.erase(address) == AccessError::NO_ERROR); // Simply checks that the function runs without error
+        REQUIRE(hal.erase(address) == AccessorError::NO_ERROR); // Simply checks that the function runs without error
     }
 }
 
-// Test case for LinuxMockSPIFlashAccess
-TEST_CASE("LinuxMockSPIFlashAccess")
+// Test case for LinuxMockSPIFlashAccessor
+TEST_CASE("LinuxMockSPIFlashAccessor")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
     SPI_HandleTypeDef hspi; // Create an instance of the SPI_HandleTypeDef
-    LinuxMockSPIFlashAccess hal(&hspi, FLASH_START, FLASH_SIZE);
+    LinuxMockSPIFlashAccessor hal(&hspi, FLASH_START, FLASH_SIZE);
 
     SUBCASE("Write and Read within bounds")
     {
@@ -121,9 +121,9 @@ TEST_CASE("LinuxMockSPIFlashAccess")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size);
 
-        REQUIRE(hal.write(address, data, size) == AccessError::NO_ERROR);
+        REQUIRE(hal.write(address, data, size) == AccessorError::NO_ERROR);
         copy_spi_tx_to_rx();
-        REQUIRE(hal.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(hal.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(compareMemory(data, read_data.data(), size));
     }
 
@@ -133,7 +133,7 @@ TEST_CASE("LinuxMockSPIFlashAccess")
         uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
         size_t size = sizeof(data);
 
-        REQUIRE(hal.write(address, data, size) == AccessError::OUT_OF_BOUNDS);
+        REQUIRE(hal.write(address, data, size) == AccessorError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Read out of bounds")
@@ -142,24 +142,24 @@ TEST_CASE("LinuxMockSPIFlashAccess")
         std::vector<uint8_t> data(4);
         size_t size = data.size();
 
-        REQUIRE(hal.read(address, data.data(), size) == AccessError::OUT_OF_BOUNDS);
+        REQUIRE(hal.read(address, data.data(), size) == AccessorError::OUT_OF_BOUNDS);
     }
 
     SUBCASE("Erase (simulated)")
     {
         uint32_t address = FLASH_START + 10;
-        REQUIRE(hal.erase(address) == AccessError::NO_ERROR);
+        REQUIRE(hal.erase(address) == AccessorError::NO_ERROR);
     }
 }
 
-TEST_CASE("DirectMemoryAccess and LinuxMockI2CFlashAccess API consistency")
+TEST_CASE("DirectMemoryAccessor and LinuxMockI2CFlashAccessor API consistency")
 {
     const uint32_t FLASH_START = 0x08000000;
     const uint32_t FLASH_SIZE = 1024;
     I2C_HandleTypeDef hi2c;
 
-    DirectMemoryAccess dma(FLASH_START, FLASH_SIZE);
-    LinuxMockI2CFlashAccess hal(&hi2c, FLASH_START, FLASH_SIZE);
+    DirectMemoryAccessor dma(FLASH_START, FLASH_SIZE);
+    LinuxMockI2CFlashAccessor hal(&hi2c, FLASH_START, FLASH_SIZE);
 
     uint32_t address = FLASH_START + 10;
     uint8_t data[] = {0x09, 0x0A, 0x0B, 0x0C};
@@ -168,19 +168,19 @@ TEST_CASE("DirectMemoryAccess and LinuxMockI2CFlashAccess API consistency")
     std::vector<uint8_t> read_data_hal(size); // Use std::vector
 
     // Write using both APIs
-    REQUIRE(dma.write(address, data, size) == AccessError::NO_ERROR);
-    REQUIRE(hal.write(address, data, size) == AccessError::NO_ERROR);
+    REQUIRE(dma.write(address, data, size) == AccessorError::NO_ERROR);
+    REQUIRE(hal.write(address, data, size) == AccessorError::NO_ERROR);
 
     // Read using both APIs
-    REQUIRE(dma.read(address, read_data_dma.data(), size) == AccessError::NO_ERROR); // Pass the data pointer
-    REQUIRE(hal.read(address, read_data_hal.data(), size) == AccessError::NO_ERROR); // Pass the data pointer
+    REQUIRE(dma.read(address, read_data_dma.data(), size) == AccessorError::NO_ERROR); // Pass the data pointer
+    REQUIRE(hal.read(address, read_data_hal.data(), size) == AccessorError::NO_ERROR); // Pass the data pointer
 
     // Compare the read data
     REQUIRE(compareMemory(read_data_dma.data(), read_data_hal.data(), size)); // Pass the data pointer
 
     // Erase using both APIs
-    REQUIRE(dma.erase(address) == AccessError::NO_ERROR);
-    REQUIRE(hal.erase(address) == AccessError::NO_ERROR);
+    REQUIRE(dma.erase(address) == AccessorError::NO_ERROR);
+    REQUIRE(hal.erase(address) == AccessorError::NO_ERROR);
 }
 
 // Mock Accessor for testing
@@ -202,46 +202,46 @@ struct MockAccessor
     size_t getFlashStartAddress() const { return start; };
     size_t getAlignment() const { return 1; }
 
-    AccessError write(uint32_t address, const uint8_t *buffer, size_t num_bytes)
+    AccessorError write(uint32_t address, const uint8_t *buffer, size_t num_bytes)
     {
         if (force_write_error)
         {
-            return AccessError::WRITE_ERROR;
+            return AccessorError::WRITE_ERROR;
         }
         if (address + num_bytes - start > size)
         {
             std::cerr << "MockAccessor::write: out of bounds write. address=" << address
                       << ", num_bytes=" << num_bytes << ", size=" << size << std::endl;
-            return AccessError::OUT_OF_BOUNDS; // Simulate write error
+            return AccessorError::OUT_OF_BOUNDS; // Simulate write error
         }
         std::memcpy(data.data() + address - start, buffer, num_bytes);
 
         last_flushed_address = address;
         last_flushed_data.assign(buffer, buffer + num_bytes);
         is_flushed = true;
-        return AccessError::NO_ERROR; // Simulate successful write
+        return AccessorError::NO_ERROR; // Simulate successful write
     }
 
-    AccessError read(uint32_t address, uint8_t *buffer, size_t num_bytes)
+    AccessorError read(uint32_t address, uint8_t *buffer, size_t num_bytes)
     {
         if (force_read_error)
         {
-            return AccessError::READ_ERROR;
+            return AccessorError::READ_ERROR;
         }
         if (address + num_bytes - start > size)
         {
             std::cerr << "MockAccessor::read: out of bounds read. address=" << address
                       << ", num_bytes=" << num_bytes << ", size=" << size << std::endl;
-            return AccessError::OUT_OF_BOUNDS; // Simulate read error
+            return AccessorError::OUT_OF_BOUNDS; // Simulate read error
         }
         std::memcpy(buffer, data.data() + address - start, num_bytes);
-        return AccessError::NO_ERROR; // Simulate successful read
+        return AccessorError::NO_ERROR; // Simulate successful read
     }
 
-    AccessError erase(uint32_t /*address*/)
+    AccessorError erase(uint32_t /*address*/)
     {
         // Mock implementation - just return success
-        return AccessError::NO_ERROR;
+        return AccessorError::NO_ERROR;
     }
 
     void reset()
@@ -292,8 +292,8 @@ TEST_CASE("Test BufferedAccessor")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size);
 
-        REQUIRE(buffered_accessor.write(address, data, size) == AccessError::NO_ERROR);
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data, size) == AccessorError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, read_data.begin()));
     }
 
@@ -304,8 +304,8 @@ TEST_CASE("Test BufferedAccessor")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size);
 
-        REQUIRE(buffered_accessor.write(address, data, size) == AccessError::NO_ERROR);
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data, size) == AccessorError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, read_data.begin()));
     }
 
@@ -318,15 +318,15 @@ TEST_CASE("Test BufferedAccessor")
             data[i] = static_cast<uint8_t>(i % 256);
         }
         std::vector<uint8_t> read_data(data.size());
-        REQUIRE(buffered_accessor.write(address, data.data(), data.size()) == AccessError::NO_ERROR);
-        REQUIRE(buffered_accessor.read(address, read_data.data(), data.size()) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data.data(), data.size()) == AccessorError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), data.size()) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data.begin(), data.end(), read_data.begin()));
     }
 
     SUBCASE("Erase operation")
     {
         uint32_t address = FLASH_START + 10;
-        REQUIRE(buffered_accessor.erase(address) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.erase(address) == AccessorError::NO_ERROR);
     }
 
     SUBCASE("Aligned Write and Read")
@@ -335,10 +335,10 @@ TEST_CASE("Test BufferedAccessor")
         uint8_t data[] = {0xAA, 0xBB, 0xCC, 0xDD};
         size_t size = sizeof(data);
 
-        REQUIRE(buffered_accessor.write(address, data, size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data, size) == AccessorError::NO_ERROR);
 
         std::vector<uint8_t> retrieved_data(size);
-        REQUIRE(buffered_accessor.read(address, retrieved_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, retrieved_data.data(), size) == AccessorError::NO_ERROR);
 
         REQUIRE(std::equal(data, data + size, retrieved_data.begin()));
     }
@@ -349,10 +349,10 @@ TEST_CASE("Test BufferedAccessor")
         uint8_t data[] = {0x11, 0x22, 0x33, 0x44};
         size_t size = sizeof(data);
 
-        REQUIRE(buffered_accessor.write(address, data, size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data, size) == AccessorError::NO_ERROR);
 
         std::vector<uint8_t> retrieved_data(size);
-        REQUIRE(buffered_accessor.read(address, retrieved_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, retrieved_data.data(), size) == AccessorError::NO_ERROR);
 
         REQUIRE(std::equal(data, data + size, retrieved_data.begin()));
     }
@@ -372,10 +372,10 @@ TEST_CASE("Test BufferedAccessor")
                 data[j] = static_cast<uint8_t>((i + j) % 256);
             }
 
-            REQUIRE(buffered_accessor.write(address, data.data(), write_size) == AccessError::NO_ERROR);
+            REQUIRE(buffered_accessor.write(address, data.data(), write_size) == AccessorError::NO_ERROR);
 
             std::vector<uint8_t> read_data(write_size);
-            REQUIRE(buffered_accessor.read(address, read_data.data(), write_size) == AccessError::NO_ERROR);
+            REQUIRE(buffered_accessor.read(address, read_data.data(), write_size) == AccessorError::NO_ERROR);
             REQUIRE(std::equal(data.begin(), data.end(), read_data.begin()));
         }
     }
@@ -387,8 +387,8 @@ TEST_CASE("Test BufferedAccessor")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size);
 
-        REQUIRE(buffered_accessor.write(address, data, size) == AccessError::NO_ERROR);
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data, size) == AccessorError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, read_data.begin()));
     }
 
@@ -399,8 +399,8 @@ TEST_CASE("Test BufferedAccessor")
         size_t size = sizeof(data);
         std::vector<uint8_t> read_data(size);
 
-        REQUIRE(buffered_accessor.write(address, data, size) == AccessError::NO_ERROR);
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data, size) == AccessorError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, read_data.begin()));
     }
 
@@ -411,8 +411,8 @@ TEST_CASE("Test BufferedAccessor")
         size_t size = 0;
         std::vector<uint8_t> read_data;
 
-        REQUIRE(buffered_accessor.write(address, data.data(), size) == AccessError::NO_ERROR);
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data.data(), size) == AccessorError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(read_data.empty()); // Check that read_data is still empty
     }
 
@@ -425,17 +425,17 @@ TEST_CASE("Test BufferedAccessor")
         std::vector<uint8_t> read_data(size);
 
         // First write
-        REQUIRE(buffered_accessor.write(address, data1, size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data1, size) == AccessorError::NO_ERROR);
 
         // Read back - should be from cache
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data1, data1 + size, read_data.begin()));
 
         // Second write, overwriting the same location
-        REQUIRE(buffered_accessor.write(address, data2, size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.write(address, data2, size) == AccessorError::NO_ERROR);
 
         // Read back - should be the new data
-        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessError::NO_ERROR);
+        REQUIRE(buffered_accessor.read(address, read_data.data(), size) == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data2, data2 + size, read_data.begin()));
     }
 
@@ -450,7 +450,7 @@ TEST_CASE("Test BufferedAccessor")
         {
             BufferedAccessor<MockAccessor, BLOCK_SIZE> local_accessor(base_accessor_local);
             auto status = local_accessor.write(address, data, size);
-            REQUIRE(status == AccessError::NO_ERROR);
+            REQUIRE(status == AccessorError::NO_ERROR);
         } // local_accessor goes out of scope and its destructor is called.
 
         // Check that data was flushed
@@ -462,7 +462,7 @@ TEST_CASE("Test BufferedAccessor")
         // Check that the underlying memory was actually written to.
         std::vector<uint8_t> written_data(size);
         auto read_status = base_accessor_local.read(address, written_data.data(), size);
-        REQUIRE(read_status == AccessError::NO_ERROR);
+        REQUIRE(read_status == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, written_data.begin()));
 
         // Reset the base accessor for future tests.
@@ -491,7 +491,7 @@ TEST_CASE("Simplified BufferedAccessor Write Test")
     {
         BufferedAccessor<MockAccessor, BLOCK_SIZE> local_accessor(base_accessor_local);
         auto status = local_accessor.write(address, data, size);
-        REQUIRE(status == AccessError::NO_ERROR);
+        REQUIRE(status == AccessorError::NO_ERROR);
         local_accessor.flush_cache(); // Ensure cache is flushed after write
 
         // Check base_accessor after destructing
@@ -501,7 +501,7 @@ TEST_CASE("Simplified BufferedAccessor Write Test")
         // ASSERT that it written to the mock accessor
         std::vector<uint8_t> written_data(size);
         auto read_status = base_accessor_local.read(address, written_data.data(), size);
-        REQUIRE(read_status == AccessError::NO_ERROR);
+        REQUIRE(read_status == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, written_data.begin()));
     }
 
@@ -510,7 +510,7 @@ TEST_CASE("Simplified BufferedAccessor Write Test")
         {
             BufferedAccessor<MockAccessor, BLOCK_SIZE> local_accessor(base_accessor_local);
             auto status = local_accessor.write(address, data, size);
-            REQUIRE(status == AccessError::NO_ERROR);
+            REQUIRE(status == AccessorError::NO_ERROR);
         }
         // Check base_accessor after destructing
         auto [flushed_address, flushed_data] = base_accessor_local.getLastFlushedData();
@@ -519,7 +519,7 @@ TEST_CASE("Simplified BufferedAccessor Write Test")
         // ASSERT that it written to the mock accessor
         std::vector<uint8_t> written_data(size);
         auto read_status = base_accessor_local.read(address, written_data.data(), size);
-        REQUIRE(read_status == AccessError::NO_ERROR);
+        REQUIRE(read_status == AccessorError::NO_ERROR);
         REQUIRE(std::equal(data, data + size, written_data.begin()));
     }
 }
