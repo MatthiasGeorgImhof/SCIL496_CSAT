@@ -122,6 +122,12 @@ private:
 template <typename Accessor>
 ImageBufferError ImageBuffer<Accessor>::write(size_t address, const uint8_t *data, size_t size)
 {
+    if (address + size > buffer_state_.TOTAL_BUFFER_CAPACITY_)
+    {
+        // std::cerr << "Write Error: Out of bounds." << std::endl;
+        return ImageBufferError::OUT_OF_BOUNDS;
+    }
+    
     if (address + size <= buffer_state_.TOTAL_BUFFER_CAPACITY_)
     {
         ImageBufferError status = static_cast<ImageBufferError>(access_.write(address + buffer_state_.FLASH_START_ADDRESS_, data, size));
@@ -243,8 +249,8 @@ ImageBufferError ImageBuffer<Accessor>::push_image()
 
     current_offset_ += sizeof(crc_t);
     current_offset_ += offset_to_alignment(current_offset_);
-    buffer_state_.size_ += current_offset_;
-    buffer_state_.tail_ += current_offset_;
+    buffer_state_.size_ += current_offset_ - buffer_state_.tail_;
+    buffer_state_.tail_ = current_offset_;
     wrap_around(buffer_state_.tail_);
     buffer_state_.count_++;
 
@@ -329,8 +335,8 @@ ImageBufferError ImageBuffer<Accessor>::pop_image()
 
     current_offset_ += sizeof(crc_t);
     current_offset_ += offset_to_alignment(current_offset_);
-    buffer_state_.size_ -= current_offset_;
-    buffer_state_.head_ += current_offset_;
+    buffer_state_.size_ -= current_offset_ - buffer_state_.head_;
+    buffer_state_.head_ = current_offset_;
     wrap_around(buffer_state_.head_);
     buffer_state_.count_--;
 
