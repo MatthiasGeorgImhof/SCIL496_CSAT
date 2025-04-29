@@ -1,12 +1,15 @@
+#ifndef _POWER_SWITCH_H_
+#define _POWER_SWITCH_H_
+
 #include "mock_hal.h"
 #include <array>
 #include <cstdint>
 
-class PowerManager
+class PowerSwitch
 {
 public:
-    PowerManager() = delete;
-    PowerManager(I2C_HandleTypeDef *hi2c) : hi2c_(hi2c), register_value_(0) {}
+    PowerSwitch() = delete;
+    PowerSwitch(I2C_HandleTypeDef *hi2c) : hi2c_(hi2c), register_value_(0) {}
 
     void on(const uint8_t slot)
     {
@@ -64,3 +67,5 @@ private:
     uint8_t i2c_address_;
     uint8_t register_value_;
 };
+
+#endif /*_POWER_SWITCH_H */

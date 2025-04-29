@@ -1,15 +1,15 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include "PowerManager.hpp"
+#include "PowerSwitch.hpp"
 #include "mock_hal.h"
 
 #include <iostream>  // For debugging output (remove in production tests)
 #include <bitset>    // For visualizing bit patterns
 
-TEST_CASE("PowerManager On/Off/Status") {
+TEST_CASE("PowerSwitch On/Off/Status") {
     I2C_HandleTypeDef hi2c;
 
-    PowerManager pm(&hi2c);
+    PowerSwitch pm(&hi2c);
 
     // Reset the I2C buffer before each test case
     clear_i2c_mem_data();

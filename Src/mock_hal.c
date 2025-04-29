@@ -476,6 +476,19 @@ void clear_i2c_mem_data(){
     i2c_mem_buffer_count = 0;
 }
 
+// Getter functions for I2C internal variables
+uint16_t get_i2c_mem_buffer_dev_address() {
+    return i2c_mem_buffer_dev_address;
+}
+
+uint16_t get_i2c_mem_buffer_mem_address() {
+    return i2c_mem_buffer_mem_address;
+}
+
+uint16_t get_i2c_mem_buffer_count() {
+    return i2c_mem_buffer_count;
+}
+
 // SPI Injectors
 void inject_spi_rx_data(uint8_t *data, int size) {
     if (spi_rx_buffer_count + size <= SPI_RX_BUFFER_SIZE) {
