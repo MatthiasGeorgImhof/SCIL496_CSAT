@@ -12,6 +12,10 @@ extern "C" {
 //  DEFINES
 //------------------------------------------------------------------------------
 
+#define HAL_MAX_DELAY           0xFFFFFFFFU
+#define I2C_MEMADD_SIZE_8BIT    (0x00000001U)
+#define I2C_MEMADD_SIZE_16BIT   (0x00000002U)
+
 //--- HAL Status ---
 #define  HAL_OK       0x00
 #define  HAL_ERROR    0x01
@@ -342,6 +346,9 @@ int get_spi_rx_buffer_count();
 uint8_t* get_spi_rx_buffer();
 void init_spi_handle(SPI_HandleTypeDef *hspi);
 void copy_spi_tx_to_rx();
+int get_i2c_buffer_count();
+uint8_t* get_i2c_buffer();
+
 
 //--- GPIO Access Function Prototypes ---
 GPIO_PinState get_gpio_pin_state(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);

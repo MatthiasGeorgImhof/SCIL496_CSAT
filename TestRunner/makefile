@@ -16,32 +16,33 @@ LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
 TEST_FILES = TestArrayList.cpp \
+			 TestCachedImageBuffer.cpp \
 			 TestCyphal.cpp \
+			 TestCyphalSubscriptions.cpp \
+			 TestImageBuffer.cpp \
+			 TestImageBufferAccessor.cpp \
 			 TestLogger.cpp \
 			 TestLoggerCyphal.cpp \
 			 TestMockHal.cpp \
 			 TestO1HeapAllocator.cpp \
+			 TestPowerManager.cpp \
 			 TestProcessRxQueue.cpp \
 			 TestRegistrationManager.cpp \
-			 TestSubscriptionManager.cpp \
 			 TestServiceManager.cpp \
+			 TestSubscriptionManager.cpp \
 			 TestTask.cpp \
 			 TestTaskBlinkLED.cpp \
 			 TestTaskCheckMemory.cpp \
+			 TestTaskRegistrationSubscription.cpp \
+			 TestTaskRequestGetInfo.cpp \
+			 TestTaskRespondGetInfo.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
-			 TestTaskRespondGetInfo.cpp \
-			 TestTaskRequestGetInfo.cpp \
-			 TestTaskRegistrationSubscription.cpp \
              TestBoxSet.cpp \
              TestBoxSetIterator.cpp \
              TestCircularBuffer.cpp \
-             TestMainLoop.cpp \
-			 TestImageBuffer.cpp \
-			 TestCachedImageBuffer.cpp \
-			 TestImageBufferAccessor.cpp \
-			 TestCyphalSubscriptions.cpp
+             TestMainLoop.cpp
 
 SRC_FILES = ../Src/Logger.cpp \
             ../Src/RegistrationManager.cpp \
@@ -294,6 +295,17 @@ $(BIN_DIR)/TestCachedImageBuffer.o : TestCachedImageBuffer.cpp
 $(BIN_DIR)/TestCachedImageBuffer : $(BIN_DIR)/TestCachedImageBuffer.o $(BIN_DIR)/mock_hal.o
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCachedImageBuffer.o $(BIN_DIR)/mock_hal.o $(LIBS)
+
+# Rule for TestPowerManager with extra sources
+$(BIN_DIR)/TestPowerManager.o : TestPowerManager.cpp
+	@echo "Compiling $<"
+	$(CXX)  -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestPowerManager : $(BIN_DIR)/TestPowerManager.o $(BIN_DIR)/mock_hal.o
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPowerManager.o $(BIN_DIR)/mock_hal.o $(LIBS)
+
+
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp
