@@ -311,7 +311,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOE_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(ATTN_GPIO_Port, ATTN_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin|ATTN_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
@@ -325,8 +325,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, CAN2_STB_Pin|CAN2_SHTD_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : ATTN_Pin LED1_Pin */
-  GPIO_InitStruct.Pin = ATTN_Pin|LED1_Pin;
+  /*Configure GPIO pins : POWER_RST_Pin ATTN_Pin LED1_Pin */
+  GPIO_InitStruct.Pin = POWER_RST_Pin|ATTN_Pin|LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

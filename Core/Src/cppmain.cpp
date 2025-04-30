@@ -36,12 +36,15 @@
 #include "TaskSubscribeNodePortList.hpp"
 #include "TaskRespondGetInfo.hpp"
 #include "TaskRequestGetInfo.hpp"
+#include "PowerSwitch.hpp"
+#include "PowerMonitor.hpp"
 
 #include <cppmain.h>
 #include "Logger.hpp"
 
 CAN_HandleTypeDef *hcan1_;
 CAN_HandleTypeDef *hcan2_;
+I2C_HandleTypeDef *hi2c_;
 
 constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
@@ -89,10 +92,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
+uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
+int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
+
 void cppmain(HAL_Handles handles)
 {
 	hcan1_ = handles.hcan1;
 	hcan2_ = handles.hcan2;
+	hi2c_ = handles.hi2c;
 
 	if (HAL_CAN_Start(hcan1_) != HAL_OK) {
 		Error_Handler();
@@ -171,6 +178,35 @@ void cppmain(HAL_Handles handles)
     ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
 
+	constexpr uint8_t INA226 = 64 + 2;
+	constexpr uint8_t INS226_CONFIG = 0x00;
+	constexpr uint8_t INS226_SHUNT = 0x01;
+	constexpr uint8_t INS226_BUS = 0x02;
+	constexpr uint8_t INS226_POWER = 0x03;
+	constexpr uint8_t INS226_CURRENT = 0x04;
+	constexpr uint8_t INS226_CALIBRATION = 0x05;
+	constexpr uint8_t INS226_MANUFACTURER_ID = 0xfe;
+	constexpr uint8_t INS226_DIE_ID = 0xff;
+
+	constexpr uint8_t GPIO_EXPANDER = 32;
+	constexpr uint8_t IODIR = 0x00;
+	constexpr uint8_t ENABLE3 = 0x01;
+	constexpr uint8_t ENABLE2 = 0x04;
+	constexpr uint8_t ENABLE1 = 0x10;
+	constexpr uint8_t ENABLE0 = 0x40;
+
+//	  uint8_t enable = ENABLE0 | ENABLE1 | ENABLE2 | ENABLE3;
+//	  uint8_t expander_values[11] = {0,0,0,0,0,0,0,0,0,enable,enable};
+//	  HAL_I2C_Mem_Write(hi2c_, GPIO_EXPANDER<<1, IODIR, I2C_MEMADD_SIZE_8BIT, expander_values, sizeof(expander_values), HAL_MAX_DELAY);
+	PowerSwitch power_switch(hi2c_, GPIO_EXPANDER);
+	power_switch.setState(ENABLE0 | ENABLE1 | ENABLE2 | ENABLE3);
+//	power_switch.on(0);
+//	power_switch.on(1);
+//	power_switch.on(2);
+//	power_switch.on(3);
+
+//	PowerMonitor power_monitor(hi2c_, INA226);
+
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
 	while(1)
@@ -187,6 +223,28 @@ void cppmain(HAL_Handles handles)
 		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, empty_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
+
+		  uint16_t manufacturer_id, die_id, bus_voltage;
+		  int16_t shunt_voltage;
+		  HAL_I2C_Mem_Read(hi2c_, INA226<<1, INS226_MANUFACTURER_ID, I2C_MEMADD_SIZE_8BIT, (uint8_t*)&manufacturer_id, sizeof(manufacturer_id), HAL_MAX_DELAY);
+		  HAL_I2C_Mem_Read(hi2c_, INA226<<1, INS226_DIE_ID, I2C_MEMADD_SIZE_8BIT, (uint8_t*)&die_id, sizeof(die_id), HAL_MAX_DELAY);
+		  HAL_I2C_Mem_Read(hi2c_, INA226<<1, INS226_SHUNT, I2C_MEMADD_SIZE_8BIT, (uint8_t*)&shunt_voltage, sizeof(shunt_voltage), HAL_MAX_DELAY);
+		  HAL_I2C_Mem_Read(hi2c_, INA226<<1, INS226_BUS, I2C_MEMADD_SIZE_8BIT, (uint8_t*)&bus_voltage, sizeof(bus_voltage), HAL_MAX_DELAY);
+
+		  uint16_t deviceID = 0;
+
+		  char buffer[256];
+		  sprintf(buffer, "INA226: % 4x % 4x % 6d % 6d % 4x\r\n",
+				  endian_swap(manufacturer_id), endian_swap(die_id), abs(endian_swap(shunt_voltage)), endian_swap(bus_voltage), deviceID);
+		  CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+//				  uint16_t deviceID = 0;
+//		PowerMonitorData data = power_monitor();
+//				  char buffer[256];
+//				  sprintf(buffer, "INA226: % 4x % 4x % 6d % 6d % 4x\r\n",
+//						  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, deviceID);
+//				  CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
 
 		HAL_Delay(100);
 	}
