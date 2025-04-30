@@ -1,3 +1,4 @@
+#ifdef __x86_64__
 #ifndef MOCK_HAL_H
 #define MOCK_HAL_H
 
@@ -361,3 +362,4 @@ void set_gpio_pin_state(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState Pi
 }
 #endif /* __cplusplus */
 #endif /* MOCK_HAL_H */
+#endif /* __x86_64__ */
