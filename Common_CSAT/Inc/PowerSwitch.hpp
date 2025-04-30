@@ -9,7 +9,7 @@ class PowerSwitch
 {
 public:
     PowerSwitch() = delete;
-    PowerSwitch(I2C_HandleTypeDef *hi2c) : hi2c_(hi2c), register_value_(0) {}
+    PowerSwitch(I2C_HandleTypeDef *hi2c, uint8_t i2c_address) : hi2c_(hi2c), i2c_address_(i2c_address), register_value_(0) {}
 
     void on(const uint8_t slot)
     {

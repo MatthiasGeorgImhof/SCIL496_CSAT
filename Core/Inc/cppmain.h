@@ -15,6 +15,7 @@ extern "C" {
 struct HAL_Handles {
 	CAN_HandleTypeDef *hcan1;
 	CAN_HandleTypeDef *hcan2;
+	I2C_HandleTypeDef *hi2c;
 };
 
 void cppmain(struct HAL_Handles handles);
