@@ -59,10 +59,10 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_CAN2_Init(void);
+static void MX_I2C4_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
-static void MX_I2C4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -104,10 +104,10 @@ int main(void)
   MX_CAN1_Init();
   MX_CAN2_Init();
   MX_USB_DEVICE_Init();
-  MX_I2C1_Init();
-  MX_I2C2_Init();
   MX_I2C4_Init();
   MX_DCMI_Init();
+  MX_I2C1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   struct HAL_Handles handles = {
 	  &hcan1, &hcan2, &hi2c4, &hi2c4, &hi2c4, &hdcmi
@@ -458,16 +458,21 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, CAMERA_S0_Pin|CAMERA_S1_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin|LED1_Pin|ENABLE_2V8_Pin|ENABLE_1V5_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin|LED1_Pin|ENABLE_2V8_Pin|ENABLE_1V5_Pin
+                          |CAMERA_RST_Pin|CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(ATTN_GPIO_Port, ATTN_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, CAN1_STB_Pin|CAN1_SHTD_Pin|LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, CAN1_STB_Pin|CAN1_SHTD_Pin|LED2_Pin|LED3_Pin
+                          |CAMERA_STROBE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LED4_Pin|LED5_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CAMERA_HW_CLK_GPIO_Port, CAMERA_HW_CLK_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, CAN2_STB_Pin|CAN2_SHTD_Pin, GPIO_PIN_RESET);
@@ -480,16 +485,18 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : POWER_RST_Pin ATTN_Pin LED1_Pin ENABLE_2V8_Pin
-                           ENABLE_1V5_Pin */
+                           ENABLE_1V5_Pin CAMERA_RST_Pin CAMERA_PWR_DN_Pin */
   GPIO_InitStruct.Pin = POWER_RST_Pin|ATTN_Pin|LED1_Pin|ENABLE_2V8_Pin
-                          |ENABLE_1V5_Pin;
+                          |ENABLE_1V5_Pin|CAMERA_RST_Pin|CAMERA_PWR_DN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : CAN1_STB_Pin CAN1_SHTD_Pin LED2_Pin LED3_Pin */
-  GPIO_InitStruct.Pin = CAN1_STB_Pin|CAN1_SHTD_Pin|LED2_Pin|LED3_Pin;
+  /*Configure GPIO pins : CAN1_STB_Pin CAN1_SHTD_Pin LED2_Pin LED3_Pin
+                           CAMERA_STROBE_Pin */
+  GPIO_InitStruct.Pin = CAN1_STB_Pin|CAN1_SHTD_Pin|LED2_Pin|LED3_Pin
+                          |CAMERA_STROBE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -501,6 +508,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CAMERA_HW_CLK_Pin */
+  GPIO_InitStruct.Pin = CAMERA_HW_CLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CAMERA_HW_CLK_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

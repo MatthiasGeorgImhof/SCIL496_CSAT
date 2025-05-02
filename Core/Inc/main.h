@@ -83,6 +83,14 @@ void Error_Handler(void);
 #define LED4_GPIO_Port GPIOA
 #define LED5_Pin GPIO_PIN_15
 #define LED5_GPIO_Port GPIOA
+#define CAMERA_HW_CLK_Pin GPIO_PIN_11
+#define CAMERA_HW_CLK_GPIO_Port GPIOC
+#define CAMERA_STROBE_Pin GPIO_PIN_7
+#define CAMERA_STROBE_GPIO_Port GPIOD
+#define CAMERA_RST_Pin GPIO_PIN_3
+#define CAMERA_RST_GPIO_Port GPIOB
+#define CAMERA_PWR_DN_Pin GPIO_PIN_4
+#define CAMERA_PWR_DN_GPIO_Port GPIOB
 #define CAN2_STB_Pin GPIO_PIN_0
 #define CAN2_STB_GPIO_Port GPIOE
 #define CAN2_SHTD_Pin GPIO_PIN_1
