@@ -8,8 +8,9 @@
 
 TEST_CASE("PowerSwitch On/Off/Status") {
     I2C_HandleTypeDef hi2c;
+    uint8_t address = 0x40;
 
-    PowerSwitch pm(&hi2c);
+    PowerSwitch pm(&hi2c, address);
 
     // Reset the I2C buffer before each test case
     clear_i2c_mem_data();
