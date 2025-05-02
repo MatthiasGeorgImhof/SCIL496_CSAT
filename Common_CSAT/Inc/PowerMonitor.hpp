@@ -56,28 +56,59 @@ public:
 		return result;
 	}
 
-	bool operator()(PowerMonitorData &data) const
+	bool getShuntVoltage(uint16_t &value) const
 	{
-		int16_t voltage_shunt_uV;
-		uint16_t voltage_bus_mV, power_mW, current_uA, manufacturer_id, die_id;
-		bool result = true;
-		result &= getRegister(INA226_REGISTERS::INA226_SHUNT_VOLTAGE, reinterpret_cast<uint16_t*>(&voltage_shunt_uV));
-		result &= getRegister(INA226_REGISTERS::INA226_BUS_VOLTAGE, &voltage_bus_mV);
-		result &= getRegister(INA226_REGISTERS::INA226_POWER, &power_mW);
-		result &= getRegister(INA226_REGISTERS::INA226_CURRENT, &current_uA);
-		result &= getRegister(INA226_REGISTERS::INA226_MANUFACTURER, &manufacturer_id);
-		result &= getRegister(INA226_REGISTERS::INA226_DIE_ID, &die_id);
-
-		data.voltage_shunt_uV = 5 * abs(voltage_shunt_uV) / 2;
-		data.voltage_bus_mV = 5 * voltage_bus_mV / 4;
-		data.power_mW = power_mW * lsb_power_W_;
-		data.current_uA = current_uA * lsb_current_uA_;
-		data.manufacturer_id = manufacturer_id;
-		data.die_id = die_id;
-
+		int16_t value_;
+		bool result = getRegister(INA226_REGISTERS::INA226_SHUNT_VOLTAGE, reinterpret_cast<uint16_t*>(&value_));
+		value = checkAndCast(5 * abs(value_) / 2);
 		return result;
 	}
-
+	
+	bool getBusVoltage(uint16_t &value) const
+	{
+		uint16_t value_;
+		bool result = getRegister(INA226_REGISTERS::INA226_BUS_VOLTAGE, &value_);
+		value = checkAndCast(5 * static_cast<uint32_t>(value_) / 4);
+		return result;
+	}
+	
+	bool getPower(uint16_t &value) const
+	{
+		uint16_t value_;
+		bool result = getRegister(INA226_REGISTERS::INA226_POWER, &value_);
+		value = checkAndCast(static_cast<uint32_t>(value_) * lsb_power_W_);
+		return result;
+	}
+	
+	bool getCurrent(uint16_t &value) const
+	{
+		uint16_t value_;
+		bool result = getRegister(INA226_REGISTERS::INA226_CURRENT, &value_);
+		value = checkAndCast(static_cast<uint32_t>(value_) * lsb_current_uA_);
+		return result;
+	}
+	
+	bool getManufacturerId(uint16_t &value) const
+	{
+		return getRegister(INA226_REGISTERS::INA226_MANUFACTURER, &value);
+	}
+	
+	bool getDieId(uint16_t &value) const
+	{
+		return getRegister(INA226_REGISTERS::INA226_DIE_ID, &value);
+	}
+	
+	bool operator()(PowerMonitorData &data) const
+	{
+		bool result = true;
+		result &= getShuntVoltage(data.voltage_shunt_uV);
+		result &= getBusVoltage(data.voltage_bus_mV);
+		result &= getPower(data.power_mW);
+		result &= getCurrent(data.current_uA);	
+		result &= getManufacturerId(data.manufacturer_id);
+		result &= getDieId(data.die_id);
+		return result;
+	}
 
 private:
 	inline uint16_t byteswap(uint16_t value) const { return (value << 8) | (value >> 8); }

@@ -57,12 +57,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define CAMERA_S0_Pin GPIO_PIN_2
+#define CAMERA_S0_GPIO_Port GPIOE
+#define CAMERA_S1_Pin GPIO_PIN_3
+#define CAMERA_S1_GPIO_Port GPIOE
 #define POWER_RST_Pin GPIO_PIN_0
 #define POWER_RST_GPIO_Port GPIOB
 #define ATTN_Pin GPIO_PIN_2
 #define ATTN_GPIO_Port GPIOB
 #define LED1_Pin GPIO_PIN_12
 #define LED1_GPIO_Port GPIOB
+#define ENABLE_2V8_Pin GPIO_PIN_14
+#define ENABLE_2V8_GPIO_Port GPIOB
+#define ENABLE_1V5_Pin GPIO_PIN_15
+#define ENABLE_1V5_GPIO_Port GPIOB
 #define CAN1_STB_Pin GPIO_PIN_8
 #define CAN1_STB_GPIO_Port GPIOD
 #define CAN1_SHTD_Pin GPIO_PIN_9
