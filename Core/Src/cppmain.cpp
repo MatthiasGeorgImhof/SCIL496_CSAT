@@ -44,7 +44,10 @@
 
 CAN_HandleTypeDef *hcan1_;
 CAN_HandleTypeDef *hcan2_;
-I2C_HandleTypeDef *hi2c_;
+I2C_HandleTypeDef *hi2c1_;
+I2C_HandleTypeDef *hi2c2_;
+I2C_HandleTypeDef *hi2c4_;
+DCMI_HandleTypeDef *hdcmi_;
 
 constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
@@ -99,7 +102,10 @@ void cppmain(HAL_Handles handles)
 {
 	hcan1_ = handles.hcan1;
 	hcan2_ = handles.hcan2;
-	hi2c_ = handles.hi2c;
+	hi2c1_ = handles.hi2c1;
+	hi2c2_ = handles.hi2c2;
+	hi2c4_ = handles.hi2c4;
+	hdcmi_ = handles.hdcmi;
 
 	if (HAL_CAN_Start(hcan1_) != HAL_OK) {
 		Error_Handler();
@@ -196,10 +202,10 @@ void cppmain(HAL_Handles handles)
 
 	HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin, GPIO_PIN_SET);
 	HAL_Delay(1);
-	PowerSwitch power_switch(hi2c_, GPIO_EXPANDER);
+	PowerSwitch power_switch(hi2c4_, GPIO_EXPANDER);
 	power_switch.on(2);
 
-	PowerMonitor power_monitor(hi2c_, INA226);
+	PowerMonitor power_monitor(hi2c4_, INA226);
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
