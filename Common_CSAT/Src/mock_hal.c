@@ -1,49 +1,76 @@
 #ifdef __x86_64__
+
+//------------------------------------------------------------------------------
+//  INCLUDES
+//------------------------------------------------------------------------------
+
 #include "mock_hal.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h> // For logging (optional)
 
-// Mocked Data Buffers
-CAN_TxMessage_t can_tx_buffer[CAN_TX_BUFFER_SIZE];
-int can_tx_buffer_count = 0;
+//------------------------------------------------------------------------------
+//  GLOBAL MOCKED VARIABLES - Buffers
+//------------------------------------------------------------------------------
 
-CAN_RxMessage_t can_rx_buffer[CAN_RX_BUFFER_SIZE];
-int can_rx_buffer_count = 0;
+//--- CAN Buffers ---
+CAN_TxMessage_t can_tx_buffer[CAN_TX_BUFFER_SIZE]; // CAN transmit buffer
+int can_tx_buffer_count = 0;                       // Number of messages in CAN TX buffer
 
-uint8_t uart_tx_buffer[UART_TX_BUFFER_SIZE];
-int uart_tx_buffer_count = 0;
+CAN_RxMessage_t can_rx_buffer[CAN_RX_BUFFER_SIZE]; // CAN receive buffer
+int can_rx_buffer_count = 0;                       // Number of messages in CAN RX buffer
 
-uint8_t uart_rx_buffer[UART_RX_BUFFER_SIZE];
-int uart_rx_buffer_count = 0;
-int uart_rx_buffer_read_pos = 0;
+//--- UART Buffers ---
+uint8_t uart_tx_buffer[UART_TX_BUFFER_SIZE];   // UART transmit buffer
+int uart_tx_buffer_count = 0;                  // Number of bytes in UART TX buffer
 
-uint8_t i2c_mem_buffer[I2C_MEM_BUFFER_SIZE];
-uint16_t i2c_mem_buffer_dev_address;
-uint16_t i2c_mem_buffer_mem_address;
-uint16_t i2c_mem_buffer_count = 0;
+uint8_t uart_rx_buffer[UART_RX_BUFFER_SIZE];   // UART receive buffer
+int uart_rx_buffer_count = 0;                  // Number of bytes in UART RX buffer
+int uart_rx_buffer_read_pos = 0;               // Read position in UART RX buffer
 
-uint8_t spi_tx_buffer[SPI_TX_BUFFER_SIZE];
-int spi_tx_buffer_count = 0;
+//--- I2C Buffers ---
+uint8_t i2c_mem_buffer[I2C_MEM_BUFFER_SIZE];   // I2C memory buffer
+uint16_t i2c_mem_buffer_dev_address;           // I2C device address
+uint16_t i2c_mem_buffer_mem_address;           // I2C memory address
+uint16_t i2c_mem_buffer_count = 0;              // Number of bytes in I2C memory buffer
 
-uint8_t spi_rx_buffer[SPI_RX_BUFFER_SIZE];
-int spi_rx_buffer_count = 0;
-int spi_rx_buffer_read_pos = 0;
+//--- SPI Buffers ---
+uint8_t spi_tx_buffer[SPI_TX_BUFFER_SIZE];   // SPI transmit buffer
+int spi_tx_buffer_count = 0;                  // Number of bytes in SPI TX buffer
 
-// Mock Variables
-uint32_t current_tick = 0;
-int current_free_mailboxes = 3;
-int current_rx_fifo_fill_level = 0;
+uint8_t spi_rx_buffer[SPI_RX_BUFFER_SIZE];   // SPI receive buffer
+int spi_rx_buffer_count = 0;                  // Number of bytes in SPI RX buffer
+int spi_rx_buffer_read_pos = 0;               // Read position in SPI RX buffer
 
-// Global variable to control HAL_UARTEx_GetRxEventType's return value
-HAL_UART_RxEventTypeTypeDef mocked_uart_rx_event_type = 0; // Default value
+//--- USB Buffers ---
+uint8_t usb_tx_buffer[USB_TX_BUFFER_SIZE];   // USB transmit buffer
+int usb_tx_buffer_count = 0;                  // Number of bytes in USB TX buffer
 
-// ---- GPIO Mocking -----
+//--- DCMI Buffers ---
+uint8_t dcmi_image_buffer[DCMI_IMAGE_BUFFER_SIZE]; // DCMI Image buffer
+
+//--- GPIO Port State ---
 typedef struct {
     GPIO_PinState pin_state[32]; // Assuming a maximum of 32 pins per port.  Adjust if needed.
 } MockGPIO_PortState;
 
-MockGPIO_PortState gpio_port_state;  //  Only one port
+MockGPIO_PortState gpio_port_state;  //  Only one port for mocking
+
+//------------------------------------------------------------------------------
+//  GLOBAL MOCKED VARIABLES - State
+//------------------------------------------------------------------------------
+
+//--- General Mock Variables ---
+uint32_t current_tick = 0;             // Current tick value (for HAL_GetTick)
+int current_free_mailboxes = 3;        // Number of free CAN mailboxes
+int current_rx_fifo_fill_level = 0;   // Fill level of CAN RX FIFO
+
+//--- UARTEx Mock Variables ---
+HAL_UART_RxEventTypeTypeDef mocked_uart_rx_event_type = 0; // Mocked UART Rx event type
+
+//------------------------------------------------------------------------------
+//  MOCKED HAL FUNCTION IMPLEMENTATIONS
+//------------------------------------------------------------------------------
 
 // ----- CAN Mock Functions -----
 
@@ -52,14 +79,14 @@ uint32_t HAL_CAN_AddTxMessage(void */*hcan*/, CAN_TxHeaderTypeDef *pHeader, uint
     if (pHeader == NULL) return 1; //HAL_ERROR
     if (can_tx_buffer_count < CAN_TX_BUFFER_SIZE) {
         can_tx_buffer[can_tx_buffer_count].TxHeader = *pHeader;
-        
+
         // Copy data if the buffer pointer is not null
         if (aData != NULL) {
              memcpy(&can_tx_buffer[can_tx_buffer_count].pData[0], aData, pHeader->DLC);
         } else {
              memset(&can_tx_buffer[can_tx_buffer_count].pData[0], 0, pHeader->DLC);
         }
-       
+
         can_tx_buffer[can_tx_buffer_count].Mailbox = 0; // Mock mailbox
         *pTxMailbox = 0;
         can_tx_buffer_count++;
@@ -108,9 +135,7 @@ uint32_t HAL_CAN_GetRxFifoFillLevel(void */*hcan*/, uint32_t /*Fifo*/) {
     return current_rx_fifo_fill_level;
 }
 
-
-
-// ---- UART Mock Functions -----
+// ----- UART Mock Functions -----
 
 uint32_t HAL_UART_Transmit(UART_HandleTypeDef */*huart*/, uint8_t *pData, uint16_t Size, uint32_t /*Timeout*/)
 {
@@ -174,8 +199,7 @@ uint32_t HAL_UART_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_
   return bytes_received == Size ? 0 : 1; //HAL_OK if all bytes are received
 }
 
-
-// ---- Time Mock Functions -----
+// ----- Time Mock Functions -----
 
 void HAL_Delay(uint32_t Delay)
 {
@@ -192,7 +216,7 @@ void HAL_SetTick(uint32_t tick)
     current_tick = tick;
 }
 
-// ---- I2C Mock Functions -----
+// ----- I2C Mock Functions -----
 
 uint32_t HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t /*Timeout*/)
 {
@@ -245,11 +269,7 @@ uint32_t HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_
     return 0;
 }
 
-
-// ---- USB CDC Mock Functions -----
-#define USB_TX_BUFFER_SIZE 256
-uint8_t usb_tx_buffer[USB_TX_BUFFER_SIZE];
-int usb_tx_buffer_count = 0;
+// ----- USB CDC Mock Functions -----
 
 uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len) {
   if (usb_tx_buffer_count + Len <= USB_TX_BUFFER_SIZE) {
@@ -260,7 +280,7 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len) {
     return 1;  // Error (Buffer overflow or something similar)
 }
 
-// ---- GPIO Mock Functions -----
+// ----- GPIO Mock Functions -----
 
 void HAL_GPIO_Init(GPIO_TypeDef *GPIOx, GPIO_InitTypeDef *GPIO_Init) {
   // In a simple mock, we don't *really* initialize anything.
@@ -311,7 +331,7 @@ void HAL_GPIO_TogglePin(GPIO_TypeDef */*GPIOx*/, uint16_t GPIO_Pin) {
     }
 }
 
-// ---- SPI Mock Functions -----
+// ----- SPI Mock Functions -----
 
 uint32_t HAL_SPI_Transmit(SPI_HandleTypeDef */*hspi*/, uint8_t *pData, uint16_t Size, uint32_t /*Timeout*/) {
     if (!pData) return 1; // HAL_ERROR
@@ -382,6 +402,74 @@ uint32_t HAL_SPI_Init(SPI_HandleTypeDef *hspi) {
     return 0; // HAL_OK
 }
 
+// ----- DCMI Mock Functions -----
+
+HAL_StatusTypeDef HAL_DCMI_Init(DCMI_HandleTypeDef *hdcmi) {
+    // Mock the initialization process.
+    if (hdcmi == NULL) return HAL_ERROR;
+
+    // You might want to store the hdcmi->Init values for later assertions.
+    hdcmi->State = HAL_DCMI_STATE_READY;
+    hdcmi->ErrorCode = HAL_OK;
+    return HAL_OK;
+}
+
+HAL_StatusTypeDef HAL_DCMI_DeInit(DCMI_HandleTypeDef *hdcmi) {
+    if (hdcmi == NULL) return HAL_ERROR;
+
+    hdcmi->State = HAL_DCMI_STATE_RESET;
+    hdcmi->ErrorCode = HAL_OK;
+    return HAL_OK;
+}
+
+HAL_StatusTypeDef HAL_DCMI_Start(DCMI_HandleTypeDef *hdcmi, uint32_t /*Mode*/, uint32_t /*DMA_InitStruct*/) {
+    if (hdcmi == NULL || hdcmi->pFrameBuffer == NULL) return HAL_ERROR;
+
+    hdcmi->State = HAL_DCMI_STATE_BUSY;
+
+    // Simulate data capture (basic example)
+    //uint8_t dummy_image_data[DCMI_IMAGE_BUFFER_SIZE];  // VGA resolution
+    for (uint32_t i = 0; i < (hdcmi->FrameWidth*hdcmi->FrameHeight); i++) {
+        hdcmi->pFrameBuffer[i] = (uint8_t)i;  // Simple repeating pattern
+    }
+
+    // In a real mock, you'd normally trigger a DMA transfer, OR
+    // copy the data directly to a buffer your code expects.
+    // For example, if you know your code expects the data in a buffer called
+    // "frame_buffer", you might do this:
+    // memcpy(frame_buffer, dummy_image_data, sizeof(dummy_image_data));
+
+    // Simulate DMA complete (if using DMA)
+    // if (hdcmi->DMA_Handle != NULL) {  // Assuming you store the DMA handle
+    //   HAL_DMA_IRQHandler(hdcmi->DMA_Handle); // Simulate the interrupt
+    // }
+
+    return HAL_OK;
+}
+
+HAL_StatusTypeDef HAL_DCMI_Stop(DCMI_HandleTypeDef *hdcmi) {
+    if (hdcmi == NULL) return HAL_ERROR;
+
+    hdcmi->State = HAL_DCMI_STATE_READY;
+    return HAL_OK;
+}
+
+HAL_DCMI_StateTypeDef HAL_DCMI_GetState(DCMI_HandleTypeDef *hdcmi){
+    if(hdcmi == NULL) return HAL_DCMI_STATE_ERROR;
+
+    return hdcmi->State;
+}
+
+uint32_t HAL_DCMI_GetError(DCMI_HandleTypeDef *hdcmi){
+    if(hdcmi == NULL) return 1; //HAL_ERROR
+
+    return hdcmi->ErrorCode;
+}
+
+//------------------------------------------------------------------------------
+//  HELPER FUNCTION IMPLEMENTATIONS
+//------------------------------------------------------------------------------
+
 // ----- Injector and Deleter Functions ------
 
 // CAN Injectors
@@ -406,6 +494,7 @@ void clear_can_rx_buffer() {
     current_rx_fifo_fill_level = 0;  // IMPORTANT: Reset the fill level!
 }
 
+// CAN Mover
 void TxHeaderToRxHeader(const CAN_TxHeaderTypeDef *txHeader, CAN_RxHeaderTypeDef *rxHeader, uint8_t fifoNumber) {
     if (!txHeader || !rxHeader) {
         // Handle null pointer error (e.g., return, log an error, etc.)
@@ -422,7 +511,6 @@ void TxHeaderToRxHeader(const CAN_TxHeaderTypeDef *txHeader, CAN_RxHeaderTypeDef
     memcpy(rxHeader->Data, txHeader->Data, txHeader->DLC);
 }
 
-// CAN Mover
 void move_can_tx_to_rx() {
     for (int i = 0; i < can_tx_buffer_count; ++i) {
         if (can_rx_buffer_count < CAN_RX_BUFFER_SIZE) {
@@ -450,13 +538,13 @@ void inject_uart_rx_data(uint8_t *data, int size) {
     }
 }
 
+// UART Deleters
 void clear_uart_rx_buffer(){
   memset(uart_rx_buffer, 0, sizeof(uart_rx_buffer)); //Set all elements to 0
   uart_rx_buffer_count = 0;
   uart_rx_buffer_read_pos = 0;
 }
 
-// UART Deleters
 void clear_uart_tx_buffer() {
     memset(uart_tx_buffer, 0, sizeof(uart_tx_buffer)); //Set all elements to 0
     uart_tx_buffer_count = 0;
@@ -474,19 +562,6 @@ void inject_i2c_mem_data(uint16_t DevAddress, uint16_t MemAddress,uint8_t *data,
 void clear_i2c_mem_data(){
     memset(i2c_mem_buffer, 0, sizeof(i2c_mem_buffer)); //Set all elements to 0
     i2c_mem_buffer_count = 0;
-}
-
-// Getter functions for I2C internal variables
-uint16_t get_i2c_mem_buffer_dev_address() {
-    return i2c_mem_buffer_dev_address;
-}
-
-uint16_t get_i2c_mem_buffer_mem_address() {
-    return i2c_mem_buffer_mem_address;
-}
-
-uint16_t get_i2c_mem_buffer_count() {
-    return i2c_mem_buffer_count;
 }
 
 // SPI Injectors
@@ -509,13 +584,15 @@ void clear_spi_rx_buffer() {
     spi_rx_buffer_read_pos = 0;
 }
 
+// USB Deleters
 void clear_usb_tx_buffer(){
     memset(usb_tx_buffer, 0, sizeof(usb_tx_buffer)); //Set all elements to 0
     usb_tx_buffer_count = 0;
 }
 
-// Getters to access buffers
+// ----- Getter Functions -----
 
+// CAN Getters
 int get_can_tx_buffer_count(){
   return can_tx_buffer_count;
 }
@@ -529,6 +606,7 @@ CAN_TxMessage_t get_can_tx_message(int pos){
   return empty;
 }
 
+// UART Getters
 int get_uart_tx_buffer_count(){
   return uart_tx_buffer_count;
 }
@@ -537,6 +615,7 @@ uint8_t* get_uart_tx_buffer() {
   return uart_tx_buffer;
 }
 
+// USB Getters
 int get_usb_tx_buffer_count() {
     return usb_tx_buffer_count;
 }
@@ -545,6 +624,7 @@ uint8_t* get_usb_tx_buffer() {
     return usb_tx_buffer;
 }
 
+// Status Setters
 void set_current_free_mailboxes(int free_mailboxes) {
   current_free_mailboxes = free_mailboxes;
 }
@@ -553,11 +633,12 @@ void set_current_rx_fifo_fill_level(int rx_fifo_level){
     current_rx_fifo_fill_level = rx_fifo_level;
 }
 
-//Setter to set current tick value
+// Time Setters
 void set_current_tick(uint32_t tick){
     current_tick = tick;
 }
 
+// Handle initializers
 void init_uart_handle(UART_HandleTypeDef *huart)
 {
     huart->Init.BaudRate = 115200;
@@ -593,7 +674,7 @@ void init_spi_handle(SPI_HandleTypeDef *hspi) {
     hspi->Init.SuspendState = 0;
 }
 
-// --- Mock UARTEx Functions ---
+// ----- Mock UARTEx Functions -----
 
 void set_mocked_uart_rx_event_type(HAL_UART_RxEventTypeTypeDef event_type) {
     mocked_uart_rx_event_type = event_type;
@@ -619,7 +700,8 @@ uint32_t HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData,
     return bytes_received == Size ? 0 : 1; //HAL_OK if all bytes are received
 }
 
-// SPI Getters
+// ----- SPI Getter Functions -----
+
 int get_spi_tx_buffer_count() {
     return spi_tx_buffer_count;
 }
@@ -636,16 +718,30 @@ uint8_t* get_spi_rx_buffer() {
     return spi_rx_buffer;
 }
 
-// I2C Getters
+// ----- I2C Getter Functions -----
+
 int get_i2c_buffer_count() {
     return i2c_mem_buffer_count;
 }
+
 uint8_t* get_i2c_buffer() {
     return i2c_mem_buffer;
 }
 
+uint16_t get_i2c_mem_buffer_dev_address() {
+    return i2c_mem_buffer_dev_address;
+}
 
-// GPIO Access Functions
+uint16_t get_i2c_mem_buffer_mem_address() {
+    return i2c_mem_buffer_mem_address;
+}
+
+uint16_t get_i2c_mem_buffer_count() {
+    return i2c_mem_buffer_count;
+}
+
+// ----- GPIO Access Functions -----
+
 GPIO_PinState get_gpio_pin_state(GPIO_TypeDef */*GPIOx*/, uint16_t GPIO_Pin)
 {
     uint32_t pin_number = 0;
@@ -676,7 +772,7 @@ void set_gpio_pin_state(GPIO_TypeDef */*GPIOx*/, uint16_t GPIO_Pin, GPIO_PinStat
     }
 }
 
-//SPI helper functions
+// ----- SPI Helper Functions -----
 
 void copy_spi_tx_to_rx() {
     if (spi_tx_buffer_count > 0) {
@@ -692,5 +788,23 @@ void copy_spi_tx_to_rx() {
     }
 }
 
+// ----- DCMI Helper Functions -----
+
+// Set the DCMI frame buffer and dimensions for testing
+void set_dcmi_frame_buffer(DCMI_HandleTypeDef *hdcmi, uint8_t *buffer, uint32_t width, uint32_t height) {
+    if (hdcmi != NULL) {
+        hdcmi->pFrameBuffer = buffer;
+        hdcmi->FrameWidth = width;
+        hdcmi->FrameHeight = height;
+    }
+}
+
+// Get the DCMI frame buffer for testing
+uint8_t* get_dcmi_frame_buffer(DCMI_HandleTypeDef *hdcmi) {
+    if (hdcmi != NULL) {
+        return hdcmi->pFrameBuffer;
+    }
+    return NULL;
+}
 
 #endif /* __x86_64__ */
