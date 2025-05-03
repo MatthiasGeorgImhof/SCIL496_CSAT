@@ -9,7 +9,8 @@ INCLUDE_PATHS = -I ../Inc \
 				-I $(HOME)/Data/github/can/o1heap/o1heap \
 				-I $(HOME)/Data/github/can/nunavut_out \
 				-I /usr/include/eigen3 \
-				-I /usr/include/doctest
+				-I /usr/include/doctest \
+				-I tests  # Include the tests directory
 
 LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
@@ -45,6 +46,16 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSubscribeNodePortList.cpp
 
+# HAL Test Files
+HAL_TEST_FILES = tests/test_hal_can.cpp \
+                   tests/test_hal_gpio.cpp \
+                   tests/test_hal_spi.cpp \
+                   tests/test_hal_usb.cpp \
+                   tests/test_hal_dcmi.cpp \
+                   tests/test_hal_i2c.cpp \
+                   tests/test_hal_uart.cpp \
+				   tests/test_hal_misc.cpp
+
 SRC_FILES = ../Src/Logger.cpp \
 			../Src/RegistrationManager.cpp \
 			../Src/ServiceManager.cpp \
@@ -55,14 +66,17 @@ SRC_FILES = ../Src/Logger.cpp \
 
 # Extract the names for the targets from the source files
 TEST_NAMES = $(TEST_FILES:.cpp=)
+HAL_TEST_NAMES = $(HAL_TEST_FILES:.cpp=)
 
 # Build directories
 BIN_DIR = bin
 
 # Object files
 OBJECTS = $(addprefix $(BIN_DIR)/,$(TEST_NAMES:=.o))
+HAL_OBJECTS = $(addprefix $(BIN_DIR)/,$(HAL_TEST_NAMES:=.o))
 SRC_OBJECTS = $(addprefix $(BIN_DIR)/, $(SRC_FILES:.cpp=.o))
 SRC_OBJECTS := $(SRC_OBJECTS:.c=.o) # correct for the c source files
+
 # Executables
 EXECUTABLES = $(addprefix $(BIN_DIR)/,$(TEST_NAMES))
 
@@ -76,20 +90,26 @@ all: create_bin_dir $(EXECUTABLES)
 # Create the bin directory
 create_bin_dir:
 	@mkdir -p $(BIN_DIR)
+	@mkdir -p $(BIN_DIR)/tests
+	
+# Compile C source mock_hal.c
+$(BIN_DIR)/mock_hal.o : ../Src/mock_hal.c
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
+# Compile the HAL test sources
+$(BIN_DIR)/%.o: tests/%.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
 # Rule for TestMockHal with extra sources
 $(BIN_DIR)/TestMockHal.o : TestMockHal.cpp
 	@echo "Compiling $<"
 	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/mock_hal.o : ../Src/mock_hal.c
-	@echo "Compiling $<"
-	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
-
-$(BIN_DIR)/TestMockHal : $(BIN_DIR)/TestMockHal.o $(BIN_DIR)/mock_hal.o
+$(BIN_DIR)/TestMockHal : $(BIN_DIR)/TestMockHal.o $(HAL_OBJECTS) $(BIN_DIR)/mock_hal.o
 	@echo "Linking $@"
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMockHal.o $(BIN_DIR)/mock_hal.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMockHal.o $(HAL_OBJECTS) $(BIN_DIR)/mock_hal.o $(LIBS)
 
 # Rule for TestCyphal with extra sources
 $(BIN_DIR)/TestCyphal.o : TestCyphal.cpp
