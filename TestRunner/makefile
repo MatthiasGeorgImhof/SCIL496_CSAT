@@ -20,6 +20,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
 			 TestCachedImageBuffer.cpp \
+			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
@@ -119,6 +120,15 @@ $(BIN_DIR)/TestCyphal.o : TestCyphal.cpp
 $(BIN_DIR)/TestCyphal : $(BIN_DIR)/TestCyphal.o $(BIN_DIR)/mock_hal.o # Link the object file
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCyphal.o $(BIN_DIR)/mock_hal.o $(LIBS)
+
+# Rule for TestCameraSwitch with extra sources
+$(BIN_DIR)/TestCameraSwitch.o : TestCameraSwitch.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestCameraSwitch : $(BIN_DIR)/TestCameraSwitch.o $(BIN_DIR)/mock_hal.o # Link the object file
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraSwitch.o $(BIN_DIR)/mock_hal.o $(LIBS)
 
 # Rule for TestImageBufferAccessor.cpp with extra sources
 $(BIN_DIR)/TestImageBufferAccessor.o : TestImageBufferAccessor.cpp
