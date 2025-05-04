@@ -25,6 +25,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
+			 TestHalUtil.cpp \
 			 TestImageBuffer.cpp \
 			 TestImageBufferAccessor.cpp \
 			 TestLogger.cpp \
@@ -56,7 +57,7 @@ HAL_TEST_FILES =   tests/test_hal_can.cpp \
 				   tests/test_hal_dcmi.cpp \
 				   tests/test_hal_i2c.cpp \
 				   tests/test_hal_uart.cpp \
-				   tests/test_hal_misc.cpp
+				   tests/test_hal_misc.cpp 
 
 SRC_FILES = ../Src/Logger.cpp \
 			../Src/RegistrationManager.cpp \
@@ -74,7 +75,6 @@ MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
 					   ../Src/mock_hal/mock_hal_i2c.c \
 					   ../Src/mock_hal/mock_hal_mem.c \
 					   ../Src/mock_hal/mock_hal_spi.c \
-					   ../Src/mock_hal/mock_hal_systick.c \
 					   ../Src/mock_hal/mock_hal_time.c \
 					   ../Src/mock_hal/mock_hal_uart.c \
 					   ../Src/mock_hal/mock_hal_usb.c
@@ -366,6 +366,15 @@ $(BIN_DIR)/TestPowerMonitor.o : TestPowerMonitor.cpp
 $(BIN_DIR)/TestPowerMonitor : $(BIN_DIR)/TestPowerMonitor.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPowerMonitor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestHalUtil with extra sources
+$(BIN_DIR)/TestHalUtil.o : TestHalUtil.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestHalUtil : $(BIN_DIR)/TestHalUtil.o $(MOCK_HAL_OBJECTS) # Link the object file
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestHalUtil.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

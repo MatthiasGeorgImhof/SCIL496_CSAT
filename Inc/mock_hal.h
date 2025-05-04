@@ -14,7 +14,6 @@ extern "C" {
 #include "mock_hal/mock_hal_i2c.h"
 #include "mock_hal/mock_hal_mem.h"
 #include "mock_hal/mock_hal_spi.h"
-#include "mock_hal/mock_hal_systick.h"
 #include "mock_hal/mock_hal_time.h"
 #include "mock_hal/mock_hal_uart.h"
 #include "mock_hal/mock_hal_usb.h"
