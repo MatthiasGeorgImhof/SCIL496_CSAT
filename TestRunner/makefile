@@ -26,6 +26,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
 			 TestHalUtil.cpp \
+			 TestHSClockSwitch.cpp \
 			 TestImageBuffer.cpp \
 			 TestImageBufferAccessor.cpp \
 			 TestLogger.cpp \
@@ -51,6 +52,7 @@ TEST_FILES = TestArrayList.cpp \
 
 # HAL Test Files
 HAL_TEST_FILES =   tests/test_hal_can.cpp \
+				   tests/test_hal_clock.cpp \
 				   tests/test_hal_gpio.cpp \
 				   tests/test_hal_spi.cpp \
 				   tests/test_hal_usb.cpp \
@@ -64,11 +66,13 @@ SRC_FILES = ../Src/Logger.cpp \
 			../Src/ServiceManager.cpp \
 			../Src/TaskBlinkLED.cpp \
 			../Src/TaskCheckMemory.cpp \
-			../Src/ImageBuffer.cpp
+			../Src/ImageBuffer.cpp \
+			../Src/HSClockSwitch.cpp
 
 # Mock HAL source files
 MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
 					   ../Src/mock_hal/mock_hal_can.c \
+					   ../Src/mock_hal/mock_hal_clock.c \
 					   ../Src/mock_hal/mock_hal_core.c \
 					   ../Src/mock_hal/mock_hal_dcmi.c \
 					   ../Src/mock_hal/mock_hal_gpio.c \
@@ -153,6 +157,19 @@ $(BIN_DIR)/TestCameraSwitch.o : TestCameraSwitch.cpp
 $(BIN_DIR)/TestCameraSwitch : $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) # Link the object file
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestHSClockSwitch with extra sources
+$(BIN_DIR)/TestHSClockSwitch.o : TestHSClockSwitch.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/HSClockSwitch.o : ../Src/HSClockSwitch.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestHSClockSwitch : $(BIN_DIR)/TestHSClockSwitch.o $(BIN_DIR)/HSClockSwitch.o $(MOCK_HAL_OBJECTS) # Link the object file
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestHSClockSwitch.o $(BIN_DIR)/HSClockSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestImageBufferAccessor.cpp with extra sources
 $(BIN_DIR)/TestImageBufferAccessor.o : TestImageBufferAccessor.cpp
