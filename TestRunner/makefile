@@ -24,11 +24,13 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCyphal.cpp \
+			 TestCoordinateTransformations.cpp \
 			 TestCyphalSubscriptions.cpp \
 			 TestHalUtil.cpp \
 			 TestHSClockSwitch.cpp \
 			 TestImageBuffer.cpp \
 			 TestImageBufferAccessor.cpp \
+			 TestIGRFModel.cpp \
 			 TestLogger.cpp \
 			 TestLoggerCyphal.cpp \
 			 TestMainLoop.cpp \
@@ -48,7 +50,8 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskRespondGetInfo.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
-			 TestTaskSubscribeNodePortList.cpp
+			 TestTaskSubscribeNodePortList.cpp \
+			 TestWMMLegendre.cpp
 
 # HAL Test Files
 HAL_TEST_FILES =   tests/test_hal_can.cpp \
@@ -67,7 +70,9 @@ SRC_FILES = ../Src/Logger.cpp \
 			../Src/TaskBlinkLED.cpp \
 			../Src/TaskCheckMemory.cpp \
 			../Src/ImageBuffer.cpp \
-			../Src/HSClockSwitch.cpp
+			../Src/HSClockSwitch.cpp \
+			../Src/coordiate_transformations.cpp \
+			../Src/irgf_model.cpp 
 
 # Mock HAL source files
 MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
@@ -392,6 +397,19 @@ $(BIN_DIR)/TestHalUtil.o : TestHalUtil.cpp
 $(BIN_DIR)/TestHalUtil : $(BIN_DIR)/TestHalUtil.o $(MOCK_HAL_OBJECTS) # Link the object file
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestHalUtil.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestCoordinateTransformations with extra sources
+$(BIN_DIR)/TestCoordinateTransformations.o : TestCoordinateTransformations.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/coordinate_transformations.o : ../Src/coordinate_transformations.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestCoordinateTransformations : $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp
