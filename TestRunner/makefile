@@ -26,6 +26,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCyphal.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphalSubscriptions.cpp \
+			 TestGNSS.cpp \
 			 TestHalUtil.cpp \
 			 TestHSClockSwitch.cpp \
 			 TestImageBuffer.cpp \
@@ -65,15 +66,16 @@ HAL_TEST_FILES =   tests/test_hal_can.cpp \
 				   tests/test_hal_uart.cpp \
 				   tests/test_hal_misc.cpp 
 
-SRC_FILES = ../Src/Logger.cpp \
+SRC_FILES = ../Src/coordiate_transformations.cpp \
+			../Src/GNSS.cpp \
+			../Src/HSClockSwitch.cpp \
+			../Src/ImageBuffer.cpp \
+			../Src/irgf_model.cpp \
+			../Src/Logger.cpp \
 			../Src/RegistrationManager.cpp \
 			../Src/ServiceManager.cpp \
 			../Src/TaskBlinkLED.cpp \
-			../Src/TaskCheckMemory.cpp \
-			../Src/ImageBuffer.cpp \
-			../Src/HSClockSwitch.cpp \
-			../Src/coordiate_transformations.cpp \
-			../Src/irgf_model.cpp 
+			../Src/TaskCheckMemory.cpp
 
 # Mock HAL source files
 MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
@@ -411,6 +413,19 @@ $(BIN_DIR)/coordinate_transformations.o : ../Src/coordinate_transformations.cpp
 $(BIN_DIR)/TestCoordinateTransformations : $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o $(LIBS)
+
+# Rule for TestGNSS with extra sources
+$(BIN_DIR)/TestGNSS.o : TestGNSS.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/GNSS.o : ../Src/GNSS.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestGNSS : $(BIN_DIR)/TestGNSS.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestGNSS.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp
