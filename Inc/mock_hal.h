@@ -14,6 +14,7 @@ extern "C" {
 #include "mock_hal/mock_hal_gpio.h"
 #include "mock_hal/mock_hal_i2c.h"
 #include "mock_hal/mock_hal_mem.h"
+#include "mock_hal/mock_hal_rtc.h"
 #include "mock_hal/mock_hal_spi.h"
 #include "mock_hal/mock_hal_time.h"
 #include "mock_hal/mock_hal_uart.h"

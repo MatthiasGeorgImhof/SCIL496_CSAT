@@ -52,6 +52,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
+			 TestTimeUtils.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
@@ -75,7 +76,8 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/RegistrationManager.cpp \
 			../Src/ServiceManager.cpp \
 			../Src/TaskBlinkLED.cpp \
-			../Src/TaskCheckMemory.cpp
+			../Src/TaskCheckMemory.cpp \
+			../Src/TimeUtils.cpp
 
 # Mock HAL source files
 MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
@@ -86,6 +88,7 @@ MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
 					   ../Src/mock_hal/mock_hal_gpio.c \
 					   ../Src/mock_hal/mock_hal_i2c.c \
 					   ../Src/mock_hal/mock_hal_mem.c \
+					   ../Src/mock_hal/mock_hal_rtc.c \
 					   ../Src/mock_hal/mock_hal_spi.c \
 					   ../Src/mock_hal/mock_hal_time.c \
 					   ../Src/mock_hal/mock_hal_uart.c \
@@ -426,6 +429,19 @@ $(BIN_DIR)/GNSS.o : ../Src/GNSS.cpp
 $(BIN_DIR)/TestGNSS : $(BIN_DIR)/TestGNSS.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestGNSS.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTimeUtils with extra sources
+$(BIN_DIR)/TestTimeUtils.o : TestTimeUtils.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TimeUtils.o : ../Src/TimeUtils.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTimeUtils : $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp
