@@ -112,7 +112,7 @@ namespace TimeUtils
         components.second = rtcdatetimesubseconds.time.Seconds;
 
         // Calculate milliseconds from subSeconds and secondFraction
-        components.millisecond = static_cast<int>(static_cast<uint64_t>(1000 * (secondFraction - rtcdatetimesubseconds.subSeconds) / (secondFraction + 1)));
+        components.millisecond = static_cast<int>(static_cast<uint64_t>(1000 * (secondFraction - rtcdatetimesubseconds.time.SubSeconds) / (secondFraction + 1)));
 
         return to_epoch_duration(components);
     }
@@ -136,13 +136,11 @@ namespace TimeUtils
         result.time.Hours = static_cast<uint8_t>(components.hour);
         result.time.Minutes = static_cast<uint8_t>(components.minute);
         result.time.Seconds = static_cast<uint8_t>(components.second);
-        result.time.TimeFormat = 0;
-        result.time.SubSeconds = 0;
-        result.time.SecondFraction = 0;
+        result.time.TimeFormat = RTC_FORMAT_BIN;
+        result.time.SubSeconds = secondFraction - static_cast<uint32_t>(static_cast<uint64_t>(components.millisecond) * (secondFraction + 1) / 1000);;
+        result.time.SecondFraction = secondFraction;
         result.time.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
         result.time.StoreOperation = RTC_STOREOPERATION_RESET;
-
-        result.subSeconds = secondFraction - static_cast<uint32_t>(static_cast<uint64_t>(components.millisecond) * (secondFraction + 1) / 1000);
     
         return result;
     }

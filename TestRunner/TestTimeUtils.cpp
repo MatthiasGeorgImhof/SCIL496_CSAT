@@ -8,7 +8,11 @@
 
 TEST_CASE("RTC <-> epoch_duration Conversions") {
     // Sample RTC values
-    RTC_DateTypeDef rtc_date;
+    constexpr uint32_t secondFraction = 1023;
+    constexpr uint32_t subSeconds = 500;
+    
+    
+    RTC_DateTypeDef rtc_date {};
     rtc_date.Year = 24;    // Year 2024 (relative to 2000)
     rtc_date.Month = 10;
     rtc_date.Date = 27;
@@ -17,15 +21,13 @@ TEST_CASE("RTC <-> epoch_duration Conversions") {
     rtc_time.Hours = 10;
     rtc_time.Minutes = 30;
     rtc_time.Seconds = 15;
-    rtc_time.TimeFormat = RTC_HOURFORMAT_24; // 24-hour format
-
-    uint32_t subSeconds = 500;
-    uint32_t secondFraction = 1023; // milliseconds
+    rtc_time.TimeFormat = RTC_HOURFORMAT_24;
+    rtc_time.SubSeconds = subSeconds; 
+    rtc_time.SecondFraction = secondFraction; 
 
     TimeUtils::RTCDateTimeSubseconds rtcdatetimeseconds = {
         .date = rtc_date,
         .time = rtc_time,
-        .subSeconds = subSeconds
     };
 
     // Convert from RTC to epoch_duration
@@ -42,7 +44,7 @@ TEST_CASE("RTC <-> epoch_duration Conversions") {
     CHECK(rtc_date_back_time.time.Minutes == rtc_time.Minutes);
     CHECK(rtc_date_back_time.time.Seconds == rtc_time.Seconds);
     // Subsecond approximation, allow a small difference
-    CHECK(abs(static_cast<int>(rtc_date_back_time.subSeconds) - static_cast<int>(subSeconds)) < 10); //Adjust tolerance as needed
+    CHECK(abs(static_cast<int>(rtc_date_back_time.time.SubSeconds) - static_cast<int>(subSeconds)) < 10); //Adjust tolerance as needed
 }
 
 TEST_CASE("Time Conversions and Extraction") {

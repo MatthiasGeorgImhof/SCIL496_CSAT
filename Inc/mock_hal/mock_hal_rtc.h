@@ -30,10 +30,12 @@ extern "C"
 #define RTC_DAYLIGHTSAVING_ADD1H ((uint32_t)0x00010000)
 #define RTC_DAYLIGHTSAVING_NONE ((uint32_t)0x00000000)
 
-#define RTC_STOREOPERATION_RESET        0x00000000U
-#define RTC_STOREOPERATION_SET          0x00040000U
+#define RTC_STOREOPERATION_RESET 0x00000000U
+#define RTC_STOREOPERATION_SET 0x00040000U
 
-    // STM32 HAL RTC definitions (same as before)
+#define RTC_FORMAT_BIN ((uint32_t)0x000000000)
+#define RTC_FORMAT_BCD ((uint32_t)0x000000001)
+
     typedef struct
     {
         uint8_t Hours;           /*!< Specifies the RTC Time Hour. */
@@ -56,7 +58,29 @@ extern "C"
 
     typedef struct
     {
-        // Add members that your RTC_HandleTypeDef would normally have.  For this mock, we don't need much.
+        uint32_t HourFormat; /*!< Specifies the RTC Hour Format.
+                                    This parameter can be a value of @ref RTC_Hour_Formats */
+
+        uint32_t AsynchPrediv; /*!< Specifies the RTC Asynchronous Predivider value.
+                                    This parameter must be a number between Min_Data = 0x00 and Max_Data = 0x7F */
+
+        uint32_t SynchPrediv; /*!< Specifies the RTC Synchronous Predivider value.
+                                    This parameter must be a number between Min_Data = 0x00 and Max_Data = 0x7FFF */
+
+        uint32_t OutPut; /*!< Specifies which signal will be routed to the RTC output.
+                                This parameter can be a value of @ref RTCEx_Output_selection_Definitions */
+
+        uint32_t OutPutPolarity; /*!< Specifies the polarity of the output signal.
+                                        This parameter can be a value of @ref RTC_Output_Polarity_Definitions */
+
+        uint32_t OutPutType; /*!< Specifies the RTC Output Pin mode.
+                                    This parameter can be a value of @ref RTC_Output_Type_ALARM_OUT */
+    } RTC_InitTypeDef;
+
+    typedef struct
+    {
+        RTC_InitTypeDef Init; /*!< RTC required parameters  */
+
     } RTC_HandleTypeDef;
 
     //------------------------------------------------------------------------------

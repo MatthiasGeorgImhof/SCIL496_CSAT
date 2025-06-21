@@ -33,7 +33,7 @@ namespace TimeUtils {
     struct RTCDateTimeSubseconds {
         RTC_DateTypeDef date;       // Date components
         RTC_TimeTypeDef time;       // Time components
-        uint32_t subSeconds;        // Subseconds
+        // uint32_t subSeconds;        // Subseconds
     };
     
     // Choose your duration type
@@ -58,6 +58,6 @@ namespace TimeUtils {
     // Convert from epoch_duration to STM32 RTC
     RTCDateTimeSubseconds to_rtc(const epoch_duration& d, uint32_t secondFraction);
 
-} // namespace MyTime
+} // namespace TimeUtils
 
 #endif // TimeUtils_HPP

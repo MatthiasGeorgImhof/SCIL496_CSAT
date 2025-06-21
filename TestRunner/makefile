@@ -51,6 +51,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskRespondGetInfo.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
+			 TestTaskSendTimeSynchronization.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
 			 TestWMMLegendre.cpp \
@@ -292,6 +293,15 @@ $(BIN_DIR)/TestTaskRequestGetInfo.o : TestTaskRequestGetInfo.cpp
 $(BIN_DIR)/TestTaskRequestGetInfo : $(BIN_DIR)/TestTaskRequestGetInfo.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRequestGetInfo.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTaskSendTimeSynchronization with extra sources
+$(BIN_DIR)/TestTaskSendTimeSynchronization.o : TestTaskSendTimeSynchronization.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskSendTimeSynchronization : $(BIN_DIR)/TestTaskSendTimeSynchronization.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSendTimeSynchronization.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskBlinkLED with extra sources
 $(BIN_DIR)/TestTaskBlinkLED.o : TestTaskBlinkLED.cpp
