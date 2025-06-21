@@ -36,6 +36,10 @@ extern "C"
 #define RTC_FORMAT_BIN ((uint32_t)0x000000000)
 #define RTC_FORMAT_BCD ((uint32_t)0x000000001)
 
+#define RTC_SHIFTADD1S_RESET      ((uint32_t)0x00000000)
+#define RTC_SHIFTADD1S_SET        ((uint32_t)0x80000000)
+#define IS_RTC_SHIFT_ADD1S(SEL) (((SEL) == RTC_SHIFTADD1S_RESET) || ((SEL) == RTC_SHIFTADD1S_SET))
+
     typedef struct
     {
         uint8_t Hours;           /*!< Specifies the RTC Time Hour. */

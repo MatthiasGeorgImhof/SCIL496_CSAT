@@ -52,6 +52,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSendTimeSynchronization.cpp \
+			 TestTaskSetRTC.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
 			 TestWMMLegendre.cpp \
@@ -78,6 +79,7 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/ServiceManager.cpp \
 			../Src/TaskBlinkLED.cpp \
 			../Src/TaskCheckMemory.cpp \
+			../Src/TaskSetRTC.cpp \
 			../Src/TimeUtils.cpp
 
 # Mock HAL source files
@@ -328,6 +330,20 @@ $(BIN_DIR)/TaskCheckMemory.o : ../Src/TaskCheckMemory.cpp
 $(BIN_DIR)/TestTaskCheckMemory : $(BIN_DIR)/TestTaskCheckMemory.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TaskCheckMemory.o
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskCheckMemory.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TaskCheckMemory.o $(LIBS)
+
+# Rule for TestTaskSetRTC with extra sources
+$(BIN_DIR)/TestTaskSetRTC.o : TestTaskSetRTC.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TaskSetRTC.o : ../Src/TaskSetRTC.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskSetRTC : $(BIN_DIR)/TestTaskSetRTC.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TaskSetRTC.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSetRTC.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TaskSetRTC.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(LIBS) 
+	@echo "Linking $@"
 
 # Rule for TestMainLoop with extra sources
 $(BIN_DIR)/TestMainLoop.o : TestMainLoop.cpp
