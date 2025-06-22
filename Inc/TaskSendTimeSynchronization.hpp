@@ -5,7 +5,13 @@
 #include "RegistrationManager.hpp"
 #include "TimeUtils.hpp"
 
+#ifdef __arm__
+#include "usb_device.h"
+#include "usbd_cdc_if.h"
+#include "utilities.h"
+#elif __x86_64__
 #include "mock_hal.h"
+#endif
 
 #include "nunavut_assert.h"
 #include "uavcan/time/Synchronization_1_0.h"

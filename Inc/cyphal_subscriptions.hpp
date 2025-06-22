@@ -43,6 +43,17 @@ constexpr static std::array CYPHAL_RESPONSES =
 CyphalSubscription{uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, uavcan_node_GetInfo_Response_1_0_EXTENT_BYTES_, CyphalTransferKindResponse}
 };
 
+// Template function for compile-time lookup of boolean values
+template <size_t Size, CyphalPortID port_id>
+consteval bool containsPortIdCompileTime(const std::array<CyphalSubscription, Size>& arr) {
+    for (auto const &item : arr) {
+        if (item.port_id == port_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Template function for compile-time lookup
 template <size_t Size, CyphalPortID port_id>
 consteval CyphalSubscription const *findByPortIdCompileTime(const std::array<CyphalSubscription, Size>& arr) {
@@ -69,6 +80,11 @@ CyphalSubscription const *findByPortIdRuntime(const std::array<CyphalSubscriptio
 // Convenience functions for specific arrays.  These remove the need to explicitly state the array size.
 
 // Compile-time lookup for CYPHAL_MESSAGES
+template <CyphalPortID port_id>
+consteval bool containsMessageByPortIdCompileTime() {
+    return containsPortIdCompileTime<CYPHAL_MESSAGES.size(), port_id>(CYPHAL_MESSAGES);
+}
+
 template <CyphalPortID port_id>
 consteval CyphalSubscription const *findMessageByPortIdCompileTime() {
     return findByPortIdCompileTime<CYPHAL_MESSAGES.size(), port_id>(CYPHAL_MESSAGES);
@@ -100,7 +116,5 @@ consteval CyphalSubscription const *findResponseByPortIdCompileTime() {
 CyphalSubscription const *findResponseByPortIdRuntime(CyphalPortID port_id) {
     return findByPortIdRuntime<CYPHAL_RESPONSES.size()>(CYPHAL_RESPONSES, port_id);
 }
-
-
 
 #endif // CYPHAL_SUBSCRIPTIONS_HPP_
