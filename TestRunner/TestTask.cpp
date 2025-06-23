@@ -152,9 +152,9 @@ public:
         manager->unregister_task(task);
     }
 
-    size_t getBufferSize() const { return buffer.size(); } // Expose buffer size
+    size_t getBufferSize() const { return buffer_.size(); } // Expose buffer size
 
-    std::shared_ptr<CyphalTransfer> popExpanded() { return buffer.pop(); } // Expose pop
+    std::shared_ptr<CyphalTransfer> popExpanded() { return buffer_.pop(); } // Expose pop
 };
 
 class ConcreteTaskForServer : public TaskForServer<MockAdapter> {
