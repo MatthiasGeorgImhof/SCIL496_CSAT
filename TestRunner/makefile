@@ -54,6 +54,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSendTimeSynchronization.cpp \
 			 TestTaskSetRTC.cpp \
+			 TestSGP4TLE.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
 			 TestWMMLegendre.cpp \
@@ -78,6 +79,7 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/Logger.cpp \
 			../Src/RegistrationManager.cpp \
 			../Src/ServiceManager.cpp \
+			../Src/sgp4_tle.cpp \
 			../Src/TaskBlinkLED.cpp \
 			../Src/TaskCheckMemory.cpp \
 			../Src/TaskSetRTC.cpp \
@@ -466,6 +468,19 @@ $(BIN_DIR)/TestGNSS : $(BIN_DIR)/TestGNSS.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestGNSS.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestSGO4TLE with extra sources
+$(BIN_DIR)/TestSGP4TLE.o : TestSGP4TLE.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/sgp4_tle.o : ../Src/sgp4_tle.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestSGP4TLE : $(BIN_DIR)/TestSGP4TLE.o $(BIN_DIR)/sgp4_tle.o 
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestSGP4TLE.o $(BIN_DIR)/sgp4_tle.o $(LIBS)
+
 # Rule for TestTimeUtils with extra sources
 $(BIN_DIR)/TestTimeUtils.o : TestTimeUtils.cpp
 	@echo "Compiling $<"
@@ -475,9 +490,9 @@ $(BIN_DIR)/TimeUtils.o : ../Src/TimeUtils.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTimeUtils : $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestTimeUtils : $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o 
 	@echo "Linking $@"
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

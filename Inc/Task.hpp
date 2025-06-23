@@ -132,6 +132,59 @@ protected:
 };
 
 template <typename... Adapters>
+class TaskPublishReceive : public Task
+{
+public:
+	TaskPublishReceive() = delete;
+	TaskPublishReceive(uint32_t interval, uint32_t tick, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters) : Task(interval, tick), transfer_id_(transfer_id), adapters_(adapters) {}
+	virtual ~TaskPublishReceive() {};
+
+	virtual void handleMessage(std::shared_ptr<CyphalTransfer> transfer) { buffer.push(transfer); }
+
+	uint8_t getTransferId() const { return transfer_id_; }
+
+	void setTransferId(uint8_t transfer_id) { transfer_id_ = transfer_id; }
+
+protected:
+	virtual void update(uint32_t now) override
+	{
+		Task::update(now);
+		++transfer_id_;
+	}
+
+	void publish(size_t payload_size, uint8_t *payload, void *data,
+				 int8_t (*serialize)(const void *const, uint8_t *const, size_t *const), CyphalPortID port_id)
+	{
+		int8_t result = serialize(data, payload, &payload_size);
+		if (result < 0)
+			log(LOG_LEVEL_ERROR, "ERROR Task.publish serialization %d\r\n", result);
+
+		CyphalTransferMetadata metadata =
+			{
+				CyphalPriorityNominal,
+				CyphalTransferKindMessage,
+				port_id,
+				CYPHAL_NODE_ID_UNSET,
+				transfer_id_,
+			};
+
+		bool all_successful = true;
+		std::apply([&](auto &...adapter)
+				   { ([&]()
+					  {
+				int8_t res = adapter.cyphalTxPush(static_cast<CyphalMicrosecond>(0), &metadata, payload_size, payload);
+				all_successful = all_successful && (res > 0); }(), ...); }, adapters_);
+		if (!all_successful)
+			log(LOG_LEVEL_ERROR, "ERROR Task.publish push\r\n");
+	}
+
+protected:
+	CyphalTransferID transfer_id_;
+	std::tuple<Adapters...> &adapters_;
+	CyphalBuffer buffer;
+};
+
+template <typename... Adapters>
 class TaskForServer : public Task
 {
 public:
