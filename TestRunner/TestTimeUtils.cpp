@@ -108,3 +108,76 @@ TEST_CASE("Edge Cases and Error Handling (Illustrative)") {
     TimeUtils::epoch_duration early_time = TimeUtils::to_epoch_duration(epochComponents); // The epoch
     CHECK(early_time.count() == 0);
 }
+
+TEST_CASE("to_uint64 and from_uint64 conversions") {
+    TimeUtils::DateTimeComponents components = {2024, 11, 15, 12, 30, 45, 750};
+    TimeUtils::epoch_duration original_duration = TimeUtils::to_epoch_duration(components);
+
+    uint64_t uint64_value = TimeUtils::to_uint64(original_duration);
+    TimeUtils::epoch_duration converted_duration = TimeUtils::from_uint64(uint64_value);
+
+    CHECK(original_duration.count() == converted_duration.count());
+}
+
+TEST_CASE("RTC <-> DateTimeComponents Conversions") {
+    constexpr uint32_t secondFraction = 1023;
+
+    TimeUtils::DateTimeComponents components = {2024, 11, 15, 12, 30, 45, 750};
+    TimeUtils::RTCDateTimeSubseconds rtc_datetime = TimeUtils::to_rtc(components, secondFraction);
+
+    CHECK(rtc_datetime.date.Year == components.year - TimeUtils::EPOCH_YEAR);
+    CHECK(rtc_datetime.date.Month == components.month);
+    CHECK(rtc_datetime.date.Date == components.day);
+    CHECK(rtc_datetime.time.Hours == components.hour);
+    CHECK(rtc_datetime.time.Minutes == components.minute);
+    CHECK(rtc_datetime.time.Seconds == components.second);
+
+    // Ensure SubSeconds is within reasonable bounds
+    CHECK(rtc_datetime.time.SubSeconds >= 0);
+    CHECK(rtc_datetime.time.SubSeconds <= secondFraction);
+}
+
+TEST_CASE("Comprehensive Round Trip Test") {
+    constexpr uint32_t secondFraction = 1023;
+    TimeUtils::DateTimeComponents initial_components = {2025, 5, 20, 8, 15, 30, 250};
+
+    // Convert to epoch duration
+    TimeUtils::epoch_duration epoch_duration_value = TimeUtils::to_epoch_duration(initial_components);
+
+    // Convert to RTC
+    TimeUtils::RTCDateTimeSubseconds rtc_datetime = TimeUtils::to_rtc(epoch_duration_value, secondFraction);
+
+    // Convert back to epoch duration
+    TimeUtils::epoch_duration final_epoch_duration = TimeUtils::from_rtc(rtc_datetime, secondFraction);
+
+    // Extract date/time components
+    TimeUtils::DateTimeComponents final_components = TimeUtils::extract_date_time(final_epoch_duration);
+
+    // Perform checks (allowing for millisecond discrepancies)
+    CHECK(final_components.year == initial_components.year);
+    CHECK(final_components.month == initial_components.month);
+    CHECK(final_components.day == initial_components.day);
+    CHECK(final_components.hour == initial_components.hour);
+    CHECK(final_components.minute == initial_components.minute);
+    CHECK(final_components.second == initial_components.second);
+    CHECK(abs(static_cast<int>(final_components.millisecond) - static_cast<int>(initial_components.millisecond)) < 20); // Tolerance for millisecond differences
+
+}
+
+TEST_CASE("Leap Year Test") {
+    TimeUtils::DateTimeComponents components = {2024, 2, 29, 12, 0, 0, 0}; // Leap year
+    TimeUtils::epoch_duration duration = TimeUtils::to_epoch_duration(components);
+    TimeUtils::DateTimeComponents extracted_components = TimeUtils::extract_date_time(duration);
+    CHECK(extracted_components.year == 2024);
+    CHECK(extracted_components.month == 2);
+    CHECK(extracted_components.day == 29);
+}
+
+TEST_CASE("Non-Leap Year Test") {
+    TimeUtils::DateTimeComponents components = {2023, 2, 28, 12, 0, 0, 0}; // Non-Leap year
+    TimeUtils::epoch_duration duration = TimeUtils::to_epoch_duration(components);
+    TimeUtils::DateTimeComponents extracted_components = TimeUtils::extract_date_time(duration);
+    CHECK(extracted_components.year == 2023);
+    CHECK(extracted_components.month == 2);
+    CHECK(extracted_components.day == 28);
+}

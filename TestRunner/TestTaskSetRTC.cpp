@@ -1,358 +1,262 @@
-// TestTaskSetRTC.cpp
-
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include "TaskSetRTC.hpp"
+#include "TimeUtils.hpp"
+#include <chrono>
+#include <cstdint>
+#include <iostream> //debugging
+
 #include "mock_hal.h"
-#include <memory>
 
-// Function to calculate the UBX checksum (fletcher algorithm)
-uint16_t calculate_checksum(const std::vector<uint8_t> &data)
-{
-    uint16_t ck_a = 0;
-    uint16_t ck_b = 0;
-    for (uint8_t byte : data)
-    {
-        ck_a += byte;
-        ck_b += ck_a;
-    }
-    return (ck_b << 8) | ck_a;
+TEST_CASE("RTC <-> epoch_duration Conversions") {
+    // Sample RTC values
+    constexpr uint32_t secondFraction = 1023;
+    constexpr uint32_t subSeconds = 500;
+
+
+    RTC_DateTypeDef rtc_date {};
+    rtc_date.Year = 24;    // Year 2024 (relative to 2000)
+    rtc_date.Month = 10;
+    rtc_date.Date = 27;
+
+    RTC_TimeTypeDef rtc_time;
+    rtc_time.Hours = 10;
+    rtc_time.Minutes = 30;
+    rtc_time.Seconds = 15;
+    rtc_time.TimeFormat = RTC_HOURFORMAT_24;
+    rtc_time.SubSeconds = subSeconds;
+    rtc_time.SecondFraction = secondFraction;
+
+    TimeUtils::RTCDateTimeSubseconds rtcdatetimeseconds = {
+        .date = rtc_date,
+        .time = rtc_time,
+    };
+
+    // Convert from RTC to epoch_duration
+    TimeUtils::epoch_duration time1 = TimeUtils::from_rtc(rtcdatetimeseconds, secondFraction);
+
+    // Convert back to RTC
+    TimeUtils::RTCDateTimeSubseconds rtc_date_back_time = TimeUtils::to_rtc(time1, secondFraction);
+
+    // Check if the values are approximately equal
+    CHECK(rtc_date_back_time.date.Year == rtc_date.Year);
+    CHECK(rtc_date_back_time.date.Month == rtc_date.Month);
+    CHECK(rtc_date_back_time.date.Date == rtc_date.Date);
+    CHECK(rtc_date_back_time.time.Hours == rtc_time.Hours);
+    CHECK(rtc_date_back_time.time.Minutes == rtc_time.Minutes);
+    CHECK(rtc_date_back_time.time.Seconds == rtc_time.Seconds);
+    // Subsecond approximation, allow a small difference
+    CHECK(abs(static_cast<int>(rtc_date_back_time.time.SubSeconds) - static_cast<int>(subSeconds)) < 10); //Adjust tolerance as needed
 }
 
-struct NavTimeUTCPayload
-{
-    uint32_t iTOW;       // GPS Time of week in milliseconds
-    uint32_t tAcc;       // Time accuracy estimate in nanoseconds (UTC)
-    int32_t nano;        // Fraction of a second in nanoseconds (UTC)
-    int16_t year;        // UTC year
-    int8_t month;        // UTC month
-    int8_t day;          // UTC day
-    int8_t hour;         // UTC hour
-    int8_t min;          // UTC minute
-    int8_t sec;          // UTC second
-    uint8_t valid;       // Validity flags (bitfield)
-    uint8_t utcStandard; // UTC standard identifier
-    uint8_t res1;        // Reserved
-};
+TEST_CASE("Time Conversions and Extraction") {
+    // Test case 1: Conversion from date/time components to duration
+    TimeUtils::DateTimeComponents components1 = {2024, 10, 27, 10, 30, 15, 500};
+    TimeUtils::epoch_duration time1 = TimeUtils::to_epoch_duration(components1);
+    CHECK(time1.count() > 0); // Basic sanity check
 
-// Function to generate the UBX-NAV-TIMEUTC response message
-std::vector<uint8_t> generate_ubx_nav_timeutc_response(
-    uint32_t itow,
-    uint32_t t_acc,
-    int32_t nano,
-    int16_t year,
-    int8_t month,
-    int8_t day,
-    int8_t hour,
-    int8_t min,
-    int8_t sec,
-    uint8_t valid,  // Validity flags
-    uint8_t utc_std // UTC standard identifier
-)
-{
-    std::vector<uint8_t> message;
+    // Test case 2: Extraction of components
+    TimeUtils::DateTimeComponents extractedComponents = TimeUtils::extract_date_time(time1);
 
-    // Header
-    message.push_back(0xB5); // Sync Char 1
-    message.push_back(0x62); // Sync Char 2
-    message.push_back(0x01); // Message Class: NAV
-    message.push_back(0x21); // Message ID: TIMEUTC
+    CHECK(extractedComponents.year == 2024);
+    CHECK(extractedComponents.month == 10);
+    CHECK(extractedComponents.day == 27);
+    CHECK(extractedComponents.hour == 10);
+    CHECK(extractedComponents.minute == 30);
+    CHECK(extractedComponents.second == 15);
+    CHECK(extractedComponents.millisecond == 500);
 
-    // Payload (Construct from input data)
-    NavTimeUTCPayload payload;
-    payload.iTOW = itow;
-    payload.tAcc = t_acc;
-    payload.nano = nano;
-    payload.year = year;
-    payload.month = month;
-    payload.day = day;
-    payload.hour = hour;
-    payload.min = min;
-    payload.sec = sec;
-    payload.valid = valid;
-    payload.utcStandard = utc_std;
-    payload.res1 = 0; // Reserved byte
+    // Test case 3: Round trip conversion (date/time -> duration -> date/time)
+    TimeUtils::DateTimeComponents components2 = {2023, 1, 1, 0, 0, 0, 0};
+    TimeUtils::epoch_duration time2 = TimeUtils::to_epoch_duration(components2);
+    TimeUtils::DateTimeComponents extractedComponents2 = TimeUtils::extract_date_time(time2);
+    CHECK(extractedComponents2.year == 2023);
+    CHECK(extractedComponents2.month == 1);
+    CHECK(extractedComponents2.day == 1);
+    CHECK(extractedComponents2.hour == 0);
+    CHECK(extractedComponents2.minute == 0);
+    CHECK(extractedComponents2.second == 0);
+    CHECK(extractedComponents2.millisecond == 0);
 
-    // Calculate payload length
-    uint16_t payload_len = sizeof(NavTimeUTCPayload);
-    message.push_back(payload_len & 0xFF);        // Length (LSB)
-    message.push_back((payload_len >> 8) & 0xFF); // Length (MSB)
-
-    // Add payload bytes to message
-    const uint8_t *payload_bytes = reinterpret_cast<const uint8_t *>(&payload);
-    for (size_t i = 0; i < payload_len; ++i)
-    {
-        message.push_back(payload_bytes[i]);
-    }
-
-    // Calculate and add checksum
-    std::vector<uint8_t> checksum_data(message.begin() + 2, message.end()); // Exclude sync bytes
-
-    // Now cast the checksum data to uint8_t*
-    const uint8_t *checksum_bytes = checksum_data.data();
-    uint8_t cka = 0, ckb = 0;
-    for (size_t i = 0; i < checksum_data.size(); ++i)
-    {
-        cka += checksum_bytes[i];
-        ckb += cka;
-    }
-
-    message.push_back(cka); // Checksum A
-    message.push_back(ckb); // Checksum B
-
-    return message;
+    // Test case 4: Check the epoch
+    TimeUtils::DateTimeComponents epochComponents = {TimeUtils::EPOCH_YEAR, TimeUtils::EPOCH_MONTH, TimeUtils::EPOCH_DAY, 0, 0, 0, 0};
+    TimeUtils::epoch_duration epoch_duration_value = TimeUtils::to_epoch_duration(epochComponents);
+    CHECK(epoch_duration_value.count() == 0);
 }
 
-TEST_CASE("TaskSetRTC Time Synchronization with UART Injection - Positive Nano")
-{
-    // Mock HAL RTC
-    RTC_HandleTypeDef hrtc;
-    RTC_InitTypeDef init;
-    init.SynchPrediv = 1023;
-    hrtc.Init = init;
+TEST_CASE("Duration Arithmetic") {
+    TimeUtils::DateTimeComponents components1 = {2024, 1, 1, 0, 0, 0, 0};
+    TimeUtils::epoch_duration time1 = TimeUtils::to_epoch_duration(components1);
+    TimeUtils::epoch_duration time2 = time1 + std::chrono::seconds(60); // Add 60 seconds
 
-    UART_HandleTypeDef huart;
-    init_uart_handle(&huart);
+    TimeUtils::DateTimeComponents extractedComponents = TimeUtils::extract_date_time(time2);
 
-    // Create TaskSetRTC instance
-    std::shared_ptr<TaskSetRTC> task = std::make_shared<TaskSetRTC>(&huart, &hrtc, 1000, 0);
-
-    // Desired time
-    uint16_t year = 2024;
-    uint8_t month = 12;
-    uint8_t day = 5;
-    uint8_t hour = 10;
-    uint8_t min = 30;
-    uint8_t sec = 0;
-    int32_t nano = 250000000; // Positive nano
-
-    // Create UBX-NAV-TIMEUTC message
-    std::vector<uint8_t> ubx_message = generate_ubx_nav_timeutc_response(0, 0, nano, year, month, day, hour, min, sec, 3, 0);
-
-    // Inject the UBX message into the UART receive buffer
-    inject_uart_rx_data(ubx_message.data(), ubx_message.size());
-
-    // Set initial RTC values (optional) - lets say it is off by a few minutes
-    RTC_TimeTypeDef initial_time;
-    initial_time.Hours = 10;
-    initial_time.Minutes = 20;
-    initial_time.Seconds = 0;
-    initial_time.SubSeconds = 1000;
-    set_mocked_rtc_time(initial_time);
-
-    RTC_DateTypeDef initial_date;
-    initial_date.Year = 24;
-    initial_date.Month = 12;
-    initial_date.Date = 5;
-    set_mocked_rtc_date(initial_date);
-
-    // Call handleTaskImpl to execute the time synchronization
-    task->handleTaskImpl();
-
-    // Get the mocked RTC time and date after the synchronization
-    RTC_TimeTypeDef synced_time = get_mocked_rtc_time();
-    RTC_DateTypeDef synced_date = get_mocked_rtc_date();
-
-    // Assert that the RTC time and date are updated correctly
-    CHECK(synced_time.Hours == 10);
-    CHECK(synced_time.Minutes == 30);
-    CHECK(synced_time.Seconds == 0);
-    CHECK(synced_date.Year == 24);
-    CHECK(synced_date.Month == 12);
-    CHECK(synced_date.Date == 5);
-    CHECK(synced_time.SubSeconds == 767);
-
-    clear_mocked_rtc();
-    clear_uart_rx_buffer();
+    CHECK(extractedComponents.year == 2024);
+    CHECK(extractedComponents.month == 1);
+    CHECK(extractedComponents.day == 1);
+    CHECK(extractedComponents.hour == 0);
+    CHECK(extractedComponents.minute == 1);
+    CHECK(extractedComponents.second == 0);
+    CHECK(extractedComponents.millisecond == 0);
 }
 
-TEST_CASE("TaskSetRTC Time Synchronization with UART Injection - Positive Nano roundover")
-{
-    // Mock HAL RTC
-    RTC_HandleTypeDef hrtc;
-    RTC_InitTypeDef init;
-    init.SynchPrediv = 1023;
-    hrtc.Init = init;
+TEST_CASE("Edge Cases and Error Handling (Illustrative)") {
+    // Note:  This is where you'd add checks for boundary conditions and potential
+    // errors, like very large durations that might cause overflows, or invalid date values.
+    // For demonstration, let's just check a very early date.  Proper error handling
+    // would involve throwing exceptions or returning error codes from the functions.
 
-    UART_HandleTypeDef huart;
-    init_uart_handle(&huart);
-
-    // Create TaskSetRTC instance
-    std::shared_ptr<TaskSetRTC> task = std::make_shared<TaskSetRTC>(&huart, &hrtc, 1000, 0);
-
-    // Desired time
-    uint16_t year = 2024;
-    uint8_t month = 12;
-    uint8_t day = 5;
-    uint8_t hour = 10;
-    uint8_t min = 30;
-    uint8_t sec = 1;
-    int32_t nano = 500000000; // Positive nano
-
-    // Create UBX-NAV-TIMEUTC message
-    std::vector<uint8_t> ubx_message = generate_ubx_nav_timeutc_response(0, 0, nano, year, month, day, hour, min, sec, 3, 0);
-
-    // Inject the UBX message into the UART receive buffer
-    inject_uart_rx_data(ubx_message.data(), ubx_message.size());
-
-    // Set initial RTC values (optional) - lets say it is off by a few minutes
-    RTC_TimeTypeDef initial_time;
-    initial_time.Hours = 10;
-    initial_time.Minutes = 20;
-    initial_time.Seconds = 0;
-    initial_time.SubSeconds = 256;
-    set_mocked_rtc_time(initial_time);
-
-    RTC_DateTypeDef initial_date;
-    initial_date.Year = 24;
-    initial_date.Month = 12;
-    initial_date.Date = 5;
-    set_mocked_rtc_date(initial_date);
-
-    // Call handleTaskImpl to execute the time synchronization
-    task->handleTaskImpl();
-
-    // Get the mocked RTC time and date after the synchronization
-    RTC_TimeTypeDef synced_time = get_mocked_rtc_time();
-    RTC_DateTypeDef synced_date = get_mocked_rtc_date();
-
-    // Assert that the RTC time and date are updated correctly
-    CHECK(synced_time.Hours == 10);
-    CHECK(synced_time.Minutes == 30);
-    CHECK(synced_time.Seconds == 1);
-    CHECK(synced_date.Year == 24);
-    CHECK(synced_date.Month == 12);
-    CHECK(synced_date.Date == 5);
-    CHECK(synced_time.SubSeconds == 511);
-
-    clear_mocked_rtc();
-    clear_uart_rx_buffer();
+    TimeUtils::DateTimeComponents epochComponents = {TimeUtils::EPOCH_YEAR, TimeUtils::EPOCH_MONTH, TimeUtils::EPOCH_DAY, 0, 0, 0, 0};
+    TimeUtils::epoch_duration early_time = TimeUtils::to_epoch_duration(epochComponents); // The epoch
+    CHECK(early_time.count() == 0);
 }
 
-TEST_CASE("TaskSetRTC Time Synchronization with UART Injection - Negative Nano with rollover 750ms")
-{
-    // Mock HAL RTC
-    RTC_HandleTypeDef hrtc;
-    RTC_InitTypeDef init;
-    init.SynchPrediv = 1023;
-    hrtc.Init = init;
+TEST_CASE("to_uint64 and from_uint64 conversions") {
+    TimeUtils::DateTimeComponents components = {2024, 11, 15, 12, 30, 45, 750};
+    TimeUtils::epoch_duration original_duration = TimeUtils::to_epoch_duration(components);
 
-    UART_HandleTypeDef huart;
-    init_uart_handle(&huart);
+    uint64_t uint64_value = TimeUtils::to_uint64(original_duration);
+    TimeUtils::epoch_duration converted_duration = TimeUtils::from_uint64(uint64_value);
 
-    // Create TaskSetRTC instance
-    std::shared_ptr<TaskSetRTC> task = std::make_shared<TaskSetRTC>(&huart, &hrtc, 1000, 0);
-
-    // Desired time
-    uint16_t year = 2024;
-    uint8_t month = 12;
-    uint8_t day = 5;
-    uint8_t hour = 10;
-    uint8_t min = 0;
-    uint8_t sec = 0;
-    int32_t nano = -750000000; // Negative nano
-
-    // Create UBX-NAV-TIMEUTC message
-    std::vector<uint8_t> ubx_message = generate_ubx_nav_timeutc_response(0, 0, nano, year, month, day, hour, min, sec, 3, 0);
-
-    // Inject the UBX message into the UART receive buffer
-    inject_uart_rx_data(ubx_message.data(), ubx_message.size());
-
-    // Set initial RTC values (optional) - lets say it is off by a few minutes
-    RTC_TimeTypeDef initial_time;
-    initial_time.Hours = 10;
-    initial_time.Minutes = 14;
-    initial_time.Seconds = 34;
-    initial_time.SubSeconds = 100;
-
-    set_mocked_rtc_time(initial_time);
-
-    RTC_DateTypeDef initial_date;
-    initial_date.Year = 24;
-    initial_date.Month = 12;
-    initial_date.Date = 5;
-    set_mocked_rtc_date(initial_date);
-
-    // Call handleTaskImpl to execute the time synchronization
-    task->handleTaskImpl();
-
-    // Get the mocked RTC time and date after the synchronization
-    RTC_TimeTypeDef synced_time = get_mocked_rtc_time();
-    RTC_DateTypeDef synced_date = get_mocked_rtc_date();
-
-    // Assert that the RTC time and date are updated correctly
-    CHECK(synced_time.Hours == 9);
-    CHECK(synced_time.Minutes == 59);
-    CHECK(synced_time.Seconds == 59);
-    CHECK(synced_date.Year == 24);
-    CHECK(synced_date.Month == 12);
-    CHECK(synced_date.Date == 5);
-    CHECK(synced_time.SubSeconds == 767);
-
-    clear_mocked_rtc();
-    clear_uart_rx_buffer();
+    CHECK(original_duration.count() == converted_duration.count());
 }
 
-TEST_CASE("TaskSetRTC Time Synchronization with UART Injection - Negative Nano with rollover 250ms")
-{
-    // Mock HAL RTC
-    RTC_HandleTypeDef hrtc;
-    RTC_InitTypeDef init;
-    init.SynchPrediv = 1023;
-    hrtc.Init = init;
+TEST_CASE("RTC <-> DateTimeComponents Conversions") {
+    constexpr uint32_t secondFraction = 1023;
 
-    UART_HandleTypeDef huart;
-    init_uart_handle(&huart);
+    TimeUtils::DateTimeComponents components = {2024, 11, 15, 12, 30, 45, 750};
+    TimeUtils::RTCDateTimeSubseconds rtc_datetime = TimeUtils::to_rtc(components, secondFraction);
 
-    // Create TaskSetRTC instance
-    std::shared_ptr<TaskSetRTC> task = std::make_shared<TaskSetRTC>(&huart, &hrtc, 1000, 0);
+    CHECK(rtc_datetime.date.Year == components.year - TimeUtils::EPOCH_YEAR);
+    CHECK(rtc_datetime.date.Month == components.month);
+    CHECK(rtc_datetime.date.Date == components.day);
+    CHECK(rtc_datetime.time.Hours == components.hour);
+    CHECK(rtc_datetime.time.Minutes == components.minute);
+    CHECK(rtc_datetime.time.Seconds == components.second);
 
-    // Desired time
-    uint16_t year = 2024;
-    uint8_t month = 12;
-    uint8_t day = 5;
-    uint8_t hour = 10;
-    uint8_t min = 30;
-    uint8_t sec = 0;
-    int32_t nano = -250000000; // Negative nano
+    // Ensure SubSeconds is within reasonable bounds
+    CHECK(rtc_datetime.time.SubSeconds >= 0);
+    CHECK(rtc_datetime.time.SubSeconds <= secondFraction);
+}
 
-    // Create UBX-NAV-TIMEUTC message
-    std::vector<uint8_t> ubx_message = generate_ubx_nav_timeutc_response(0, 0, nano, year, month, day, hour, min, sec, 3, 0);
+TEST_CASE("Comprehensive Round Trip Test") {
+    constexpr uint32_t secondFraction = 1023;
+    TimeUtils::DateTimeComponents initial_components = {2025, 5, 20, 8, 15, 30, 250};
 
-    // Inject the UBX message into the UART receive buffer
-    inject_uart_rx_data(ubx_message.data(), ubx_message.size());
+    // Convert to epoch duration
+    TimeUtils::epoch_duration epoch_duration_value = TimeUtils::to_epoch_duration(initial_components);
 
-    // Set initial RTC values (optional) - lets say it is off by a few minutes
-    RTC_TimeTypeDef initial_time;
-    initial_time.Hours = 10;
-    initial_time.Minutes = 20;
-    initial_time.Seconds = 0;
-    initial_time.SubSeconds = 100;
+    // Convert to RTC
+    TimeUtils::RTCDateTimeSubseconds rtc_datetime = TimeUtils::to_rtc(epoch_duration_value, secondFraction);
 
-    set_mocked_rtc_time(initial_time);
+    // Convert back to epoch duration
+    TimeUtils::epoch_duration final_epoch_duration = TimeUtils::from_rtc(rtc_datetime, secondFraction);
 
-    RTC_DateTypeDef initial_date;
-    initial_date.Year = 24;
-    initial_date.Month = 12;
-    initial_date.Date = 5;
-    set_mocked_rtc_date(initial_date);
+    // Extract date/time components
+    TimeUtils::DateTimeComponents final_components = TimeUtils::extract_date_time(final_epoch_duration);
 
-    // Call handleTaskImpl to execute the time synchronization
-    task->handleTaskImpl();
+    // Perform checks (allowing for millisecond discrepancies)
+    CHECK(final_components.year == initial_components.year);
+    CHECK(final_components.month == initial_components.month);
+    CHECK(final_components.day == initial_components.day);
+    CHECK(final_components.hour == initial_components.hour);
+    CHECK(final_components.minute == initial_components.minute);
+    CHECK(final_components.second == initial_components.second);
+    CHECK(abs(static_cast<int>(final_components.millisecond) - static_cast<int>(initial_components.millisecond)) < 20); // Tolerance for millisecond differences
 
-    // Get the mocked RTC time and date after the synchronization
-    RTC_TimeTypeDef synced_time = get_mocked_rtc_time();
-    RTC_DateTypeDef synced_date = get_mocked_rtc_date();
+}
 
-    // Assert that the RTC time and date are updated correctly
-    CHECK(synced_time.Hours == 10);
-    CHECK(synced_time.Minutes == 29);
-    CHECK(synced_time.Seconds == 59);
-    CHECK(synced_date.Year == 24);
-    CHECK(synced_date.Month == 12);
-    CHECK(synced_date.Date == 5);
-    CHECK(synced_time.SubSeconds == 255);
+TEST_CASE("Leap Year Test") {
+    TimeUtils::DateTimeComponents components = {2024, 2, 29, 12, 0, 0, 0}; // Leap year
+    TimeUtils::epoch_duration duration = TimeUtils::to_epoch_duration(components);
+    TimeUtils::DateTimeComponents extracted_components = TimeUtils::extract_date_time(duration);
+    CHECK(extracted_components.year == 2024);
+    CHECK(extracted_components.month == 2);
+    CHECK(extracted_components.day == 29);
+}
 
-    clear_mocked_rtc();
-    clear_uart_rx_buffer();
+TEST_CASE("Non-Leap Year Test") {
+    TimeUtils::DateTimeComponents components = {2023, 2, 28, 12, 0, 0, 0}; // Non-Leap year
+    TimeUtils::epoch_duration duration = TimeUtils::to_epoch_duration(components);
+    TimeUtils::DateTimeComponents extracted_components = TimeUtils::extract_date_time(duration);
+    CHECK(extracted_components.year == 2023);
+    CHECK(extracted_components.month == 2);
+    CHECK(extracted_components.day == 28);
+}
+
+TEST_CASE("New to_epoch_duration with nanoseconds Test") {
+    TimeUtils::epoch_duration duration = TimeUtils::to_epoch_duration(2024, 12, 25, 10, 30, 45, 500000000); //500ms
+    TimeUtils::DateTimeComponents components = TimeUtils::extract_date_time(duration);
+
+    CHECK(components.year == 2024);
+    CHECK(components.month == 12);
+    CHECK(components.day == 25);
+    CHECK(components.hour == 10);
+    CHECK(components.minute == 30);
+    CHECK(components.second == 45);
+    CHECK(components.millisecond == 500);
+
+    TimeUtils::epoch_duration duration_neg = TimeUtils::to_epoch_duration(2024, 12, 25, 10, 30, 45, -250000000); // -250ms
+    TimeUtils::DateTimeComponents components_neg = TimeUtils::extract_date_time(duration_neg);
+
+    CHECK(components_neg.year == 2024);
+    CHECK(components_neg.month == 12);
+    CHECK(components_neg.day == 25);
+    CHECK(components_neg.hour == 10);
+    CHECK(components_neg.minute == 30);
+    CHECK(components_neg.second == 44);
+    CHECK(components_neg.millisecond == 750);
+}
+
+TEST_CASE("RTC Conversion with Negative Subseconds (Milliseconds)") {
+    constexpr uint32_t secondFraction = 1023;
+
+    // Create a DateTimeComponent representing a time just before a whole second.
+    TimeUtils::DateTimeComponents components = {2024, 11, 15, 12, 30, 45, 100}; // 100ms
+
+    //Convert to RTC
+    TimeUtils::RTCDateTimeSubseconds rtc_datetime = TimeUtils::to_rtc(components, secondFraction);
+    std::cout << "Subseconds value = " << (int)rtc_datetime.time.SubSeconds << std::endl;
+    CHECK(rtc_datetime.date.Year == components.year - TimeUtils::EPOCH_YEAR);
+    CHECK(rtc_datetime.date.Month == components.month);
+    CHECK(rtc_datetime.date.Date == components.day);
+    CHECK(rtc_datetime.time.Hours == components.hour);
+    CHECK(rtc_datetime.time.Minutes == components.minute);
+    CHECK(rtc_datetime.time.Seconds == components.second);
+
+    // Ensure SubSeconds is within reasonable bounds
+    CHECK(rtc_datetime.time.SubSeconds >= 0);
+    CHECK(rtc_datetime.time.SubSeconds <= secondFraction);
+
+    //Negative test case
+
+    TimeUtils::DateTimeComponents components_neg = {2024, 11, 15, 12, 30, 45, 900}; // 900ms
+
+    //Convert to RTC
+    TimeUtils::RTCDateTimeSubseconds rtc_datetime_neg = TimeUtils::to_rtc(components_neg, secondFraction);
+    std::cout << "Subseconds value = " << (int)rtc_datetime_neg.time.SubSeconds << std::endl;
+    CHECK(rtc_datetime_neg.date.Year == components.year - TimeUtils::EPOCH_YEAR);
+    CHECK(rtc_datetime_neg.date.Month == components.month);
+    CHECK(rtc_datetime_neg.date.Date == components.day);
+    CHECK(rtc_datetime_neg.time.Hours == components.hour);
+    CHECK(rtc_datetime_neg.time.Minutes == components.minute);
+    CHECK(rtc_datetime_neg.time.Seconds == components.second);
+
+    // Ensure SubSeconds is within reasonable bounds
+    CHECK(rtc_datetime_neg.time.SubSeconds >= 0);
+    CHECK(rtc_datetime_neg.time.SubSeconds <= secondFraction);
+}
+
+TEST_CASE("Boundary Tests") {
+    //Max date:
+    TimeUtils::DateTimeComponents components_max = {2079, 12, 31, 23, 59, 59, 999};
+    TimeUtils::epoch_duration duration_max = TimeUtils::to_epoch_duration(components_max);
+    TimeUtils::DateTimeComponents extracted_components_max = TimeUtils::extract_date_time(duration_max);
+
+    CHECK(extracted_components_max.year == 2079);
+    CHECK(extracted_components_max.month == 12);
+    CHECK(extracted_components_max.day == 31);
+    CHECK(extracted_components_max.hour == 23);
+    CHECK(extracted_components_max.minute == 59);
+    CHECK(extracted_components_max.second == 59);
+    CHECK(extracted_components_max.millisecond == 999);
 }

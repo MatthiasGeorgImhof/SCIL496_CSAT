@@ -21,19 +21,18 @@ namespace TimeUtils {
 
     // Define a struct for date and time components
     struct DateTimeComponents {
-        int year;
-        int month;
-        int day;
-        int hour;
-        int minute;
-        int second;
-        int millisecond;
+        uint16_t year;
+        uint8_t month;
+        uint8_t day;
+        uint8_t hour;
+        uint8_t minute;
+        uint8_t second;
+        uint16_t millisecond;
     };
 
     struct RTCDateTimeSubseconds {
         RTC_DateTypeDef date;       // Date components
         RTC_TimeTypeDef time;       // Time components
-        // uint32_t subSeconds;        // Subseconds
     };
     
     // Choose your duration type
@@ -42,8 +41,11 @@ namespace TimeUtils {
 
     // Function declarations
     epoch_duration to_epoch_duration(const std::chrono::system_clock::time_point& tp);
+    epoch_duration to_epoch_duration(const DateTimeComponents& components);
+    epoch_duration to_epoch_duration(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minure, uint8_t second, int32_t nanosecond);
+
     std::chrono::system_clock::time_point from_epoch_duration(const epoch_duration& d);
-    epoch_duration to_epoch_duration(const DateTimeComponents& components); // Use the struct
+
     DateTimeComponents extract_date_time(const epoch_duration& d); // Return the struct
 
     // Function to get epoch_duration as uint64_t
@@ -55,8 +57,8 @@ namespace TimeUtils {
     // Convert from STM32 RTC to epoch_duration
     epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds, uint32_t secondFraction);
 
-    // Convert from epoch_duration to STM32 RTC
     RTCDateTimeSubseconds to_rtc(const epoch_duration& d, uint32_t secondFraction);
+    RTCDateTimeSubseconds to_rtc(const DateTimeComponents& components, uint32_t secondFraction);
 
 } // namespace TimeUtils
 

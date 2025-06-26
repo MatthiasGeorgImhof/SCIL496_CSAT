@@ -87,7 +87,7 @@ TEST_CASE("TaskSendNodePortList: handleTask publishes NodePortList")
     REQUIRE(received_port_list1.publishers.sparse_list.elements[0].value == uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
     REQUIRE(received_port_list1.publishers.sparse_list.elements[1].value == uavcan_node_port_List_1_0_FIXED_PORT_ID_);
 
-    delete[] static_cast<uint8_t *>(transfer1.payload);
+    loopardMemoryFree(transfer1.payload);
 
     // Verify the content of the published message on the second adapter (similar to first adapter)
     CyphalTransfer transfer2 = loopard2.buffer.pop();
@@ -107,7 +107,7 @@ TEST_CASE("TaskSendNodePortList: handleTask publishes NodePortList")
     // The first publisher should be Heartbeat
     REQUIRE(received_port_list2.publishers.sparse_list.elements[0].value == uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
     REQUIRE(received_port_list2.publishers.sparse_list.elements[1].value == uavcan_node_port_List_1_0_FIXED_PORT_ID_);
-    delete[] static_cast<uint8_t *>(transfer2.payload);
+    loopardMemoryFree(transfer2.payload);
 }
 
 TEST_CASE("TaskSendNodePortList: snippet to registration with std::alloc")

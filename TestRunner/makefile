@@ -11,7 +11,8 @@ INCLUDE_PATHS = -I ../Inc \
 				-I /usr/include/eigen3 \
 				-I /usr/include/doctest \
 				-I tests \
-				-I ../Src  # Include path for mock_hal headers + all source headers
+				-I ../Src \
+				-I ../3rdParty/SGP4
 
 LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
@@ -54,6 +55,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSendTimeSynchronization.cpp \
 			 TestTaskSetRTC.cpp \
+			 TestTaskSGP4.cpp \
 			 TestSGP4TLE.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
@@ -83,7 +85,8 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/TaskBlinkLED.cpp \
 			../Src/TaskCheckMemory.cpp \
 			../Src/TaskSetRTC.cpp \
-			../Src/TimeUtils.cpp
+			../Src/TimeUtils.cpp \
+			../3rdParty/SGP4/SGP4.cpp
 
 # Mock HAL source files
 MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
@@ -355,6 +358,20 @@ $(BIN_DIR)/TaskSetRTC.o : ../Src/TaskSetRTC.cpp
 $(BIN_DIR)/TestTaskSetRTC : $(BIN_DIR)/TestTaskSetRTC.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TaskSetRTC.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSetRTC.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TaskSetRTC.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(LIBS) 
+	@echo "Linking $@"
+
+# Rule for TestTaskSGP4 with extra sources
+$(BIN_DIR)/TestTaskSGP4.o : TestTaskSGP4.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/SGP4.o : ../3rdParty/SGP4/SGP4.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskSGP4 : $(BIN_DIR)/TestTaskSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TestTaskSGP4.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/sgp4_tle.o
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/sgp4_tle.o $(LIBS) 
 	@echo "Linking $@"
 
 # Rule for TestMainLoop with extra sources

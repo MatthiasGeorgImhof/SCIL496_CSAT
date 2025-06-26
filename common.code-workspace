@@ -1,0 +1,83 @@
+{
+	"folders": [
+		{
+			"path": "Inc"
+		},
+		{
+			"path": "Src"
+		},
+		{
+			"path": "TestRunner"
+		},
+		{
+			"path": "3rdParty"
+		},
+		{
+			"path": "../../../github/can/nunavut_out"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"functional": "cpp",
+			"compare": "c",
+			"array": "cpp",
+			"bitset": "cpp",
+			"string_view": "cpp",
+			"initializer_list": "cpp",
+			"cmath": "cpp",
+			"limits": "cpp",
+			"iostream": "cpp",
+			"cctype": "cpp",
+			"clocale": "cpp",
+			"csignal": "cpp",
+			"cstddef": "cpp",
+			"cstdio": "cpp",
+			"cstdlib": "cpp",
+			"cstring": "cpp",
+			"ctime": "cpp",
+			"cwchar": "cpp",
+			"cwctype": "cpp",
+			"atomic": "cpp",
+			"concepts": "cpp",
+			"condition_variable": "cpp",
+			"cstdint": "cpp",
+			"map": "cpp",
+			"set": "cpp",
+			"string": "cpp",
+			"unordered_map": "cpp",
+			"unordered_set": "cpp",
+			"vector": "cpp",
+			"exception": "cpp",
+			"algorithm": "cpp",
+			"iterator": "cpp",
+			"memory": "cpp",
+			"memory_resource": "cpp",
+			"random": "cpp",
+			"ratio": "cpp",
+			"system_error": "cpp",
+			"tuple": "cpp",
+			"type_traits": "cpp",
+			"utility": "cpp",
+			"fstream": "cpp",
+			"iomanip": "cpp",
+			"iosfwd": "cpp",
+			"istream": "cpp",
+			"mutex": "cpp",
+			"new": "cpp",
+			"ostream": "cpp",
+			"sstream": "cpp",
+			"stdexcept": "cpp",
+			"stop_token": "cpp",
+			"streambuf": "cpp",
+			"thread": "cpp",
+			"typeinfo": "cpp",
+			"optional": "cpp",
+			"ranges": "cpp",
+			"numbers": "cpp",
+			"chrono": "cpp",
+			"span": "cpp",
+			"cstdarg": "cpp",
+			"bit": "cpp"
+		}
+	}
+}

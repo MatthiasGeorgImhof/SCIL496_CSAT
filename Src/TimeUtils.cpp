@@ -38,6 +38,24 @@ namespace TimeUtils
         return to_epoch_duration(tp);
     }
 
+    epoch_duration to_epoch_duration(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second, int32_t nanosecond)
+    {
+        std::chrono::year year_chrono(year);
+        std::chrono::month month_chrono(month);
+        std::chrono::day day_chrono(day);
+
+        std::chrono::sys_days date_chrono = year_chrono / month_chrono / day_chrono;
+        std::chrono::hours hours_chrono(hour);
+        std::chrono::minutes minutes_chrono(minute);
+        std::chrono::seconds seconds_chrono(second);
+        std::chrono::nanoseconds nanoseconds_chrono(nanosecond);
+
+        std::chrono::system_clock::time_point tp = date_chrono + hours_chrono + minutes_chrono + seconds_chrono + nanoseconds_chrono;
+
+        return to_epoch_duration(tp);
+    }
+
+
     // extract year, month, day, hour, minute_v, second_v, millisecond_v from epoch_duration
     DateTimeComponents extract_date_time(const epoch_duration &d)
     {
@@ -117,31 +135,34 @@ namespace TimeUtils
         return to_epoch_duration(components);
     }
 
-    // Convert from epoch_duration to STM32 RTC
-    RTCDateTimeSubseconds to_rtc(const epoch_duration &d, uint32_t secondFraction)
+    // Convert to STM32 RTC
+    RTCDateTimeSubseconds to_rtc(const DateTimeComponents &components, uint32_t secondFraction)
     {
-        DateTimeComponents components = extract_date_time(d);
         auto y = std::chrono::year(components.year);
         auto m = std::chrono::month(components.month);
         auto day_v = std::chrono::day(components.day);
-
         std::chrono::year_month_day ymd(y, m, day_v);
-        RTCDateTimeSubseconds result; // Create an instance of the struct
 
-        result.date.Year = static_cast<uint8_t>(components.year - EPOCH_YEAR); // RTC Year is relative to 2000
-        result.date.Month = static_cast<uint8_t>(components.month);
-        result.date.Date = static_cast<uint8_t>(components.day);
-        result.date.WeekDay = static_cast<uint8_t>(std::chrono::weekday(ymd).iso_encoding());
-
-        result.time.Hours = static_cast<uint8_t>(components.hour);
-        result.time.Minutes = static_cast<uint8_t>(components.minute);
-        result.time.Seconds = static_cast<uint8_t>(components.second);
-        result.time.TimeFormat = RTC_FORMAT_BIN;
-        result.time.SubSeconds = secondFraction - static_cast<uint32_t>(static_cast<uint64_t>(components.millisecond) * (secondFraction + 1) / 1000);;
-        result.time.SecondFraction = secondFraction;
-        result.time.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-        result.time.StoreOperation = RTC_STOREOPERATION_RESET;
-    
-        return result;
+        return RTCDateTimeSubseconds{
+            RTC_DateTypeDef{
+                .WeekDay = static_cast<uint8_t>(std::chrono::weekday(ymd).iso_encoding()),
+                .Month = static_cast<uint8_t>(components.month),
+                .Date = static_cast<uint8_t>(components.day),
+                .Year = static_cast<uint8_t>(components.year - EPOCH_YEAR)},
+            RTC_TimeTypeDef{
+                .Hours = static_cast<uint8_t>(components.hour),
+                .Minutes = static_cast<uint8_t>(components.minute),
+                .Seconds = static_cast<uint8_t>(components.second),
+                .TimeFormat = RTC_FORMAT_BIN,
+                .SubSeconds = secondFraction - static_cast<uint32_t>(static_cast<uint64_t>(components.millisecond) * (secondFraction + 1) / 1000),
+                .SecondFraction = secondFraction,
+                .DayLightSaving = RTC_DAYLIGHTSAVING_NONE,
+                .StoreOperation = RTC_STOREOPERATION_RESET}};
     }
+
+    RTCDateTimeSubseconds to_rtc(const epoch_duration &d, uint32_t secondFraction)
+    {
+        return to_rtc(extract_date_time(d), secondFraction);
+    }
+
 } // namespace TimeUtils

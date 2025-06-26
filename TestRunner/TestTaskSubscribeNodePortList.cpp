@@ -137,6 +137,7 @@ TEST_CASE("TaskSubscribeNodePortList: handleTaskImpl subscribes to ports in Node
 
     // Clean up by unsubscribing (optional, but good practice)
     registration_manager.remove(std::static_pointer_cast<Task>(task));
+    delete [] reinterpret_cast<uint8_t*>(transfer->payload);
 }
 
 TEST_CASE("TaskSubscribeNodePortList: registerTask and unregisterTask work correctly")
