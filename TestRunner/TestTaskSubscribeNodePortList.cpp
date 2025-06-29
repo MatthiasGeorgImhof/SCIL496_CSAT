@@ -13,6 +13,7 @@
 #include "loopard_adapter.hpp"
 #include "_4111Spyglass.h"
 #include "uavcan/node/port/List_1_0.h"
+#include "uavcan/file/List_0_2.h"
 
 // Mock HAL for testing (if needed)
 #ifdef __x86_64__
@@ -178,7 +179,8 @@ TEST_CASE("TaskSubscribeNodePortList: handleTaskImpl subscribes to client and se
     std::vector<CyphalPortID> publishers = {};
     std::vector<CyphalPortID> subscribers = {};
     std::vector<CyphalPortID> clients = {uavcan_node_GetInfo_1_0_FIXED_PORT_ID_}; // GetInfo request
-    std::vector<CyphalPortID> servers = {uavcan_file_Read_1_1_FIXED_PORT_ID_};   // File read response, not in list
+    std::vector<CyphalPortID> servers = {uavcan_file_List_0_2_FIXED_PORT_ID_};   // File list response, not in list
+    // std::vector<CyphalPortID> servers = {uavcan_file_Read_1_1_FIXED_PORT_ID_};   // File read response, not in list
 
     // Create a NodePortList message with the defined client and server ports
     std::shared_ptr<CyphalTransfer> transfer = createNodePortListTransfer(publishers, subscribers, clients, servers);

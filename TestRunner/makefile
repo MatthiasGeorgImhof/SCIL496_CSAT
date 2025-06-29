@@ -50,6 +50,8 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskProcessTimeSynchronization.cpp \
 			 TestTaskRegistrationSubscription.cpp \
 			 TestTaskRequestGetInfo.cpp \
+			 TestTaskRespondWrite.cpp \
+			 TestTaskRequestWrite.cpp \
 			 TestTaskRespondGetInfo.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
@@ -59,6 +61,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestSGP4TLE.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
+			 TestUInt8Stream.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
@@ -302,6 +305,24 @@ $(BIN_DIR)/TestTaskRequestGetInfo : $(BIN_DIR)/TestTaskRequestGetInfo.o $(BIN_DI
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRequestGetInfo.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestTaskRequestWrite with extra sources
+$(BIN_DIR)/TestTaskRequestWrite.o : TestTaskRequestWrite.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskRequestWrite : $(BIN_DIR)/TestTaskRequestWrite.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRequestWrite.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTaskRespondWrite with extra sources
+$(BIN_DIR)/TestTaskRespondWrite.o : TestTaskRespondWrite.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskRespondWrite : $(BIN_DIR)/TestTaskRespondWrite.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRespondWrite.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
 # Rule for TestTaskSendTimeSynchronization with extra sources
 $(BIN_DIR)/TestTaskSendTimeSynchronization.o : TestTaskSendTimeSynchronization.cpp
 	@echo "Compiling $<"
@@ -497,6 +518,15 @@ $(BIN_DIR)/sgp4_tle.o : ../Src/sgp4_tle.cpp
 $(BIN_DIR)/TestSGP4TLE : $(BIN_DIR)/TestSGP4TLE.o $(BIN_DIR)/sgp4_tle.o 
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestSGP4TLE.o $(BIN_DIR)/sgp4_tle.o $(LIBS)
+
+# Rule for TestUInt8Stream with extra sources
+$(BIN_DIR)/TestUInt8Stream.o : TestUInt8Stream.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestUInt8Stream : $(BIN_DIR)/TestUInt8Stream.o $ $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestUInt8Stream.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTimeUtils with extra sources
 $(BIN_DIR)/TestTimeUtils.o : TestTimeUtils.cpp
