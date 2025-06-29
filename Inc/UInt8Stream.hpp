@@ -6,8 +6,14 @@
 #include <string>
 #include <array>
 #include <memory>
+#include <concepts>
 
 #include "imagebuffer/image.hpp"
+#include "imagebuffer/imagebuffer.hpp"
+
+//
+//
+//
 
 constexpr size_t NAME_LENGTH = 11;
 
@@ -33,12 +39,32 @@ std::array<char, NAME_LENGTH> formatValues(uint32_t u32, uint8_t u8)
     return result;
 }
 
+//
+//
+//
 
-
+template <typename Stream>
+concept InputStreamConcept = requires(Stream& s) {
+    { s.is_empty() } -> std::convertible_to<bool>;
+    { s.initialize(std::declval<uint8_t*>(), std::declval<size_t&>()) } -> std::convertible_to<void>;
+    { s.size() } -> std::convertible_to<size_t>;
+    { s.name() } -> std::convertible_to<std::array<char, NAME_LENGTH>>;
+    { s.finalize() } -> std::convertible_to<void>;
+    { s.getChunk(std::declval<uint8_t*>(), std::declval<size_t&>()) } -> std::convertible_to<void>;
+};
+      
 template <typename Buffer>
-class UInt8Stream {
+concept ImageBufferConcept = requires(Buffer& b, ImageMetadata& metadata, uint8_t* data, size_t& size) {
+    { b.is_empty() } -> std::convertible_to<bool>;
+    { b.get_image(metadata) } -> std::convertible_to<ImageBufferError>;
+    { b.get_data_chunk(data, size) } -> std::convertible_to<ImageBufferError>;
+    { b.pop_image() } -> std::convertible_to<ImageBufferError>;
+};
+
+template <ImageBufferConcept Buffer>
+class ImageInputStream {
 public:
-    UInt8Stream(Buffer& buffer) : buffer_(buffer) {}
+    ImageInputStream(Buffer& buffer) : buffer_(buffer) {}
 
     bool is_empty() {
         return buffer_.is_empty();
@@ -84,6 +110,53 @@ private:
     size_t size_;
     std::array<char, NAME_LENGTH> name_;
 };
+
+//
+//
+//
+
+#include <array>
+
+template <typename T>
+concept OutputStreamConcept = requires(T& stream, uint8_t* data, size_t size, const std::array<char, NAME_LENGTH>& name) {
+    { stream.initialize(name) } -> std::convertible_to<void>;
+    { stream.finalize() } -> std::convertible_to<void>;
+    { stream.output(data, size) } -> std::convertible_to<void>;
+};
+
+class TrivialOuputStream {
+public:
+    TrivialOuputStream() {}
+    void initialize(const std::array<char, NAME_LENGTH>& /* name */) {}
+    void finalize() {}
+    void output(uint8_t */*data*/, size_t /*size*/) {}
+};
+
+static_assert(OutputStreamConcept<TrivialOuputStream>,
+              "TrivialOuputStream does not satisfy OutputStreamConcept");
+
+class OuputStreamToFile {
+public:
+    OuputStreamToFile() : file_(nullptr) {}
+    void initialize(const std::array<char, NAME_LENGTH>& name)
+    {
+        file_ = fopen(name.data(), "wb");
+    }
+    void finalize()
+    {
+        fclose(file_);
+        file_ = nullptr;
+    }
+    void output(uint8_t *data, size_t size)
+        {
+            fwrite(data, sizeof(uint8_t), size, file_);
+        }
+    private:
+    FILE *file_;
+};
+
+static_assert(OutputStreamConcept<OuputStreamToFile>,
+              "OuputStreamToFile does not satisfy OutputStreamConcept");
 
 
 #endif // INC_UINT8_STREAM_HPP_

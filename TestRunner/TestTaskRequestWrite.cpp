@@ -13,6 +13,7 @@
 #include "cyphal.hpp"
 #include "loopard_adapter.hpp" // Or your specific adapter header
 #include "RegistrationManager.hpp"
+#include "UInt8Stream.hpp"
 
 #include "uavcan/file/Write_1_1.h"
 #include "uavcan/primitive/Unstructured_1_0.h"
@@ -26,20 +27,20 @@ public:
 
     bool is_empty() const { return is_empty_; }
 
-    bool get_image(ImageMetadata &metadata)
+    ImageBufferError get_image(ImageMetadata &metadata)
     {
         if (is_empty_)
-            return false;
+            return ImageBufferError::EMPTY_BUFFER;
         metadata = metadata_;
-        return true;
+        return ImageBufferError::NO_ERROR;
     }
 
-    bool get_data_chunk(uint8_t *data, size_t &size)
+    ImageBufferError get_data_chunk(uint8_t *data, size_t &size)
     {
         if (is_empty_)
         {
             size = 0;
-            return false;
+            return ImageBufferError::EMPTY_BUFFER;
         }
 
         size_t remaining_data = image_size_ - data_index_;
@@ -55,16 +56,16 @@ public:
             data_index_ = 0;
         }
 
-        return true;
+        return ImageBufferError::NO_ERROR;
     }
 
-    bool pop_image()
+    ImageBufferError pop_image()
     {
         if (is_empty_)
-            return false;
+            return ImageBufferError::EMPTY_BUFFER;
         is_empty_ = true;
         data_index_ = 0;
-        return true;
+        return ImageBufferError::NO_ERROR;
     }
 
     void push_image(const std::vector<uint8_t> &data, const ImageMetadata &metadata)
@@ -87,12 +88,15 @@ private:
     ImageMetadata metadata_;
 };
 
-// Mock UInt8Stream with chunksize
+static_assert(ImageBufferConcept<MockBuffer>,
+              "MockBuffer does not satisfy ImageBufferConcept");
+
+// Mock ImageInputStream with chunksize
 template <typename Buffer>
-class MockUInt8Stream : public UInt8Stream<Buffer>
+class MockImageInputStream : public ImageInputStream<Buffer>
 {
 public:
-    MockUInt8Stream(Buffer &buffer, size_t chunk_size) : UInt8Stream<Buffer>(buffer), chunk_size_(chunk_size) {}
+    MockImageInputStream(Buffer &buffer, size_t chunk_size) : ImageInputStream<Buffer>(buffer), chunk_size_(chunk_size) {}
 
     size_t chunkSize(size_t max_chunk_size) const
     {
@@ -135,17 +139,17 @@ std::shared_ptr<CyphalTransfer> createWriteResponse(uint16_t error_code)
 }
 
 // Class to expose protected members for testing
-template <typename UInt8Stream, typename... Adapters>
-class MockTaskRequestWrite : public TaskRequestWrite<UInt8Stream, Adapters...>
+template <typename ImageInputStream, typename... Adapters>
+class MockTaskRequestWrite : public TaskRequestWrite<ImageInputStream, Adapters...>
 {
 public:
-    MockTaskRequestWrite(UInt8Stream &source, uint32_t interval, uint32_t tick, CyphalNodeID node_id, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters)
-        : TaskRequestWrite<UInt8Stream, Adapters...>(source, interval, tick, node_id, transfer_id, adapters)
+    MockTaskRequestWrite(ImageInputStream &source, uint32_t interval, uint32_t tick, CyphalNodeID node_id, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters)
+        : TaskRequestWrite<ImageInputStream, Adapters...>(source, interval, tick, node_id, transfer_id, adapters)
     {
     }
 
-    using TaskRequestWrite<UInt8Stream, Adapters...>::handleTaskImpl;
-    using TaskRequestWrite<UInt8Stream, Adapters...>::buffer_;
+    using TaskRequestWrite<ImageInputStream, Adapters...>::handleTaskImpl;
+    using TaskRequestWrite<ImageInputStream, Adapters...>::buffer_;
 };
 
 // uavcan_file_Write_Response_1_1 unpackResponse(CyphalTransfer transfer)
@@ -207,7 +211,7 @@ TEST_CASE("TaskRequestWrite: Handles Write Request Lifecycle")
 
     // Mock Buffer and Stream
     MockBuffer mock_buffer;
-    MockUInt8Stream<MockBuffer> mock_stream(mock_buffer, 16);
+    MockImageInputStream<MockBuffer> mock_stream(mock_buffer, 16);
 
     // Task parameters
     CyphalNodeID node_id = 42;
@@ -311,7 +315,7 @@ TEST_CASE("TaskRequestWrite: Handles Write Request Lifecycle with Errors")
 
     // Mock Buffer and Stream
     MockBuffer mock_buffer;
-    MockUInt8Stream<MockBuffer> mock_stream(mock_buffer, 16);
+    MockImageInputStream<MockBuffer> mock_stream(mock_buffer, 16);
 
     // Task parameters
     CyphalNodeID node_id = 42;
@@ -465,7 +469,7 @@ TEST_CASE("TaskRequestWrite: Registers and Unregisters correctly") {
 
     // Mock Buffer and Stream
     MockBuffer mock_buffer;
-    MockUInt8Stream<MockBuffer> mock_stream(mock_buffer, 16);
+    MockImageInputStream<MockBuffer> mock_stream(mock_buffer, 16);
 
     // Task parameters
     CyphalNodeID node_id = 42;
@@ -477,7 +481,7 @@ TEST_CASE("TaskRequestWrite: Registers and Unregisters correctly") {
     RegistrationManager registration_manager;
 
     // Instantiate the TaskRequestWrite
-    auto task = std::make_shared<MockTaskRequestWrite<MockUInt8Stream<MockBuffer>, Cyphal<LoopardAdapter>>>(mock_stream, interval, tick, node_id, transfer_id, adapters);
+    auto task = std::make_shared<MockTaskRequestWrite<MockImageInputStream<MockBuffer>, Cyphal<LoopardAdapter>>>(mock_stream, interval, tick, node_id, transfer_id, adapters);
 
     // Initial state
     CHECK(registration_manager.getClients().size() == 0);

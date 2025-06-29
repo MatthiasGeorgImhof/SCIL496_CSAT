@@ -62,10 +62,10 @@ struct MockAccessor
 
 static_assert(Accessor<MockAccessor>, "MockAccessor does not satisfy the Accessor concept!");
 
-TEST_CASE("UInt8Stream with ImageBuffer") {
+TEST_CASE("ImageInputStream with ImageBuffer") {
     MockAccessor accessor(0, 2048); // Larger buffer for this test
     ImageBuffer<MockAccessor> image_buffer(accessor);
-    UInt8Stream<ImageBuffer<MockAccessor>> stream(image_buffer);
+    ImageInputStream<ImageBuffer<MockAccessor>> stream(image_buffer);
 
     ImageMetadata metadata;
     metadata.timestamp = 0x12345678;
@@ -154,10 +154,10 @@ TEST_CASE("UInt8Stream with ImageBuffer") {
 
 }
 
-TEST_CASE("UInt8Stream with CachedImageBuffer") {
+TEST_CASE("ImageInputStream with CachedImageBuffer") {
     MockAccessor accessor(0, 2048); // Larger buffer for this test
     CachedImageBuffer<MockAccessor> image_buffer(accessor);
-    UInt8Stream<CachedImageBuffer<MockAccessor>> stream(image_buffer);
+    ImageInputStream<CachedImageBuffer<MockAccessor>> stream(image_buffer);
 
     ImageMetadata metadata;
     metadata.timestamp = 0x12345678;
@@ -243,5 +243,43 @@ TEST_CASE("UInt8Stream with CachedImageBuffer") {
         REQUIRE(stream.is_empty() == true);
 
     }
+}
 
+TEST_CASE("TrivialOuputStream satisfies OutputStreamConcept") {
+    TrivialOuputStream stream;
+    std::array<char, NAME_LENGTH> name = {'t', 'e', 's', 't', '.', 't', 'x', 't', 0, 0, 0};
+    std::vector<uint8_t> data(10, 0);
+    size_t size = data.size();
+
+    // Call the methods to ensure they exist and don't crash
+    stream.initialize(name);
+    stream.output(data.data(), size);
+    stream.finalize();
+}
+
+TEST_CASE("OuputStreamToFile satisfies OutputStreamConcept") {
+    OuputStreamToFile stream;
+    std::array<char, NAME_LENGTH> name = {'t', 'e', 's', 't', '.', 't', 'x', 't', 0, 0, 0};
+    std::vector<uint8_t> data(10);
+    for(size_t i=0; i < data.size(); ++i){
+        data[i] = i;
+    }
+    size_t size = data.size();
+
+    // Call the methods to ensure they exist and don't crash
+    stream.initialize(name);
+    stream.output(data.data(), size);
+    stream.finalize();
+
+    // You can add checks to verify specific behavior.
+    // For example, you could check that the file was created and that the data was written to it.
+    std::ifstream file(name.data(), std::ios::binary | std::ios::in);
+    REQUIRE(file.is_open());
+
+    std::vector<uint8_t> file_data(size);
+    file.read(reinterpret_cast<char*>(file_data.data()), size);
+    REQUIRE(memcmp(data.data(), file_data.data(), size) == 0);
+
+    file.close();
+    remove(name.data());  // Clean up the file
 }

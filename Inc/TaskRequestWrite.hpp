@@ -11,7 +11,7 @@
 
 #include <cstring>
 
-template <typename UInt8Stream, typename... Adapters>
+template <InputStreamConcept InputStream, typename... Adapters>
 class TaskRequestWrite : public TaskForClient<Adapters...>
 {
 public:
@@ -31,7 +31,7 @@ public:
 
 public:
     TaskRequestWrite() = delete;
-    TaskRequestWrite(UInt8Stream &stream, uint32_t interval, uint32_t tick, CyphalNodeID node_id, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters)
+    TaskRequestWrite(InputStream &stream, uint32_t interval, uint32_t tick, CyphalNodeID node_id, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters)
         : TaskForClient<Adapters...>(interval, tick, node_id, transfer_id, adapters),
           stream_(stream), state_(IDLE), size_(0), offset_(0), name_{}, data_(nullptr)
     {
@@ -47,7 +47,7 @@ protected:
     void reset();
 
 protected:
-    UInt8Stream &stream_;
+    InputStream &stream_;
     State state_;
     size_t size_;
     size_t offset_;
@@ -55,8 +55,8 @@ protected:
     std::unique_ptr<uavcan_file_Write_Request_1_1> data_;
 };
 
-template <typename UInt8Stream, typename... Adapters>
-void TaskRequestWrite<UInt8Stream, Adapters...>::reset()
+template <InputStreamConcept InputStream, typename... Adapters>
+void TaskRequestWrite<InputStream, Adapters...>::reset()
 {
     state_ = IDLE;
     size_ = 0;
@@ -65,15 +65,15 @@ void TaskRequestWrite<UInt8Stream, Adapters...>::reset()
     data_ = nullptr;
 }
 
-template <typename UInt8Stream, typename... Adapters>
-void TaskRequestWrite<UInt8Stream, Adapters...>::handleTaskImpl()
+template <InputStreamConcept InputStream, typename... Adapters>
+void TaskRequestWrite<InputStream, Adapters...>::handleTaskImpl()
 {
     (void)respond();
     (void)request();
 }
 
-template <typename UInt8Stream, typename... Adapters>
-bool TaskRequestWrite<UInt8Stream, Adapters...>::respond()
+template <InputStreamConcept InputStream, typename... Adapters>
+bool TaskRequestWrite<InputStream, Adapters...>::respond()
 {
     if (TaskForClient<Adapters...>::buffer_.is_empty())
         return false;
@@ -105,7 +105,7 @@ bool TaskRequestWrite<UInt8Stream, Adapters...>::respond()
         }
         else if (state_ == WAIT_TRANSFER)
         {
-            state_ = (offset_ < size_) ? SEND_TRANSFER : SEND_DONE;
+            state_ = (offset_ < size_) ? SEND_TRANSFER : SEND_DONE ;
         }
         else if (state_ == WAIT_DONE)
         {
@@ -131,8 +131,8 @@ bool TaskRequestWrite<UInt8Stream, Adapters...>::respond()
     return true;
 }
 
-template <typename UInt8Stream, typename... Adapters>
-bool TaskRequestWrite<UInt8Stream, Adapters...>::request()
+template <InputStreamConcept InputStream, typename... Adapters>
+bool TaskRequestWrite<InputStream, Adapters...>::request()
 {
     if (state_ == WAIT_INIT || state_ == WAIT_TRANSFER || state_ == WAIT_DONE)
         return false;
@@ -196,14 +196,14 @@ bool TaskRequestWrite<UInt8Stream, Adapters...>::request()
     return true;
 }
 
-template <typename UInt8Stream, typename... Adapters>
-void TaskRequestWrite<UInt8Stream, Adapters...>::registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+template <InputStreamConcept InputStream, typename... Adapters>
+void TaskRequestWrite<InputStream, Adapters...>::registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
     manager->client(uavcan_file_Write_1_1_FIXED_PORT_ID_, task);
 }
 
-template <typename UInt8Stream, typename... Adapters>
-void TaskRequestWrite<UInt8Stream, Adapters...>::unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+template <InputStreamConcept InputStream, typename... Adapters>
+void TaskRequestWrite<InputStream, Adapters...>::unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
     manager->unclient(uavcan_file_Write_1_1_FIXED_PORT_ID_, task);
 }
