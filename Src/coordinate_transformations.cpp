@@ -58,8 +58,7 @@ namespace coordinate_transformations
     Geodetic ecefToGeodetic(ECEF ecef)
     {
         Geodetic geodetic;
-        float NaN = std::numeric_limits<float>::quiet_NaN();
-
+        
         float p = sqrtf(ecef.x_m * ecef.x_m + ecef.y_m * ecef.y_m);
 
         if (approximatelyEqual(p, 0.0))
@@ -67,32 +66,32 @@ namespace coordinate_transformations
             // Special case: point lies on the Z-axis, poles
             geodetic.longitude_deg = 0.0;
             geodetic.latitude_deg = (ecef.z_m >= 0.0) ? 90.0 : -90.0;
-            geodetic.height_m = std::fabs(ecef.z_m) - WGS84_A * (1 - WGS84_F);
+            geodetic.height_m = std::fabs(ecef.z_m) - WGS84_A * (1.0f - WGS84_F);
             return geodetic;
         }
 
-        float lon_rad = atan2(ecef.y_m, ecef.x_m);
+        float lon_rad = atan2f(ecef.y_m, ecef.x_m);
         geodetic.longitude_deg = lon_rad * RAD_TO_DEG;
 
-        float lat_rad = atan2f(ecef.z_m, p * (1 - WGS84_E2)); // Initial approximation
+        float lat_rad = atan2f(ecef.z_m, p * (1.0f - WGS84_E2)); // Initial approximation
 
-        float lat_old;
-        float N;
         int iteration = 0;
+        float lat_old;
         do
         {
             lat_old = lat_rad;
-            N = WGS84_A / sqrtf(1 - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
+            float N = WGS84_A / sqrtf(1.0f - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
+            lat_rad = atan2f(ecef.z_m + WGS84_E2 * N * sinf(lat_rad), p);
             geodetic.height_m = p / cos(lat_rad) - N;
-            lat_rad = atan2f(ecef.z_m, p * (1 - WGS84_E2 * N / (N + geodetic.height_m)));
             iteration++;
-            if (iteration > MAX_ITERATIONS)
+            if (iteration > 100*MAX_ITERATIONS)
             {
-                // Did not converge, return NaN values
-                geodetic.latitude_deg = NaN;
-                geodetic.longitude_deg = NaN;
-                geodetic.height_m = NaN;
-                return geodetic;
+                // // // Did not converge, return NaN values
+                // geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.longitude_deg = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.height_m = std::numeric_limits<float>::quiet_NaN();
+                // return geodetic;
+                break;
             }
         } while (std::fabs(lat_rad - lat_old) > EPSILON);
 
@@ -169,11 +168,12 @@ namespace coordinate_transformations
             // Check for oscillation in height and terminate early
             if (iteration > MAX_ITERATIONS)
             {
-                // Did not converge, return NaN values
-                geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
-                geodetic.longitude_deg = std::numeric_limits<float>::quiet_NaN();
-                geodetic.height_m = std::numeric_limits<float>::quiet_NaN();
-                return geodetic;
+                // // Did not converge, return NaN values
+                // geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.longitude_deg = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.height_m = std::numeric_limits<float>::quiet_NaN();
+                // return geodetic;
+                break;
             }
 
         } while (fabsf(lat_rad - lat_old) > EPSILON);

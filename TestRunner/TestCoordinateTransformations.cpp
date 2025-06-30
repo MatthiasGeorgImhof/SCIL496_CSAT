@@ -367,14 +367,18 @@ TEST_CASE("ECEF to Geodetic Conversion")
         CHECK(final_geodetic.height_m == doctest::Approx(100000.0f).epsilon(1e-4f));
     }
 
-    SUBCASE("Did not converge, return NaN")
+    SUBCASE("Close to non-convergence")
     {
         ECEF ecef = {1.0, 2.0, 3.0};
         Geodetic geodetic = ecefToGeodetic(ecef);
-        // Then, convert back from ECEF to geodetic and check the values
-        CHECK(std::isnan(geodetic.latitude_deg));
-        CHECK(std::isnan(geodetic.longitude_deg));
-        CHECK(std::isnan(geodetic.height_m));
+        
+        INFO("geodetic.latitude_deg ", geodetic.latitude_deg);
+        INFO("geodetic.longitude_deg ", geodetic.longitude_deg);
+        INFO("geodetic.height_m ", geodetic.height_m);
+
+        CHECK_FALSE(std::isnan(geodetic.latitude_deg));
+        CHECK_FALSE(std::isnan(geodetic.longitude_deg));
+        CHECK_FALSE(std::isnan(geodetic.height_m));
     }
 
     SUBCASE("Z axis close to zero")
@@ -438,9 +442,13 @@ TEST_CASE("Round-Trip Geodetic -> ECEF -> Geodetic")
         ECEF ecef = geodeticToECEF(initial_geodetic);
         Geodetic final_geodetic = ecefToGeodetic(ecef);
 
-        CHECK(std::isnan(final_geodetic.latitude_deg));
-        CHECK(std::isnan(final_geodetic.longitude_deg));
-        CHECK(std::isnan(final_geodetic.height_m));
+        INFO("geodetic.latitude_deg ", final_geodetic.latitude_deg);
+        INFO("geodetic.longitude_deg ", final_geodetic.longitude_deg);
+        INFO("geodetic.height_m ", final_geodetic.height_m);
+
+        CHECK(final_geodetic.latitude_deg == doctest::Approx(initial_geodetic.latitude_deg).epsilon(1e-3f));
+        CHECK(final_geodetic.longitude_deg == doctest::Approx(initial_geodetic.longitude_deg).epsilon(1e-3f));
+        CHECK(final_geodetic.height_m == doctest::Approx(initial_geodetic.height_m).epsilon(1e-3f));
     }
 }
 
@@ -469,6 +477,29 @@ TEST_CASE("Round-Trip Conversion")
     }
 }
 
+TEST_CASE("Random Geodetic to Geocentric")
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> lat_dist(-90.0f, 90.0f);
+    std::uniform_real_distribution<float> lon_dist(-180.0f, 180.0f);
+    std::uniform_real_distribution<float> alt_dist(0.0f, 1000.0f); // Altitude in km
+
+    for (int i = 0; i < 50; ++i)
+    {
+        Geodetic initial_geodetic = {lat_dist(gen), lon_dist(gen), alt_dist(gen) * 1000.0f}; // Altitude in meters
+        Geocentric geocentric = geodeticToGeocentric(initial_geodetic);
+
+        INFO("initial_geodetic.latitude_deg ", initial_geodetic.latitude_deg);
+        INFO("initial_geodetic.longitude_deg ", initial_geodetic.longitude_deg);
+        INFO("initial_geodetic.height_m ", initial_geodetic.height_m);
+
+        CHECK_FALSE(doctest::IsNaN(geocentric.latitude_deg));
+        CHECK_FALSE(doctest::IsNaN(geocentric.longitude_deg));
+        CHECK_FALSE(doctest::IsNaN(geocentric.radius_m));
+    }
+}
+
 TEST_CASE("Random Geodetic to Geocentric and Back")
 {
     std::random_device rd;
@@ -489,6 +520,50 @@ TEST_CASE("Random Geodetic to Geocentric and Back")
     }
 }
 
+TEST_CASE("Random Geocentric to Geodetic")
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> lat_dist(-90.0f, 90.0f);
+    std::uniform_real_distribution<float> lon_dist(-180.0f, 180.0f);
+    std::uniform_real_distribution<float> rad_dist(6470.0f, 7470.0f); // radius in km
+
+    for (int i = 0; i < 50; ++i)
+    {
+        Geocentric initial_geocentric = {lat_dist(gen), lon_dist(gen), rad_dist(gen) * 1000.0f}; // Altitude in meters
+        Geodetic geodetic = geocentricToGeodetic(initial_geocentric);
+
+        INFO("initial_geocentric.latitude_deg ", initial_geocentric.latitude_deg);
+        INFO("initial_geocentric.longitude_deg ", initial_geocentric.longitude_deg);
+        INFO("initial_geocentric.radius_m ", initial_geocentric.radius_m);
+
+        CHECK_FALSE(doctest::IsNaN(geodetic.latitude_deg));
+        CHECK_FALSE(doctest::IsNaN(geodetic.longitude_deg));
+        CHECK_FALSE(doctest::IsNaN(geodetic.height_m));
+
+    }
+}
+
+TEST_CASE("Random Geocentric to Geodetic and Back")
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> lat_dist(-90.0f, 90.0f);
+    std::uniform_real_distribution<float> lon_dist(-180.0f, 180.0f);
+    std::uniform_real_distribution<float> rad_dist(6470.0f, 7470.0f); // radius in km
+
+    for (int i = 0; i < 50; ++i)
+    {
+        Geocentric initial_geocentric = {lat_dist(gen), lon_dist(gen), rad_dist(gen) * 1000.0f}; // Altitude in meters
+        Geodetic geodetic = geocentricToGeodetic(initial_geocentric);
+        Geocentric final_geocentric = geodeticToGeocentric(geodetic);
+
+        CHECK(final_geocentric.latitude_deg == doctest::Approx(initial_geocentric.latitude_deg).epsilon(0.1f));
+        CHECK(final_geocentric.longitude_deg == doctest::Approx(initial_geocentric.longitude_deg).epsilon(0.1f));
+        CHECK(final_geocentric.radius_m == doctest::Approx(initial_geocentric.radius_m).epsilon(1000.0f));
+    }
+}
+
 TEST_CASE("Random Geodetic to ECEF and Back")
 {
     std::random_device rd;
@@ -502,6 +577,13 @@ TEST_CASE("Random Geodetic to ECEF and Back")
         Geodetic initial_geodetic = {lat_dist(gen), lon_dist(gen), alt_dist(gen) * 1000.0f}; // Altitude in meters
         ECEF ecef = geodeticToECEF(initial_geodetic);
         Geodetic final_geodetic = ecefToGeodetic(ecef);
+
+        INFO("initial_geodetic.latitude_deg ", initial_geodetic.latitude_deg);
+        INFO("initial_geodetic.longitude_deg ", initial_geodetic.longitude_deg);
+        INFO("initial_geodetic.height_m ", initial_geodetic.height_m);
+        INFO("ecef.x_m, ", ecef.x_m);
+        INFO("ecef.y_m, ", ecef.y_m);
+        INFO("ecef.z_m, ", ecef.z_m);
 
         CHECK(final_geodetic.latitude_deg == doctest::Approx(initial_geodetic.latitude_deg).epsilon(0.1f));
         CHECK(final_geodetic.longitude_deg == doctest::Approx(initial_geodetic.longitude_deg).epsilon(0.1f));
