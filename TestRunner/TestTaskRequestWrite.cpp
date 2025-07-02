@@ -13,7 +13,7 @@
 #include "cyphal.hpp"
 #include "loopard_adapter.hpp" // Or your specific adapter header
 #include "RegistrationManager.hpp"
-#include "UInt8Stream.hpp"
+#include "InputOutputStream.hpp"
 
 #include "uavcan/file/Write_1_1.h"
 #include "uavcan/primitive/Unstructured_1_0.h"
@@ -152,16 +152,6 @@ public:
     using TaskRequestWrite<ImageInputStream, Adapters...>::buffer_;
 };
 
-// uavcan_file_Write_Response_1_1 unpackResponse(CyphalTransfer transfer)
-// {
-//     uavcan_file_Write_Response_1_1 data {};
-//     size_t payload_size = transfer.payload_size;
-
-//     int retval = uavcan_file_Write_Response_1_1_deserialize_(&data, static_cast<const uint8_t *>(transfer.payload), &payload_size);
-//     (void) retval;
-//     return data;
-// }
-
 uavcan_file_Write_Response_1_1 unpackResponse(std::shared_ptr<CyphalTransfer> transfer)
 {
     uavcan_file_Write_Response_1_1 data {};
@@ -181,16 +171,6 @@ uavcan_file_Write_Request_1_1 unpackRequest(CyphalTransfer transfer)
     (void) retval;
     return data;
 }
-
-// uavcan_file_Write_Request_1_1 unpackRequest(std::shared_ptr<CyphalTransfer> transfer)
-// {
-//     uavcan_file_Write_Request_1_1 data {};
-//     size_t payload_size = transfer->payload_size;
-
-//     int retval = uavcan_file_Write_Request_1_1_deserialize_(&data, static_cast<const uint8_t *>(transfer->payload), &payload_size);
-//     (void) retval;
-//     return data;
-// }
 
 void *loopardMemoryAllocate(size_t amount) { return static_cast<void *>(malloc(amount)); };
 void loopardMemoryFree(void *pointer) { free(pointer); };

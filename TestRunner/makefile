@@ -27,6 +27,8 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCyphal.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphalSubscriptions.cpp \
+			 TestFileAccess.cpp \
+			 TestFileSource.cpp \
 			 TestGNSS.cpp \
 			 TestHalUtil.cpp \
 			 TestHSClockSwitch.cpp \
@@ -50,6 +52,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskProcessTimeSynchronization.cpp \
 			 TestTaskRegistrationSubscription.cpp \
 			 TestTaskRequestGetInfo.cpp \
+			 TestTaskRequestRead.cpp \
 			 TestTaskRespondWrite.cpp \
 			 TestTaskRequestWrite.cpp \
 			 TestTaskRespondGetInfo.cpp \
@@ -61,7 +64,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestSGP4TLE.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
-			 TestUInt8Stream.cpp \
+			 TestInputOutputStream.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
@@ -323,6 +326,15 @@ $(BIN_DIR)/TestTaskRespondWrite : $(BIN_DIR)/TestTaskRespondWrite.o $(BIN_DIR)/R
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRespondWrite.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestTaskRequestRead with extra sources
+$(BIN_DIR)/TestTaskRequestRead.o : TestTaskRequestRead.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskRequestRead : $(BIN_DIR)/TestTaskRequestRead.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRequestRead.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
 # Rule for TestTaskSendTimeSynchronization with extra sources
 $(BIN_DIR)/TestTaskSendTimeSynchronization.o : TestTaskSendTimeSynchronization.cpp
 	@echo "Compiling $<"
@@ -519,14 +531,14 @@ $(BIN_DIR)/TestSGP4TLE : $(BIN_DIR)/TestSGP4TLE.o $(BIN_DIR)/sgp4_tle.o
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestSGP4TLE.o $(BIN_DIR)/sgp4_tle.o $(LIBS)
 
-# Rule for TestUInt8Stream with extra sources
-$(BIN_DIR)/TestUInt8Stream.o : TestUInt8Stream.cpp
+# Rule for TestInputOutputStream with extra sources
+$(BIN_DIR)/TestInputOutputStream.o : TestInputOutputStream.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestUInt8Stream : $(BIN_DIR)/TestUInt8Stream.o $ $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestInputOutputStream : $(BIN_DIR)/TestInputOutputStream.o $ $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestUInt8Stream.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestInputOutputStream.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTimeUtils with extra sources
 $(BIN_DIR)/TestTimeUtils.o : TestTimeUtils.cpp

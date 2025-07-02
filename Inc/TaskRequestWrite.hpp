@@ -3,7 +3,7 @@
 
 #include "Task.hpp"
 #include "RegistrationManager.hpp"
-#include "UInt8Stream.hpp"
+#include "InputOutputStream.hpp"
 
 #include "nunavut_assert.h"
 #include "uavcan/file/Write_1_1.h"

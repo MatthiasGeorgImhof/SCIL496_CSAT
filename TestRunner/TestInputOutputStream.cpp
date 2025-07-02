@@ -2,7 +2,7 @@
 #include "doctest.h"
 #include "ImageBuffer.hpp"
 #include "CachedImageBuffer.hpp"
-#include "UInt8Stream.hpp"
+#include "InputOutputStream.hpp"
 
 #include "imagebuffer/accessor.hpp"
 #include "imagebuffer/DirectMemoryAccessor.hpp"
@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <iostream>
+#include <fstream> // for file I/O in tests
 
 // Mock Accessor for testing
 struct MockAccessor
@@ -86,7 +87,7 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
     SUBCASE("Test initialize") {
         size_t size = 2*sizeof(ImageMetadata);
         uint8_t meta[2*sizeof(ImageMetadata)];
-        stream.initialize(meta, size);
+        REQUIRE(stream.initialize(meta, size) == true);
         REQUIRE(size == sizeof(ImageMetadata));
         ImageMetadata *metadata_ = reinterpret_cast<ImageMetadata*>(meta);
         CHECK(metadata_->timestamp == metadata.timestamp);
@@ -107,10 +108,10 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
         size_t count = 0;
         size_t size = 2*sizeof(ImageMetadata);
         uint8_t chunk[2*sizeof(ImageMetadata)];
-        stream.initialize(chunk, size);
+        REQUIRE(stream.initialize(chunk, size) == true);
         size = 10; // Request a chunk of 10 bytes
 
-        stream.getChunk(chunk, size);
+        REQUIRE(stream.getChunk(chunk, size) == true);
         REQUIRE(size <= 10); // The actual size should be no more than 10
         REQUIRE(size != 0);
 
@@ -121,7 +122,7 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
         count += size;
 
         // Subsequent calls to getChunk
-        stream.getChunk(chunk, size);
+        REQUIRE(stream.getChunk(chunk, size) == true);
         REQUIRE(size <= 10); // The actual size should be no more than 10
         REQUIRE(size != 0);
         for (size_t i = 0; i < size; ++i) {
@@ -135,18 +136,18 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
         REQUIRE(stream.is_empty() == false);
         size_t size = 2*sizeof(ImageMetadata);
         uint8_t chunk[2*sizeof(ImageMetadata)];
-        stream.initialize(chunk, size);
+        REQUIRE(stream.initialize(chunk, size) == true);
         size_t stream_size = stream.size() - sizeof(ImageMetadata);
         while(stream_size > 0){
             size = std::min(chunk_size, stream_size);
-            stream.getChunk(chunk, size);
+            REQUIRE(stream.getChunk(chunk, size) == true);
             stream_size -= size;
         }
         CHECK(size==6);
         REQUIRE(stream.is_empty() == false);
 
         size = std::min(chunk_size, stream_size);
-        stream.getChunk(chunk, size);
+        REQUIRE(stream.getChunk(chunk, size) == true);
         CHECK(size==0);
         REQUIRE(stream.is_empty() == true);
 
@@ -178,7 +179,7 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
     SUBCASE("Test initialize") {
         size_t size = 2*sizeof(ImageMetadata);
         uint8_t meta[2*sizeof(ImageMetadata)];
-        stream.initialize(meta, size);
+        REQUIRE(stream.initialize(meta, size) == true);
         REQUIRE(size == sizeof(ImageMetadata));
         ImageMetadata *metadata_ = reinterpret_cast<ImageMetadata*>(meta);
         CHECK(metadata_->timestamp == metadata.timestamp);
@@ -199,10 +200,10 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
         size_t count = 0;
         size_t size = 2*sizeof(ImageMetadata);
         uint8_t chunk[2*sizeof(ImageMetadata)];
-        stream.initialize(chunk, size);
+        REQUIRE(stream.initialize(chunk, size) == true);
         size = 10; // Request a chunk of 10 bytes
 
-        stream.getChunk(chunk, size);
+        REQUIRE(stream.getChunk(chunk, size) == true);
         REQUIRE(size <= 10); // The actual size should be no more than 10
         REQUIRE(size != 0);
 
@@ -213,7 +214,7 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
         count += size;
 
         // Subsequent calls to getChunk
-        stream.getChunk(chunk, size);
+        REQUIRE(stream.getChunk(chunk, size) == true);
         REQUIRE(size <= 10); // The actual size should be no more than 10
         REQUIRE(size != 0);
         for (size_t i = 0; i < size; ++i) {
@@ -227,18 +228,18 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
         REQUIRE(stream.is_empty() == false);
         size_t size = 2*sizeof(ImageMetadata);
         uint8_t chunk[2*sizeof(ImageMetadata)];
-        stream.initialize(chunk, size);
+        REQUIRE(stream.initialize(chunk, size) == true);
         size_t stream_size = stream.size() - sizeof(ImageMetadata);
         while(stream_size > 0){
             size = std::min(chunk_size, stream_size);
-            stream.getChunk(chunk, size);
+            REQUIRE(stream.getChunk(chunk, size) == true);
             stream_size -= size;
         }
         CHECK(size==6);
         REQUIRE(stream.is_empty() == false);
 
         size = std::min(chunk_size, stream_size);
-        stream.getChunk(chunk, size);
+        REQUIRE(stream.getChunk(chunk, size) == true);
         CHECK(size==0);
         REQUIRE(stream.is_empty() == true);
 
@@ -252,13 +253,13 @@ TEST_CASE("TrivialOuputStream satisfies OutputStreamConcept") {
     size_t size = data.size();
 
     // Call the methods to ensure they exist and don't crash
-    stream.initialize(name);
-    stream.output(data.data(), size);
-    stream.finalize();
+    REQUIRE(stream.initialize(name) == true);
+    REQUIRE(stream.output(data.data(), size) == true);
+    REQUIRE(stream.finalize() == true);
 }
 
-TEST_CASE("OuputStreamToFile satisfies OutputStreamConcept") {
-    OuputStreamToFile stream;
+TEST_CASE("OutputStreamToFile satisfies OutputStreamConcept") {
+    OutputStreamToFile stream;
     std::array<char, NAME_LENGTH> name = {'t', 'e', 's', 't', '.', 't', 'x', 't', 0, 0, 0};
     std::vector<uint8_t> data(10);
     for(size_t i=0; i < data.size(); ++i){
@@ -267,9 +268,9 @@ TEST_CASE("OuputStreamToFile satisfies OutputStreamConcept") {
     size_t size = data.size();
 
     // Call the methods to ensure they exist and don't crash
-    stream.initialize(name);
-    stream.output(data.data(), size);
-    stream.finalize();
+    REQUIRE(stream.initialize(name) == true);
+    REQUIRE(stream.output(data.data(), size) == true);
+    REQUIRE(stream.finalize() == true);
 
     // You can add checks to verify specific behavior.
     // For example, you could check that the file was created and that the data was written to it.
@@ -282,4 +283,54 @@ TEST_CASE("OuputStreamToFile satisfies OutputStreamConcept") {
 
     file.close();
     remove(name.data());  // Clean up the file
+}
+
+TEST_CASE("FileInputStream satisfies InputStreamConcept") {
+    // Create a test file with some known content
+    std::string filename = "test_file.bin";
+    std::ofstream outfile(filename, std::ios::binary);
+    std::vector<uint8_t> test_data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A};
+    outfile.write(reinterpret_cast<const char*>(test_data.data()), test_data.size());
+    outfile.close();
+
+    FileInputStream stream(filename);
+
+    SUBCASE("Test is_empty") {
+        REQUIRE(stream.is_empty() == false);
+    }
+
+    SUBCASE("Test size") {
+        REQUIRE(stream.size() == test_data.size());
+    }
+
+    SUBCASE("Test name") {
+        std::array<char, NAME_LENGTH> expected_name;
+        strncpy(expected_name.data(), filename.c_str(), NAME_LENGTH - 1);
+        expected_name[NAME_LENGTH - 1] = '\0';
+        CHECK(memcmp(stream.name().data(), expected_name.data(), NAME_LENGTH) == 0);
+    }
+
+    SUBCASE("Test initialize and getChunk") {
+        constexpr size_t buffer_size = 5;
+        uint8_t buffer[buffer_size];
+        size_t size = buffer_size;
+
+        REQUIRE(stream.initialize(buffer, size) == true);
+        REQUIRE(size == buffer_size);
+        REQUIRE(memcmp(buffer, test_data.data(), size) == 0);
+
+        size = buffer_size;
+        REQUIRE(stream.getChunk(buffer, size) == true);
+        REQUIRE(size == 5);
+        REQUIRE(memcmp(buffer, test_data.data() + buffer_size, size) == 0);
+
+        size = buffer_size;
+        REQUIRE(stream.getChunk(buffer, size) == true);
+        REQUIRE(size == 0); // End of file
+    }
+
+    SUBCASE("Test finalize") {
+        REQUIRE(stream.finalize() == true);
+    }
+    remove(filename.c_str());  // Clean up the file
 }

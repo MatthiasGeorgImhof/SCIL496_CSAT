@@ -15,7 +15,7 @@
 #include "cyphal.hpp"
 #include "loopard_adapter.hpp" // Or your specific adapter header
 #include "RegistrationManager.hpp"
-#include "UInt8Stream.hpp"
+#include "InputOutputStream.hpp"
 
 #include "uavcan/file/Write_1_1.h"
 #include "uavcan/primitive/Unstructured_1_0.h"
@@ -125,17 +125,17 @@ public:
 };
 
 // Class to expose protected members for testing
-template <typename... Adapters>
-class MockTaskRespondWrite : public TaskRespondWrite<Adapters...>
+template <OutputStreamConcept Stream, typename... Adapters>
+class MockTaskRespondWrite : public TaskRespondWrite<Stream, Adapters...>
 {
 public:
-    MockTaskRespondWrite(uint32_t interval, uint32_t tick, std::tuple<Adapters...> &adapters)
-        : TaskRespondWrite<Adapters...>(interval, tick, adapters)
+    MockTaskRespondWrite(Stream &stream, uint32_t interval, uint32_t tick, std::tuple<Adapters...> &adapters)
+        : TaskRespondWrite<Stream, Adapters...>(stream, interval, tick, adapters)
     {
     }
 
-    using TaskRespondWrite<Adapters...>::handleTaskImpl;
-    using TaskRespondWrite<Adapters...>::buffer_;
+    using TaskRespondWrite<Stream, Adapters...>::handleTaskImpl;
+    using TaskRespondWrite<Stream, Adapters...>::buffer_;
 };
 
 uavcan_file_Write_Response_1_1 unpackResponse(std::shared_ptr<CyphalTransfer> transfer)
@@ -176,6 +176,7 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles small write")
     // Mock Buffer and Stream
     MockBuffer mock_buffer;
     MockImageInputStream<MockBuffer> mock_stream(mock_buffer, 16);
+    TrivialOuputStream output;
 
     // Task parameters
     CyphalNodeID node_id = 42;
@@ -184,7 +185,7 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles small write")
     uint32_t interval = 1000;
 
     MockTaskRequestWrite task_request(mock_stream, interval, tick, node_id, transfer_id, adapters);
-    MockTaskRespondWrite task_response(interval, tick, adapters);
+    MockTaskRespondWrite task_response(output, interval, tick, adapters);
 
     // Prepare test data and metadata
     std::vector<uint8_t> test_data(24);
@@ -272,6 +273,7 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles large write")
     // Mock Buffer and Stream
     MockBuffer mock_buffer;
     MockImageInputStream<MockBuffer> mock_stream(mock_buffer, 16);
+    TrivialOuputStream output;
 
     // Task parameters
     CyphalNodeID node_id = 42;
@@ -280,7 +282,7 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles large write")
     uint32_t interval = 1000;
 
     MockTaskRequestWrite task_request(mock_stream, interval, tick, node_id, transfer_id, adapters);
-    MockTaskRespondWrite task_response(interval, tick, adapters);
+    MockTaskRespondWrite task_response(output, interval, tick, adapters);
 
     // Prepare test data and metadata
     std::vector<uint8_t> test_data(400);
