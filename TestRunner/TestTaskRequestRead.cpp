@@ -36,17 +36,41 @@ void loopardMemoryFree(void *pointer) { free(pointer); };
 //     using TaskRequestRead<FileSource, OutputStream, Adapters...>::buffer_;
 // };
 
-// // Class to expose protected members for testing
-// template <FileAccessConcept Accessor, typename... Adapters>
-// class MockTaskRespondRead : public TaskRespondRead<Accessor, Adapters...>
-// {
-// public:
-//     MockTaskRespondRead(Accessor &accessor, uint32_t interval, uint32_t tick, CyphalNodeID node_id, std::tuple<Adapters...> &adapters)
-//         : TaskRespondRead<Accessor, Adapters...>(accessor, interval, tick, node_id, adapters) {}
+// Class to expose protected members for testing
+template <FileAccessConcept Accessor, typename... Adapters>
+class RespondWithError : public TaskRespondRead<Accessor, Adapters...>
+{
+public:
+    RespondWithError() = delete;
+    RespondWithError(Accessor& accessor, uint32_t interval, uint32_t tick, std::tuple<Adapters...> &adapters)
+        : TaskRespondRead<Accessor, Adapters...>(accessor, interval, tick, adapters) {}
 
-//     using TaskRespondRead<Accessor, Adapters...>::handleTaskImpl;
-//     using TaskRespondRead<Accessor, Adapters...>::buffer_;
-// };
+    void handleTaskImpl()
+    {
+        if (TaskForServer<Adapters...>::buffer_.is_empty())
+            return;
+
+        std::shared_ptr<CyphalTransfer> transfer = TaskForServer<Adapters...>::buffer_.pop();
+        if (transfer->metadata.transfer_kind != CyphalTransferKindRequest)
+        {
+            log(LOG_LEVEL_ERROR, "TaskRespondRead: Expected Request transfer kind\r\n");
+            return;
+        }
+
+        uavcan_file_Read_Response_1_1 response_data = {}; // Initialize
+
+        // Read from the file
+        response_data.data.value.count = 0; // No data
+        response_data._error.value = uavcan_file_Error_1_0_IO_ERROR;
+
+        // Serialize and publish the response
+        constexpr size_t PAYLOAD_SIZE = uavcan_file_Read_Response_1_1_SERIALIZATION_BUFFER_SIZE_BYTES_;
+        uint8_t payload[PAYLOAD_SIZE];
+        TaskForServer<Adapters...>::publish(PAYLOAD_SIZE, payload, &response_data,
+                                            reinterpret_cast<int8_t (*)(const void *const, uint8_t *const, size_t *const)>(uavcan_file_Read_Response_1_1_serialize_),
+                                            transfer->metadata.port_id, transfer->metadata.remote_node_id, transfer->metadata.transfer_id);
+    }
+};
 
 class MockFileSource
 {
@@ -216,12 +240,12 @@ TEST_CASE("TaskRequestRead - Handles a simple Read Request")
     TaskRespondRead respond(accessor, 1000, 0, adapters);
     request.handleTaskImpl();
     CHECK(output_stream.getReceivedData().size() == 0);
-    
+
     REQUIRE(loopard.buffer.size() == 1);
     auto transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
     respond.handleMessage(transfer);
     respond.handleTaskImpl();
-    
+
     REQUIRE(loopard.buffer.size() == 1);
     transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
     request.handleMessage(transfer);
@@ -272,7 +296,195 @@ TEST_CASE("TaskRequestRead - Handles a simple Read Request")
     request.handleTaskImpl();
     CHECK(output_stream.getReceivedData().size() == 1024);
     CHECK(output_stream.isFinalized());
+}
+
+TEST_CASE("TaskRequestRead - Handles a Read Request with Errors")
+{
+    // Setup
+    LoopardAdapter loopard;
+    loopard.memory_allocate = loopardMemoryAllocate;
+    loopard.memory_free = loopardMemoryFree;
+    Cyphal<LoopardAdapter> loopard_cyphal(&loopard);
+    loopard_cyphal.setNodeID(11);
+
+    std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
+
+    // These do nothing yet so there is little impact what they are doing
+    MockFileSource file_source("hello");
+    MockOutputStream output_stream;
+    MockAccessor accessor;
+
+    TaskRequestRead request(file_source, output_stream, 1000, 0, 42, 7, adapters);
+    TaskRespondRead respond(accessor, 1000, 0, adapters);
+    RespondWithError error(accessor, 1000, 0, adapters);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 0);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    auto transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    error.handleMessage(transfer);
+    error.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 0);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 256);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    error.handleMessage(transfer);
+    error.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 256);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 512);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 768);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 1024);
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    error.handleMessage(transfer);
+    error.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 1024);
+    CHECK_FALSE(output_stream.isFinalized());
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == 1024);
+    CHECK(output_stream.isFinalized());
+}
+
+TEST_CASE("TaskRequestRead - Handles a short file") {
+    // Setup (same as before, but with an empty file)
+    MockFileSource file_source("");
+    MockOutputStream output_stream;
+    LoopardAdapter loopard;
+    loopard.memory_allocate = loopardMemoryAllocate;
+    loopard.memory_free = loopardMemoryFree;
+    Cyphal<LoopardAdapter> loopard_cyphal(&loopard);
+    loopard_cyphal.setNodeID(11);
+
+    constexpr size_t size = 11;
+    std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
+    MockAccessor accessor(size);
+
+    TaskRequestRead request(file_source, output_stream, 1000, 0, 42, 7, adapters);
+    TaskRespondRead respond(accessor, 1000, 0, adapters);
+
+    // Act
+    request.handleTaskImpl();
+    REQUIRE(loopard.buffer.size() == 1);
+    auto transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == size);
+
+    // Finalize
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+    CHECK(output_stream.getReceivedData().size() == size);
+    CHECK(output_stream.isFinalized());
+}
 
 
+TEST_CASE("TaskRequestRead - Handles a zero-length file") {
+    // Setup (same as before, but with an empty file)
+    MockFileSource file_source("");
+    MockOutputStream output_stream;
+    LoopardAdapter loopard;
+    loopard.memory_allocate = loopardMemoryAllocate;
+    loopard.memory_free = loopardMemoryFree;
+    Cyphal<LoopardAdapter> loopard_cyphal(&loopard);
+    loopard_cyphal.setNodeID(11);
 
+    std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
+    MockAccessor accessor(0);
+
+    TaskRequestRead request(file_source, output_stream, 1000, 0, 42, 7, adapters);
+    TaskRespondRead respond(accessor, 1000, 0, adapters);
+
+    // Act
+    request.handleTaskImpl();
+    REQUIRE(loopard.buffer.size() == 1);
+    auto transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    respond.handleMessage(transfer);
+    respond.handleTaskImpl();
+
+    REQUIRE(loopard.buffer.size() == 1);
+    transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
+    request.handleMessage(transfer);
+    request.handleTaskImpl();
+
+    // Assert
+    CHECK(output_stream.getReceivedData().empty()); // Should receive no data
+    CHECK(output_stream.isFinalized());          // Should be finalized immediately
 }
