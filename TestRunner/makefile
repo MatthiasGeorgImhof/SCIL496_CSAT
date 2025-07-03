@@ -19,6 +19,7 @@ LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
 TEST_FILES = TestArrayList.cpp \
+			 TestBlobStore.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
 			 TestCachedImageBuffer.cpp \
