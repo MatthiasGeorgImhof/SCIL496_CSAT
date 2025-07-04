@@ -51,6 +51,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskBlinkLED.cpp \
 			 TestTaskCheckMemory.cpp \
 			 TestTaskProcessTimeSynchronization.cpp \
+			 TestTaskRegisterServer.cpp \
 			 TestTaskRegistrationSubscription.cpp \
 			 TestTaskRequestGetInfo.cpp \
 			 TestTaskRequestRead.cpp \
@@ -81,6 +82,7 @@ HAL_TEST_FILES =   tests/test_hal_can.cpp \
 				   tests/test_hal_misc.cpp 
 
 SRC_FILES = ../Src/coordiate_transformations.cpp \
+			../Src/cyphal.cpp \
 			../Src/GNSS.cpp \
 			../Src/HSClockSwitch.cpp \
 			../Src/ImageBuffer.cpp \
@@ -263,6 +265,19 @@ $(BIN_DIR)/TestTaskRegistrationSubscription.o : TestTaskRegistrationSubscription
 $(BIN_DIR)/TestTaskRegistrationSubscription : $(BIN_DIR)/TestTaskRegistrationSubscription.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/ServiceManager.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRegistrationSubscription.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/ServiceManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTaskRegisterServer with extra sources
+$(BIN_DIR)/TestTaskRegisterServer.o : TestTaskRegisterServer.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/cyphal.o : ../Src/cyphal.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskRegisterServer : $(BIN_DIR)/TestTaskRegisterServer.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/cyphal.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskRegisterServer.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/cyphal.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskSendHeartBeat with extra sources
 $(BIN_DIR)/TestTaskSendHeartBeat.o : TestTaskSendHeartBeat.cpp

@@ -84,8 +84,6 @@ public:
     SPIBlobStoreAccess(size_t flash_size, uint8_t *memory)
         : flash_size_(flash_size), spi_memory_(memory), is_valid_(memory != nullptr)
     {
-        if (is_valid_)
-            std::memset(spi_memory_, 0xFF, flash_size_);
     }
 
     bool read(size_t offset, uint8_t *buffer, size_t size) const
@@ -122,30 +120,30 @@ class BlobStore
 public:
     explicit BlobStore(AccessType access) : access_(access) {}
 
-    template <auto MemberPtr>
-    bool read_blob(uint8_t *buffer, size_t buffer_size)
+    bool write_blob(const uint8_t *data, size_t &data_size, auto member_ptr)
     {
         const BlobStruct *obj = nullptr;
-        std::size_t offset = reinterpret_cast<std::size_t>(&(obj->*MemberPtr));
-        std::size_t size = sizeof(std::remove_reference_t<decltype(obj->*MemberPtr)>);
+        size_t offset = reinterpret_cast<size_t>(&(obj->*member_ptr));
+        size_t size = sizeof(std::remove_reference_t<decltype(obj->*member_ptr)>);
 
-        if (buffer_size != size)
+        if (data_size > size)
             return false;
+        data_size = size;
 
-        return access_.read(offset, buffer, buffer_size);
+        return this->access_.write(offset, data, data_size);
     }
 
-    template <auto MemberPtr>
-    bool write_blob(const uint8_t *data, size_t data_size)
+    bool read_blob(uint8_t *buffer, size_t &buffer_size, auto member_ptr)
     {
         const BlobStruct *obj = nullptr;
-        std::size_t offset = reinterpret_cast<std::size_t>(&(obj->*MemberPtr));
-        std::size_t size = sizeof(std::remove_reference_t<decltype(obj->*MemberPtr)>);
+        size_t offset = reinterpret_cast<size_t>(&(obj->*member_ptr));
+        size_t size = sizeof(std::remove_reference_t<decltype(obj->*member_ptr)>);
 
-        if (data_size != size)
+        if (buffer_size < size)
             return false;
+        buffer_size = size;
 
-        return access_.write(offset, data, data_size);
+        return this->access_.read(offset, buffer, buffer_size);
     }
 
 private:
@@ -164,39 +162,35 @@ public:
     NamedBlobStore(AccessType access, const std::array<MemberInfo, MapSize> &blob_map)
         : BlobStore<AccessType, BlobStruct>(access), blob_map_(blob_map) {}
 
-    bool write_blob_by_name(const std::string &name, const uint8_t *data, size_t size)
+    bool write_blob_by_name(const std::string &name, const uint8_t *data, size_t &size)
     {
         for (const auto &entry : blob_map_)
         {
             if (entry.name == name)
             {
-                if (entry.member_ptr.index() == 0)
-                {
-                    return BlobStore<AccessType, BlobStruct>::template write_blob<&BlobStruct::blob1>(data, size);
-                }
-                else
-                {
-                    return BlobStore<AccessType, BlobStruct>::template write_blob<&BlobStruct::blob2>(data, size);
-                }
+                return std::visit(
+                    [&](auto ptr)
+                    {
+                        return this->write_blob(data, size, ptr);
+                    },
+                    entry.member_ptr);
             }
         }
         return false; // Not found
     }
 
-    bool read_blob_by_name(const std::string &name, uint8_t *data, size_t size)
+    bool read_blob_by_name(const std::string &name, uint8_t *data, size_t &size)
     {
         for (const auto &entry : blob_map_)
         {
             if (entry.name == name)
             {
-                if (entry.member_ptr.index() == 0)
-                {
-                    return BlobStore<AccessType, BlobStruct>::template read_blob<&BlobStruct::blob1>(data, size);
-                }
-                else
-                {
-                    return BlobStore<AccessType, BlobStruct>::template read_blob<&BlobStruct::blob2>(data, size);
-                }
+                return std::visit(
+                    [&](auto ptr)
+                    {
+                        return this->read_blob(data, size, ptr);
+                    },
+                    entry.member_ptr);
             }
         }
         return false; // Not found
