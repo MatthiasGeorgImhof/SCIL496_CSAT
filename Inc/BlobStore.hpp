@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
-#include <string>
+#include <string_view>
 #include <type_traits>
 #include <bit>
 #include <concepts>
@@ -28,8 +28,8 @@ concept BlobStoreAccess = requires(T access, size_t offset, uint8_t* buffer, siz
 // ---------------------------
 class FileBlobStoreAccess {
 public:
-    FileBlobStoreAccess(const std::string& filename, size_t flash_size)
-        : filename_(filename), flash_size_(flash_size), is_valid_(initialize_flash()) {}
+    FileBlobStoreAccess(const std::string_view& filename, size_t flash_size)
+        : filename_(std::string(filename)), flash_size_(flash_size), is_valid_(initialize_flash()) {}
 
     bool read(size_t offset, uint8_t* buffer, size_t size) const {
         if (!is_valid_ || offset + size > flash_size_) return false;
@@ -121,7 +121,7 @@ protected:
 // 🏷️ Named BlobStore 
 // -----------------------------------
 struct BlobMemberInfo {
-    std::string name;
+    std::string_view name;
     size_t offset;
     size_t size;
 };
@@ -134,7 +134,7 @@ public:
     NamedBlobStore(AccessType access, const std::array<MemberInfo, MapSize>& blob_map)
         : BlobStore<AccessType, BlobStruct>(access), blob_map_(blob_map) {}
 
-    bool write_blob_by_name(const std::string& name, const uint8_t* data, size_t data_size) {
+    bool write_blob_by_name(const std::string_view& name, const uint8_t* data, size_t data_size) {
         for (const auto& entry : blob_map_) {
             if (entry.name == name) {
                 return this->write_blob(data, data_size, entry.offset, entry.size);
@@ -143,7 +143,7 @@ public:
         return false;
     }
 
-    std::span<uint8_t> read_blob_by_name(const std::string& name, uint8_t* buffer, size_t buffer_size) {
+    std::span<uint8_t> read_blob_by_name(const std::string_view& name, uint8_t* buffer, size_t buffer_size) {
         for (const auto& entry : blob_map_) {
             if (entry.name == name) {
                 if (this->read_blob(buffer, buffer_size, entry.offset, entry.size)) {

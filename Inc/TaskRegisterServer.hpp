@@ -70,11 +70,10 @@ void TaskRegisterServer<Accessor, Dictionary, MapSize, Adapters...>::processRequ
     
     const std::string_view key(reinterpret_cast<const char*>(request_data.name.name.elements),
                                request_data.name.name.count);
-    std::string name{key};
 
     if (uavcan_register_Value_1_0_is_unstructured_(&request_data.value)) {
         size_t size = request_data.value.unstructured.value.count;
-        named_store_.write_blob_by_name(name, request_data.value.unstructured.value.elements, size);
+        named_store_.write_blob_by_name(key, request_data.value.unstructured.value.elements, size);
     }
 
     response_data.timestamp.microsecond = 1234567890;
@@ -85,7 +84,7 @@ void TaskRegisterServer<Accessor, Dictionary, MapSize, Adapters...>::processRequ
     auto max_size = sizeof(response_data.value.unstructured.value.elements);
     response_data.value.unstructured.value.count = max_size;
 
-    auto span = named_store_.read_blob_by_name(name, response_data.value.unstructured.value.elements, max_size);
+    auto span = named_store_.read_blob_by_name(key, response_data.value.unstructured.value.elements, max_size);
     response_data.value.unstructured.value.count = span.size();
 }
 
