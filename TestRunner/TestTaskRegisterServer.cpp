@@ -17,21 +17,22 @@
 #include <iostream>
 #include <string_view>
 
+constexpr uint8_t UAVCAN_PRIMITIVE_UNSTRUCTURED_1_0 = 2U;
+
 struct BlobStoreDirectory
 {
     uint8_t blob1[10]; // Example blob
-    uint8_t blob2[12]; // Example blob
+    uint8_t blob2[12]; // Example 
+    
+    enum class FieldIndex : size_t
+    {
+        blob1,
+        blob2
+    };
 };
 
-template <typename BlobStruct>
-struct MemberInfo
-{
-    std::string_view name;
-    std::variant<
-        decltype(&BlobStruct::blob1),
-        decltype(&BlobStruct::blob2)>
-        member_ptr;
-};
+static constexpr std::array<BlobMemberInfo, 2> blob_map = {{{"blob1", offsetof(BlobStoreDirectory, blob1), sizeof(BlobStoreDirectory::blob1)},
+                                                            {"blob2", offsetof(BlobStoreDirectory, blob2), sizeof(BlobStoreDirectory::blob2)}}};
 
 void *loopardMemoryAllocate(size_t amount) { return static_cast<void *>(malloc(amount)); };
 void loopardMemoryFree(void *pointer) { free(pointer); };
@@ -55,17 +56,12 @@ TEST_CASE("TaskRegisterServer Tests")
     SPIBlobStoreAccess memory_access(flash_size, memory);
     REQUIRE(memory_access.isValid());
 
-    static constexpr std::array<MemberInfo<BlobStoreDirectory>, 2> my_blob_map = {
-        {{std::string_view("blob1", 5), &BlobStoreDirectory::blob1}, // Corrected initialization
-         {std::string_view("blob2", 5), &BlobStoreDirectory::blob2}} // Corrected initialization
-    };
-
-    NamedBlobStore<SPIBlobStoreAccess, BlobStoreDirectory, MemberInfo<BlobStoreDirectory>, my_blob_map.size()> named_store(memory_access, my_blob_map);
+    NamedBlobStore<SPIBlobStoreAccess, BlobStoreDirectory, BlobMemberInfo, blob_map.size()> named_store(memory_access, blob_map);
     uint32_t interval = 100;
     uint32_t tick = 0;
 
     // Create TaskRegisterServer
-    TaskRegisterServer<SPIBlobStoreAccess, BlobStoreDirectory, MemberInfo<BlobStoreDirectory>, my_blob_map.size(), Cyphal<LoopardAdapter>>
+    TaskRegisterServer<SPIBlobStoreAccess, BlobStoreDirectory, blob_map.size(), Cyphal<LoopardAdapter>>
         task_register_server(named_store, memory_access, interval, tick, adapters);
 
     const uint8_t test_data1[] = {'!', 'T', 'e', 's', 't', 'D', 'a', 't', 'a', '!'};
@@ -96,7 +92,7 @@ TEST_CASE("TaskRegisterServer Tests")
         uavcan_register_Access_Response_1_0 access_response;
         unpackTransfer(&response, reinterpret_cast<int8_t (*)(uint8_t *, const uint8_t *, size_t *)>(uavcan_register_Access_Response_1_0_deserialize_), reinterpret_cast<uint8_t *>(&access_response));
         
-        CHECK(access_response.value._tag_ == 2U);
+        CHECK(access_response.value._tag_ == UAVCAN_PRIMITIVE_UNSTRUCTURED_1_0);
         CHECK(access_response.value.unstructured.value.count == sizeof(BlobStoreDirectory::blob1));
         CHECK_FALSE(strncmp(reinterpret_cast<const char*>(access_response.value.unstructured.value.elements), reinterpret_cast<const char*>(store.blob1), sizeof(BlobStoreDirectory::blob1)));
     }
@@ -108,7 +104,7 @@ TEST_CASE("TaskRegisterServer Tests")
 
         uavcan_register_Access_Request_1_0 access_request{
             .name = {.name = {.elements = "blob1", .count = 5}},
-            .value = {.unstructured = {.value = {.elements = {}, .count = 7}}, ._tag_ = 2U}};
+            .value = {.unstructured = {.value = {.elements = {}, .count = 7}}, ._tag_ = UAVCAN_PRIMITIVE_UNSTRUCTURED_1_0}};
         memcpy(access_request.value.unstructured.value.elements, "01234578", sizeof("01234578"));
 
         REQUIRE(loopard.buffer.size() == 0);
@@ -123,7 +119,7 @@ TEST_CASE("TaskRegisterServer Tests")
         uavcan_register_Access_Response_1_0 access_response;
         unpackTransfer(&response, reinterpret_cast<int8_t (*)(uint8_t *, const uint8_t *, size_t *)>(uavcan_register_Access_Response_1_0_deserialize_), reinterpret_cast<uint8_t *>(&access_response));
         
-        CHECK(access_response.value._tag_ == 2U);
+        CHECK(access_response.value._tag_ == UAVCAN_PRIMITIVE_UNSTRUCTURED_1_0);
         CHECK(access_response.value.unstructured.value.count == sizeof(BlobStoreDirectory::blob1));
         CHECK_FALSE(strncmp(reinterpret_cast<const char*>(access_response.value.unstructured.value.elements), reinterpret_cast<const char*>(store.blob1), sizeof(BlobStoreDirectory::blob1)));
     }
@@ -135,7 +131,7 @@ TEST_CASE("TaskRegisterServer Tests")
 
         uavcan_register_Access_Request_1_0 access_request{
             .name = {.name = {.elements = "blob2", .count = 5}},
-            .value = {.unstructured = {.value = {.elements = {}, .count = 7}}, ._tag_ = 2U}};
+            .value = {.unstructured = {.value = {.elements = {}, .count = 7}}, ._tag_ = UAVCAN_PRIMITIVE_UNSTRUCTURED_1_0}};
         memcpy(access_request.value.unstructured.value.elements, "AASSDDFFGG", sizeof("AASSDDFFGG"));
 
         REQUIRE(loopard.buffer.size() == 0);
@@ -150,7 +146,7 @@ TEST_CASE("TaskRegisterServer Tests")
         uavcan_register_Access_Response_1_0 access_response;
         unpackTransfer(&response, reinterpret_cast<int8_t (*)(uint8_t *, const uint8_t *, size_t *)>(uavcan_register_Access_Response_1_0_deserialize_), reinterpret_cast<uint8_t *>(&access_response));
         
-        CHECK(access_response.value._tag_ == 2U);
+        CHECK(access_response.value._tag_ == UAVCAN_PRIMITIVE_UNSTRUCTURED_1_0);
         CHECK(access_response.value.unstructured.value.count == sizeof(BlobStoreDirectory::blob2));
         CHECK_FALSE(strncmp(reinterpret_cast<const char*>(access_response.value.unstructured.value.elements), reinterpret_cast<const char*>(store.blob2), sizeof(BlobStoreDirectory::blob2)));
     }

@@ -10,14 +10,14 @@
 #include <bit>
 #include <concepts>
 #include <array>
-#include <variant>
 #include <iostream>
+#include <span>
 
 // --------------------
 // 📐 BlobStoreAccess Concept
 // --------------------
 template <typename T>
-concept BlobStoreAccess = requires(T access, size_t offset, uint8_t *buffer, size_t buffer_size, const uint8_t *const_buffer, size_t const_buffer_size) {
+concept BlobStoreAccess = requires(T access, size_t offset, uint8_t* buffer, size_t buffer_size, const uint8_t* const_buffer, size_t const_buffer_size) {
     { access.read(offset, buffer, buffer_size) } -> std::same_as<bool>;
     { access.write(offset, const_buffer, const_buffer_size) } -> std::same_as<bool>;
     { access.get_flash_size() } -> std::convertible_to<size_t>;
@@ -26,33 +26,26 @@ concept BlobStoreAccess = requires(T access, size_t offset, uint8_t *buffer, siz
 // ---------------------------
 // 💾 File-based Flash Backend
 // ---------------------------
-class FileBlobStoreAccess
-{
+class FileBlobStoreAccess {
 public:
-    FileBlobStoreAccess(const std::string &filename, size_t flash_size)
+    FileBlobStoreAccess(const std::string& filename, size_t flash_size)
         : filename_(filename), flash_size_(flash_size), is_valid_(initialize_flash()) {}
 
-    bool read(size_t offset, uint8_t *buffer, size_t size) const
-    {
-        if (!is_valid_ || offset + size > flash_size_)
-            return false;
+    bool read(size_t offset, uint8_t* buffer, size_t size) const {
+        if (!is_valid_ || offset + size > flash_size_) return false;
         std::ifstream file(filename_, std::ios::binary);
-        if (!file)
-            return false;
+        if (!file) return false;
         file.seekg(offset);
-        file.read(reinterpret_cast<char *>(buffer), size);
+        file.read(reinterpret_cast<char*>(buffer), size);
         return file.gcount() == static_cast<std::streamsize>(size);
     }
 
-    bool write(size_t offset, const uint8_t *data, size_t size)
-    {
-        if (!is_valid_ || offset + size > flash_size_)
-            return false;
+    bool write(size_t offset, const uint8_t* data, size_t size) {
+        if (!is_valid_ || offset + size > flash_size_) return false;
         std::fstream file(filename_, std::ios::binary | std::ios::in | std::ios::out);
-        if (!file)
-            return false;
+        if (!file) return false;
         file.seekp(offset);
-        file.write(reinterpret_cast<const char *>(data), size);
+        file.write(reinterpret_cast<const char*>(data), size);
         return !file.fail();
     }
 
@@ -60,11 +53,9 @@ public:
     bool isValid() const { return is_valid_; }
 
 private:
-    bool initialize_flash()
-    {
+    bool initialize_flash() {
         std::ofstream file(filename_, std::ios::binary);
-        if (!file)
-            return false;
+        if (!file) return false;
         file.seekp(flash_size_ - 1);
         file.write("\0", 1);
         return !file.fail();
@@ -78,26 +69,19 @@ private:
 // ----------------------------------
 // 🔌 RAM-Emulated SPI Flash Backend
 // ----------------------------------
-class SPIBlobStoreAccess
-{
+class SPIBlobStoreAccess {
 public:
-    SPIBlobStoreAccess(size_t flash_size, uint8_t *memory)
-        : flash_size_(flash_size), spi_memory_(memory), is_valid_(memory != nullptr)
-    {
-    }
+    SPIBlobStoreAccess(size_t flash_size, uint8_t* memory)
+        : flash_size_(flash_size), spi_memory_(memory), is_valid_(memory != nullptr) {}
 
-    bool read(size_t offset, uint8_t *buffer, size_t size) const
-    {
-        if (!is_valid_ || offset + size > flash_size_)
-            return false;
+    bool read(size_t offset, uint8_t* buffer, size_t size) const {
+        if (!is_valid_ || offset + size > flash_size_) return false;
         std::memcpy(buffer, spi_memory_ + offset, size);
         return true;
     }
 
-    bool write(size_t offset, const uint8_t *data, size_t size)
-    {
-        if (!is_valid_ || offset + size > flash_size_)
-            return false;
+    bool write(size_t offset, const uint8_t* data, size_t size) {
+        if (!is_valid_ || offset + size > flash_size_) return false;
         std::memcpy(spi_memory_ + offset, data, size);
         return true;
     }
@@ -107,7 +91,7 @@ public:
 
 private:
     size_t flash_size_;
-    uint8_t *spi_memory_;
+    uint8_t* spi_memory_;
     bool is_valid_;
 };
 
@@ -115,89 +99,73 @@ private:
 // 📦 Generic BlobStore Interface
 // ------------------------------
 template <BlobStoreAccess AccessType, typename BlobStruct>
-class BlobStore
-{
+class BlobStore {
 public:
     explicit BlobStore(AccessType access) : access_(access) {}
 
-    bool write_blob(const uint8_t *data, size_t &data_size, auto member_ptr)
-    {
-        const BlobStruct *obj = nullptr;
-        size_t offset = reinterpret_cast<size_t>(&(obj->*member_ptr));
-        size_t size = sizeof(std::remove_reference_t<decltype(obj->*member_ptr)>);
-
-        if (data_size > size)
-            return false;
-        data_size = size;
-
-        return this->access_.write(offset, data, data_size);
+    bool write_blob(const uint8_t* data, size_t data_size, size_t offset, size_t array_size) {
+        if (data_size > array_size) return false;
+        return access_.write(offset, data, data_size);
     }
 
-    bool read_blob(uint8_t *buffer, size_t &buffer_size, auto member_ptr)
-    {
-        const BlobStruct *obj = nullptr;
-        size_t offset = reinterpret_cast<size_t>(&(obj->*member_ptr));
-        size_t size = sizeof(std::remove_reference_t<decltype(obj->*member_ptr)>);
-
-        if (buffer_size < size)
-            return false;
-        buffer_size = size;
-
-        return this->access_.read(offset, buffer, buffer_size);
+    bool read_blob(uint8_t* buffer, size_t buffer_size, size_t offset, size_t array_size) {
+        if (buffer_size < array_size) return false;
+        return access_.read(offset, buffer, array_size);
     }
 
-private:
+protected:
     AccessType access_;
 };
 
 // -----------------------------------
-// 🏷️ Named BlobStore (with std::array)
+// 🏷️ Named BlobStore 
 // -----------------------------------
-template <BlobStoreAccess AccessType, typename BlobStruct, typename MemberInfo, size_t MapSize>
-class NamedBlobStore : public BlobStore<AccessType, BlobStruct>
-{
-public:
-    using BlobStore<AccessType, BlobStruct>::BlobStore; // Inherit constructors
+struct BlobMemberInfo {
+    std::string name;
+    size_t offset;
+    size_t size;
+};
 
-    NamedBlobStore(AccessType access, const std::array<MemberInfo, MapSize> &blob_map)
+template <BlobStoreAccess AccessType, typename BlobStruct, typename MemberInfo, size_t MapSize>
+class NamedBlobStore : public BlobStore<AccessType, BlobStruct> {
+public:
+    using BlobStore<AccessType, BlobStruct>::BlobStore;
+
+    NamedBlobStore(AccessType access, const std::array<MemberInfo, MapSize>& blob_map)
         : BlobStore<AccessType, BlobStruct>(access), blob_map_(blob_map) {}
 
-    bool write_blob_by_name(const std::string &name, const uint8_t *data, size_t &size)
-    {
-        for (const auto &entry : blob_map_)
-        {
-            if (entry.name == name)
-            {
-                return std::visit(
-                    [&](auto ptr)
-                    {
-                        return this->write_blob(data, size, ptr);
-                    },
-                    entry.member_ptr);
+    bool write_blob_by_name(const std::string& name, const uint8_t* data, size_t data_size) {
+        for (const auto& entry : blob_map_) {
+            if (entry.name == name) {
+                return this->write_blob(data, data_size, entry.offset, entry.size);
             }
         }
-        return false; // Not found
+        return false;
     }
 
-    bool read_blob_by_name(const std::string &name, uint8_t *data, size_t &size)
-    {
-        for (const auto &entry : blob_map_)
-        {
-            if (entry.name == name)
-            {
-                return std::visit(
-                    [&](auto ptr)
-                    {
-                        return this->read_blob(data, size, ptr);
-                    },
-                    entry.member_ptr);
+    std::span<uint8_t> read_blob_by_name(const std::string& name, uint8_t* buffer, size_t buffer_size) {
+        for (const auto& entry : blob_map_) {
+            if (entry.name == name) {
+                if (this->read_blob(buffer, buffer_size, entry.offset, entry.size)) {
+                    return std::span<uint8_t>(buffer, entry.size);
+                } else {
+                    return std::span<uint8_t>(buffer, 0);
+                }
             }
         }
-        return false; // Not found
+        return std::span<uint8_t>(buffer, 0);
+    }
+
+    bool direct_read_blob(uint8_t* buffer, size_t buffer_size, size_t offset, size_t array_size) {
+        return this->read_blob(buffer, buffer_size, offset, array_size);
+    }
+
+    bool direct_write_blob(const uint8_t* data, size_t data_size, size_t offset, size_t array_size) {
+        return this->write_blob(data, data_size, offset, array_size);
     }
 
 private:
-    const std::array<MemberInfo, MapSize> &blob_map_;
+    const std::array<MemberInfo, MapSize>& blob_map_;
 };
 
 #endif // __BLOBSTORE_HPP__
