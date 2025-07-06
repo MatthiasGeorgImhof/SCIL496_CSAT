@@ -157,7 +157,9 @@ TEST_CASE("Virtual File System Test") {
         size_t read(size_t offset, uint8_t* buffer, size_t size) override {
             if (offset >= content_.size()) return 0;
             size_t bytes_to_read = std::min(size, content_.size() - offset);
-            std::copy(content_.begin() + offset, content_.begin() + offset + bytes_to_read, buffer);
+            std::copy(std::next(content_.begin(), static_cast<std::string::difference_type>(offset)),
+                      std::next(content_.begin(), static_cast<std::string::difference_type>(offset + bytes_to_read)),
+                      buffer);
             return bytes_to_read;
         }
 
@@ -234,7 +236,9 @@ TEST_CASE("Virtual File System Test inexistant file") {
         size_t read(size_t offset, uint8_t* buffer, size_t size) override {
             if (offset >= content_.size()) return 0;
             size_t bytes_to_read = std::min(size, content_.size() - offset);
-            std::copy(content_.begin() + offset, content_.begin() + offset + bytes_to_read, buffer);
+            auto begin = std::next(content_.begin(), static_cast<std::string::difference_type>(offset));
+            auto end = std::next(begin, static_cast<std::string::difference_type>(bytes_to_read));
+            std::copy(begin, end, buffer);
             return bytes_to_read;
         }
 

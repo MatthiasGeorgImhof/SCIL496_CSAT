@@ -19,7 +19,7 @@ class TaskSetRTC : public Task {
 public:
 	TaskSetRTC() = delete;
 	TaskSetRTC(UART_HandleTypeDef *huart_handle, RTC_HandleTypeDef *hrtc, uint32_t interval, uint32_t tick) :
-		Task(interval, tick), hrtc(hrtc), gnss(huart_handle) {}
+		Task(interval, tick), hrtc_(hrtc), gnss_(huart_handle) {}
 
 	virtual void handleMessage(std::shared_ptr<CyphalTransfer> /*transfer*/) override {};
 
@@ -29,8 +29,8 @@ public:
     virtual void handleTaskImpl() override;
 
 private:
-    RTC_HandleTypeDef *hrtc;
-    GNSS gnss;
+    RTC_HandleTypeDef *hrtc_;
+    GNSS gnss_;
 };
 
 #endif /* INC_TASKSETRTC_HPP_ */

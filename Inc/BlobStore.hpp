@@ -35,8 +35,8 @@ public:
         if (!is_valid_ || offset + size > flash_size_) return false;
         std::ifstream file(filename_, std::ios::binary);
         if (!file) return false;
-        file.seekg(offset);
-        file.read(reinterpret_cast<char*>(buffer), size);
+        file.seekg(static_cast<std::streamoff>(offset));
+        file.read(reinterpret_cast<char*>(buffer), static_cast<std::streamsize>(size));
         return file.gcount() == static_cast<std::streamsize>(size);
     }
 
@@ -44,8 +44,8 @@ public:
         if (!is_valid_ || offset + size > flash_size_) return false;
         std::fstream file(filename_, std::ios::binary | std::ios::in | std::ios::out);
         if (!file) return false;
-        file.seekp(offset);
-        file.write(reinterpret_cast<const char*>(data), size);
+        file.seekp(static_cast<std::streamoff>(offset));
+        file.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
         return !file.fail();
     }
 
@@ -56,7 +56,7 @@ private:
     bool initialize_flash() {
         std::ofstream file(filename_, std::ios::binary);
         if (!file) return false;
-        file.seekp(flash_size_ - 1);
+        file.seekp(static_cast<std::streamoff>(flash_size_ - 1));
         file.write("\0", 1);
         return !file.fail();
     }

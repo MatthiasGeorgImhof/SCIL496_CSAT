@@ -119,7 +119,7 @@ bool TaskSGP4<Adapters...>::predictSGP4(float r[3], float v[3], uint64_t &timest
     float fractional_days_since_epoch = TimeUtils::to_fractional_days(epoch, now);
     
     std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
-    timestamp = 1000 * milliseconds.count();
+    timestamp = 1000 * static_cast<uint64_t>(milliseconds.count());
 
     gravconsttype whichconst = wgs84; // Choose the gravity model (wgs72old, wgs72, wgs84)
     char opsmode = 'i';               // Operation mode ('a' for AFSPC, 'i' for improved)

@@ -24,14 +24,14 @@ std::array<char, NAME_LENGTH> formatValues(uint32_t u32, uint8_t u8)
     static constexpr char hex_digits[] = "0123456789abcdef";
 
     // Convert uint32_t to 8-character hexadecimal
-    for (int i = 7; i >= 0; --i)
+    for (size_t i = 0; i < 8; ++i)
     {
         result[i] = hex_digits[u32 & 0x0f];
         u32 >>= 4;
     }
 
     // Convert uint8_t to 2-character hexadecimal
-    for (int i = 10; i >= 9; --i)
+    for (size_t i = 9; i < 11; ++i)
     { // Correct loop bounds
         result[i] = hex_digits[u8 & 0x0f];
         u8 >>= 4;
@@ -147,7 +147,7 @@ public:
     FileInputStream(const std::string &filename) : filename_(filename, std::ios::binary)
     {
         filename_.seekg(0, std::ios::end);
-        file_size_ = filename_.tellg();
+        file_size_ = static_cast<size_t>(filename_.tellg());
         filename_.seekg(0, std::ios::beg);
         name_ = generateName(filename);
     }
@@ -168,7 +168,7 @@ public:
     bool initialize(uint8_t *data, size_t &size)
     {
         size = std::min(size, file_size_);
-        filename_.read(reinterpret_cast<char *>(data), size);
+        filename_.read(reinterpret_cast<char *>(data), static_cast<std::streamoff>(size));
         bytes_read_ = size;
 
         if (filename_.fail() && !filename_.eof())
@@ -207,7 +207,7 @@ public:
         }
 
         size_t bytes_to_read = std::min(size, file_size_ - bytes_read_);
-        filename_.read(reinterpret_cast<char *>(data), bytes_to_read);
+        filename_.read(reinterpret_cast<char *>(data), static_cast<std::streamoff>(bytes_to_read));
 
         if (filename_.fail() && !filename_.eof())
         {
@@ -295,7 +295,7 @@ public:
 
     bool output(uint8_t *data, size_t size)
     {
-        file_.write(reinterpret_cast<const char *>(data), size);
+        file_.write(reinterpret_cast<const char *>(data), static_cast<std::streamoff>(size));
         return (!file_.fail());
     }
 

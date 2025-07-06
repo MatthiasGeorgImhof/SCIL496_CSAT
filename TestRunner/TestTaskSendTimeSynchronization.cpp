@@ -44,7 +44,7 @@ TEST_CASE("TaskSendTimeSynchronization: handleTask publishes TimeSynchronization
     };
     set_mocked_rtc_time(rtcdatetimesubseconds.time);
     set_mocked_rtc_date(rtcdatetimesubseconds.date);
-    set_mocked_synchro_shift(rtcdatetimesubseconds.time.SubSeconds);
+    set_mocked_synchro_shift_subfs(rtcdatetimesubseconds.time.SubSeconds);
     TimeUtils::epoch_duration expected_duration = TimeUtils::from_rtc(rtcdatetimesubseconds, hrtc_.Init.SynchPrediv);
     
     constexpr CyphalNodeID id1 = 11;
@@ -133,7 +133,7 @@ TEST_CASE("TaskSendTimeSynchronization: snippet to registration with std::alloc"
 
     set_mocked_rtc_time(time);
     set_mocked_rtc_date(date);
-    set_mocked_synchro_shift(0x7F);
+    set_mocked_synchro_shift_subfs(0x7F);
 
     constexpr CyphalNodeID id1 = 11;
     constexpr CyphalNodeID id2 = 12;
@@ -187,7 +187,7 @@ TEST_CASE("TaskSendTimeSynchronization: snippet to registration with O1HeapAlloc
 
     set_mocked_rtc_time(time);
     set_mocked_rtc_date(date);
-    set_mocked_synchro_shift(0x7F);
+    set_mocked_synchro_shift_subfs(0x7F);
 
     constexpr CyphalNodeID id1 = 11;
     constexpr CyphalNodeID id2 = 12;

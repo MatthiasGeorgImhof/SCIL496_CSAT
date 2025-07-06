@@ -64,7 +64,7 @@ void TaskProcessTimeSynchronization::handleMessage(std::shared_ptr<CyphalTransfe
 
     HAL_RTC_SetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_SetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
-    HAL_RTCEx_SetSynchroShift(RTC_SHIFTADD1S_RESET, rtc.time.SubSeconds);
+    HAL_RTCEx_SetSynchroShift(hrtc_,RTC_SHIFTADD1S_RESET, rtc.time.SubSeconds);
 }
 
 static_assert(containsMessageByPortIdCompileTime<uavcan_time_Synchronization_1_0_FIXED_PORT_ID_>(),

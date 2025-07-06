@@ -25,9 +25,9 @@ public:
             size = 0;
             return false;  // Indicate error
         }
-        file.seekg(offset);
-        file.read(reinterpret_cast<char*>(buffer), size);
-        size = file.gcount();
+        file.seekg(static_cast<std::streamoff>(offset));
+        file.read(reinterpret_cast<char*>(buffer), static_cast<std::streamsize>(size));
+        size = static_cast<size_t>(file.gcount());
         file.close();
         return true;
     }
@@ -57,9 +57,9 @@ public:
             size = 0;
             return false;
         }
-        file.seekg(offset);
-        file.read(reinterpret_cast<char*>(buffer), size);
-        size = file.gcount();
+        file.seekg(static_cast<std::streamoff>(offset));
+        file.read(reinterpret_cast<char*>(buffer), static_cast<std::streamsize>(size));
+        size = static_cast<size_t>(file.gcount());
         file.close();
         return true;
     }
@@ -116,9 +116,9 @@ public:
 
     size_t read(size_t offset, uint8_t* buffer, size_t size) override {
         if (!file_.is_open()) return 0;
-        file_.seekg(offset);
-        file_.read(reinterpret_cast<char*>(buffer), size);
-        return file_.gcount();
+        file_.seekg(static_cast<std::streamoff>(offset));
+        file_.read(reinterpret_cast<char*>(buffer), static_cast<std::streamsize>(size));
+        return static_cast<size_t>(file_.gcount());
     }
 
     bool isOpen() const override {
@@ -177,7 +177,9 @@ public:
     size_t read(size_t offset, uint8_t* buffer, size_t size) override {
         if (offset >= data_.size()) return 0;
         size_t bytes_to_read = std::min(size, data_.size() - offset);
-        std::copy(data_.begin() + offset, data_.begin() + offset + bytes_to_read, buffer);
+        std::copy(std::next(data_.begin(), static_cast<std::vector<uint8_t>::difference_type>(offset)),
+                  std::next(data_.begin(), static_cast<std::vector<uint8_t>::difference_type>(offset + bytes_to_read)),
+                  buffer);
         return bytes_to_read;
     }
 

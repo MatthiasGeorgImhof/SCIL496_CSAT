@@ -4,19 +4,20 @@
 #include <array>
 #include <string>
 #include <cmath>
+#include <cstdint> // Include for uint16_t
 
 // https://www.ngdc.noaa.gov/geomag/WMM/data/WMM2020/WMM2020_Report.pdf
 
 namespace wmm_model
 {
 
-    template <int nMax, size_t N>
+    template <uint16_t nMax, size_t N>
     bool MAG_PcupLow(std::array<float, N> &Pcup, std::array<float, N> &dPcup, float x);
 
-    template <int nMax, size_t N>
+    template <uint16_t nMax, size_t N>
     bool MAG_PcupHigh(std::array<float, N> &Pcup, std::array<float, N> &dPcup, float x);
 
-    template <int nMax, size_t N>
+    template <uint16_t nMax, size_t N>
     bool MAG_PcupLow(std::array<float, N> &Pcup, std::array<float, N> &dPcup, float x)
 
     /*   This function evaluates all of the Schmidt-semi normalized associated Legendre
@@ -44,7 +45,7 @@ namespace wmm_model
      */
     {
         static_assert((nMax + 1) * (nMax + 2) / 2 == N);
-        int n, m, index, index1, index2;
+        uint16_t n, m, index, index1, index2;
         float k, z;
         Pcup[0] = 1.0f;
         dPcup[0] = 0.0f;
@@ -58,24 +59,24 @@ namespace wmm_model
         {
             for (m = 0; m <= n; m++)
             {
-                index = (n * (n + 1) / 2 + m);
+                index = static_cast<uint16_t>((n * (n + 1) / 2 + m));
 
                 if (n == m)
                 {
-                    index1 = (n - 1) * n / 2 + m - 1;
+                    index1 = static_cast<uint16_t>((n - 1) * n / 2 + m - 1);
                     Pcup[index] = z * Pcup[index1];
                     dPcup[index] = z * dPcup[index1] + x * Pcup[index1];
                 }
                 else if (n == 1 && m == 0)
                 {
-                    index1 = (n - 1) * n / 2 + m;
+                    index1 = static_cast<uint16_t>((n - 1) * n / 2 + m);
                     Pcup[index] = x * Pcup[index1];
                     dPcup[index] = x * dPcup[index1] - z * Pcup[index1];
                 }
                 else if (n > 1 && n != m)
                 {
-                    index1 = (n - 2) * (n - 1) / 2 + m;
-                    index2 = (n - 1) * n / 2 + m;
+                    index1 = static_cast<uint16_t>((n - 2) * (n - 1) / 2 + m);
+                    index2 = static_cast<uint16_t>((n - 1) * n / 2 + m);
                     if (m > n - 2)
                     {
                         Pcup[index] = x * Pcup[index2];
@@ -96,15 +97,15 @@ namespace wmm_model
         schmidtQuasiNorm[0] = 1.0;
         for (n = 1; n <= nMax; n++)
         {
-            index = (n * (n + 1) / 2);
-            index1 = (n - 1) * n / 2;
+            index = static_cast<uint16_t>((n * (n + 1) / 2));
+            index1 = static_cast<uint16_t>((n - 1) * n / 2);
             /* for m = 0 */
             schmidtQuasiNorm[index] = schmidtQuasiNorm[index1] * (float)(2 * n - 1) / (float)n;
 
             for (m = 1; m <= n; m++)
             {
-                index = (n * (n + 1) / 2 + m);
-                index1 = (n * (n + 1) / 2 + m - 1);
+                index = static_cast<uint16_t>((n * (n + 1) / 2 + m));
+                index1 = static_cast<uint16_t>((n * (n + 1) / 2 + m - 1));
                 schmidtQuasiNorm[index] = schmidtQuasiNorm[index1] * sqrtf((float)((n - m + 1) * (m == 1 ? 2 : 1)) / (float)(n + m));
             }
         }
@@ -117,7 +118,7 @@ namespace wmm_model
         {
             for (m = 0; m <= n; m++)
             {
-                index = (n * (n + 1) / 2 + m);
+                index = static_cast<uint16_t>((n * (n + 1) / 2 + m));
                 Pcup[index] = Pcup[index] * schmidtQuasiNorm[index];
                 dPcup[index] = -dPcup[index] * schmidtQuasiNorm[index];
                 /* The sign is changed since the new WMM routines use derivative with respect to latitude
@@ -128,7 +129,7 @@ namespace wmm_model
         return true;
     } /*MAG_PcupLow */
 
-    template <int nMax, size_t N>
+    template <uint16_t nMax, size_t N>
     bool MAG_PcupHigh(std::array<float, N> &Pcup, std::array<float, N> &dPcup, float x)
 
     /*	This function evaluates all of the Schmidt-semi normalized associated Legendre
@@ -175,7 +176,7 @@ IGRF_MODEL_HPP
         static_assert((nMax + 1) * (nMax + 2) / 2 == N);
 
         float pm2, pm1, pmm, plm, rescalem, z;
-        int k, kstart, m, n;
+        uint16_t k, kstart, m, n;
 
         z = sqrtf((1.0f - x) * (1.0f + x));
 
@@ -206,7 +207,7 @@ IGRF_MODEL_HPP
             {
                 k = k + 1;
                 f1[k] = (float)(2 * n - 1) / PreSqr[n + m] / PreSqr[n - m];
-                f2[k] = PreSqr[n - m - 1] * PreSqr[n + m - 1] / PreSqr[n + m] / PreSqr[n - m];
+                f2[k] = PreSqr[n - m - 1U] * PreSqr[n + m - 1U] / PreSqr[n + m] / PreSqr[n - m];
             }
             k = k + 2;
         }
@@ -243,18 +244,18 @@ IGRF_MODEL_HPP
             rescalem = rescalem * z;
 
             /* Calculate Pcup(m,m)*/
-            kstart = kstart + m + 1;
-            pmm = pmm * PreSqr[2 * m + 1] / PreSqr[2 * m];
-            Pcup[kstart] = pmm * rescalem / PreSqr[2 * m + 1];
+            kstart = static_cast<uint16_t>(kstart + m + 1U);
+            pmm = pmm * PreSqr[2U * m + 1U] / PreSqr[2U * m];
+            Pcup[kstart] = pmm * rescalem / PreSqr[2U * m + 1U];
             dPcup[kstart] = -((float)(m)*x * Pcup[kstart] / z);
-            pm2 = pmm / PreSqr[2 * m + 1];
+            pm2 = pmm / PreSqr[2U * m + 1U];
             /* Calculate Pcup(m+1,m)*/
-            k = kstart + m + 1;
-            pm1 = x * PreSqr[2 * m + 1] * pm2;
+            k = static_cast<uint16_t>(kstart + m + 1U);
+            pm1 = x * PreSqr[2U * m + 1U] * pm2;
             Pcup[k] = pm1 * rescalem;
-            dPcup[k] = ((pm2 * rescalem) * PreSqr[2 * m + 1] - x * (float)(m + 1) * Pcup[k]) / z;
+            dPcup[k] = ((pm2 * rescalem) * PreSqr[2U * m + 1U] - x * (float)(m + 1) * Pcup[k]) / z;
             /* Calculate Pcup(n,m)*/
-            for (n = m + 2; n <= nMax; ++n)
+            for (n = m + 2U; n <= nMax; ++n)
             {
                 k = k + n;
                 plm = x * f1[k] * pm1 - f2[k] * pm2;
@@ -267,7 +268,7 @@ IGRF_MODEL_HPP
 
         /* Calculate Pcup(nMax,nMax)*/
         rescalem = rescalem * z;
-        kstart = kstart + m + 1;
+        kstart = static_cast<uint16_t>(kstart + m + 1);
         pmm = pmm / PreSqr[2 * nMax];
         Pcup[kstart] = pmm * rescalem;
         dPcup[kstart] = -(float)(nMax)*x * Pcup[kstart] / z;

@@ -19,7 +19,7 @@ public:
     void unregister_task(std::shared_ptr<Task> task) {
         for (size_t i = 0; i < registered_tasks.size(); ++i) {
             if (registered_tasks[i] == task) {
-                registered_tasks.erase(registered_tasks.begin() + i);
+                registered_tasks.erase(registered_tasks.begin() + static_cast<std::vector<std::shared_ptr<Task>>::difference_type>(i));
                 return;
             }
         }

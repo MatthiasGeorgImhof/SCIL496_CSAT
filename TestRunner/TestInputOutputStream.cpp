@@ -278,7 +278,7 @@ TEST_CASE("OutputStreamToFile satisfies OutputStreamConcept") {
     REQUIRE(file.is_open());
 
     std::vector<uint8_t> file_data(size);
-    file.read(reinterpret_cast<char*>(file_data.data()), size);
+    file.read(reinterpret_cast<char*>(file_data.data()), static_cast<std::streamsize>(size));
     REQUIRE(memcmp(data.data(), file_data.data(), size) == 0);
 
     file.close();
@@ -290,7 +290,7 @@ TEST_CASE("FileInputStream satisfies InputStreamConcept") {
     std::string filename = "test_file.bin";
     std::ofstream outfile(filename, std::ios::binary);
     std::vector<uint8_t> test_data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A};
-    outfile.write(reinterpret_cast<const char*>(test_data.data()), test_data.size());
+    outfile.write(reinterpret_cast<const char*>(test_data.data()), static_cast<std::streamsize>(test_data.size()));
     outfile.close();
 
     FileInputStream stream(filename);

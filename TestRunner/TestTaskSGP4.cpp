@@ -282,7 +282,7 @@ TEST_CASE("send position")
     TimeUtils::RTCDateTimeSubseconds rtc = TimeUtils::to_rtc(components, hrtc.Init.SynchPrediv);
     HAL_RTC_SetTime(&hrtc, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_SetDate(&hrtc, &rtc.date, RTC_FORMAT_BIN);
-    HAL_RTCEx_SetSynchroShift(RTC_SHIFTADD1S_RESET, rtc.time.SubSeconds);
+    HAL_RTCEx_SetSynchroShift(&hrtc, RTC_SHIFTADD1S_RESET, rtc.time.SubSeconds);
 
     constexpr CyphalNodeID id = 11;
 

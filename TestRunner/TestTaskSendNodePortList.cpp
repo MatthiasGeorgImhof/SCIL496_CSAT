@@ -224,19 +224,19 @@ TEST_CASE("TaskSendNodePortList: main loop snippet")
     registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
     O1HeapAllocator<TaskSendHeartBeat<Cyphal<LoopardAdapter>>> alloc_TaskSendHeartBeat(heap);
-    registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<LoopardAdapter>>>(alloc_TaskSendHeartBeat, 1000, 100, static_cast<CyphalTransferID>(0), adapters));
+    registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<LoopardAdapter>>>(alloc_TaskSendHeartBeat, 1000U, 100U, static_cast<CyphalTransferID>(0), adapters));
 
     O1HeapAllocator<TaskSendNodePortList<Cyphal<LoopardAdapter>>> alloc_TaskSendNodePortList(heap);
-    registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<LoopardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000, 100, static_cast<CyphalTransferID>(0), adapters));
+    registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<LoopardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000U, 100U, static_cast<CyphalTransferID>(0), adapters));
 
     O1HeapAllocator<TaskSubscribeNodePortList<Cyphal<LoopardAdapter>>> alloc_TaskSubscribeNodePortList(heap);
-    registration_manager.add(allocate_unique_custom<TaskSubscribeNodePortList<Cyphal<LoopardAdapter>>>(alloc_TaskSubscribeNodePortList, &subscription_manager, 10000, 100, adapters));
+    registration_manager.add(allocate_unique_custom<TaskSubscribeNodePortList<Cyphal<LoopardAdapter>>>(alloc_TaskSubscribeNodePortList, &subscription_manager, 10000U, 100U, adapters));
 
     O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(heap);
-    registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, &GPIOC, LED1_Pin, 1000, 100));
+    registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, &GPIOC, LED1_Pin, 1000U, 100U));
 
     O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(heap);
-    registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, heap, 2000, 100));
+    registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, heap, 2000U, 100U));
 
     auto subscriptions = registration_manager.getSubscriptions();
     REQUIRE(subscriptions.size() == 3);

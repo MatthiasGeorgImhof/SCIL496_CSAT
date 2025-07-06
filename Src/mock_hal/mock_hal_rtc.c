@@ -32,7 +32,8 @@ HAL_StatusTypeDef mocked_rtc_set_status = HAL_OK; //Default status to ok
 HAL_StatusTypeDef mocked_rtc_get_status = HAL_OK; //Default status to ok
 
 //synchro shift variables
-uint32_t mocked_synchro_shift = 0;
+uint32_t mocked_synchro_shift_add1s = 0;
+uint32_t mocked_synchro_shift_subfs = 0;
 HAL_StatusTypeDef mocked_rtc_ex_set_synchro_shift_status = HAL_OK;
 
 //------------------------------------------------------------------------------
@@ -56,8 +57,12 @@ void set_mocked_rtc_get_status(HAL_StatusTypeDef status){
 }
 
 //Synchro shift setters
-void set_mocked_synchro_shift(uint32_t shift){
-    mocked_synchro_shift = shift;
+void set_mocked_synchro_shift_add1s(uint32_t add){
+    mocked_synchro_shift_add1s = add;
+}
+
+void set_mocked_synchro_shift_subfs(uint32_t shift){
+    mocked_synchro_shift_subfs = shift;
 }
 
 void set_mocked_rtc_ex_set_synchro_shift_status(HAL_StatusTypeDef status){
@@ -74,8 +79,12 @@ RTC_DateTypeDef get_mocked_rtc_date(void) {
 }
 
 //synchro shift getters
-uint32_t get_mocked_synchro_shift(void){
-    return mocked_synchro_shift;
+uint32_t get_mocked_synchro_shift_add1s(void){
+    return mocked_synchro_shift_add1s;
+}
+
+uint32_t get_mocked_synchro_shift_subfs(void){
+    return mocked_synchro_shift_subfs;
 }
 
 //Clear the values
@@ -84,7 +93,8 @@ void clear_mocked_rtc(){
     memset(&mocked_rtc_date, 0, sizeof(mocked_rtc_date));
     mocked_rtc_set_status = HAL_OK;
     mocked_rtc_get_status = HAL_OK;
-    mocked_synchro_shift = 0;
+    mocked_synchro_shift_add1s = 0;
+    mocked_synchro_shift_subfs = 0;
     mocked_rtc_ex_set_synchro_shift_status = HAL_OK;
 }
 
@@ -151,8 +161,9 @@ HAL_StatusTypeDef HAL_RTC_GetDate(RTC_HandleTypeDef * /*hrtc*/, RTC_DateTypeDef 
 }
 
 // Implement HAL_RTCEx_SetSynchroShift
-HAL_StatusTypeDef HAL_RTCEx_SetSynchroShift(RTC_HandleTypeDef * /*hrtc*/, uint32_t Shift) {
-        set_mocked_synchro_shift(Shift); // Store the passed shift
+HAL_StatusTypeDef HAL_RTCEx_SetSynchroShift(RTC_HandleTypeDef */*hrtc*/, uint32_t ShiftAdd1S, uint32_t ShiftSubFS) {
+        set_mocked_synchro_shift_add1s(ShiftAdd1S); // Store the passed shift
+        set_mocked_synchro_shift_subfs(ShiftSubFS); // Store the passed shift
         return mocked_rtc_ex_set_synchro_shift_status;
 }
 

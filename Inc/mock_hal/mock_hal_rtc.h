@@ -100,7 +100,8 @@ extern "C"
     extern HAL_StatusTypeDef mocked_rtc_get_status;
 
     // Variable to store the mocked synchro shift value
-    extern uint32_t mocked_synchro_shift;
+    extern uint32_t mocked_synchro_shift_add1s;
+    extern uint32_t mocked_synchro_shift_subfs;
 
     // Variable to store the mocked HAL Status for HAL_RTCEx_SetSynchroShift
     extern HAL_StatusTypeDef mocked_rtc_ex_set_synchro_shift_status;
@@ -119,7 +120,8 @@ extern "C"
     void set_mocked_rtc_get_status(HAL_StatusTypeDef status);
 
     // Setter for mocked synchro shift
-    void set_mocked_synchro_shift(uint32_t shift);
+    void set_mocked_synchro_shift_add1s(uint32_t add);
+    void set_mocked_synchro_shift_subfs(uint32_t shift);
 
     // Setter for mocked HAL Status for synchro shift set
     void set_mocked_rtc_ex_set_synchro_shift_status(HAL_StatusTypeDef status);
@@ -129,7 +131,8 @@ extern "C"
     RTC_DateTypeDef get_mocked_rtc_date(void);
 
     // Getter for mocked synchro shift
-    uint32_t get_mocked_synchro_shift(void);
+    uint32_t get_mocked_synchro_shift_add1s(void);
+    uint32_t get_mocked_synchro_shift_subfs(void);
 
     // Clear the values
     void clear_mocked_rtc();
@@ -148,7 +151,7 @@ extern "C"
     HAL_StatusTypeDef HAL_RTC_GetDate(RTC_HandleTypeDef *hrtc, RTC_DateTypeDef *sDate, uint32_t Format);
 
     // Add the HAL_RTCEx_SetSynchroShift
-    HAL_StatusTypeDef HAL_RTCEx_SetSynchroShift(RTC_HandleTypeDef *hrtc, uint32_t Shift);
+    HAL_StatusTypeDef HAL_RTCEx_SetSynchroShift(RTC_HandleTypeDef *hrtc, uint32_t ShiftAdd1S, uint32_t ShiftSubFS);
 
     uint8_t RTC_ByteToBcd2(uint8_t Value);
     uint8_t RTC_Bcd2ToByte(uint8_t Value);

@@ -53,7 +53,7 @@ void TaskSendTimeSynchronization<Adapters...>::handleTaskImpl()
                                               reinterpret_cast<int8_t (*)(const void *const, uint8_t *const, size_t *const)>(uavcan_time_Synchronization_1_0_serialize_),
                                               uavcan_time_Synchronization_1_0_FIXED_PORT_ID_);
     std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
-    previous_microseconds_ = 1000 * milliseconds.count();
+    previous_microseconds_ = 1000U * static_cast<uint64_t>(milliseconds.count());
 }
 
 template <typename... Adapters>
