@@ -35,7 +35,7 @@ float resolution(float f)
         return std::numeric_limits<float>::quiet_NaN(); // Or some other appropriate value for special cases
     }
 
-    return std::pow(2.0f, exponent - 150);
+    return std::pow(2.0f, static_cast<float>(exponent - 150));
 }
 
 TEST_CASE("ECEF to Geodetic Conversion - Iterative")

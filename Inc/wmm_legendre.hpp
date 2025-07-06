@@ -46,9 +46,9 @@ namespace wmm_model
         static_assert((nMax + 1) * (nMax + 2) / 2 == N);
         int n, m, index, index1, index2;
         float k, z;
-        Pcup[0] = 1.0;
-        dPcup[0] = 0.0;
-        z = sqrtf((1.0 - x) * (1.0 + x));
+        Pcup[0] = 1.0f;
+        dPcup[0] = 0.0f;
+        z = sqrtf((1.0f - x) * (1.0f + x));
 
         std::array<float, N + 1> schmidtQuasiNorm;
 
@@ -177,7 +177,7 @@ IGRF_MODEL_HPP
         float pm2, pm1, pmm, plm, rescalem, z;
         int k, kstart, m, n;
 
-        z = sqrtf((1.0 - x) * (1.0 + x));
+        z = sqrtf((1.0f - x) * (1.0f + x));
 
         if (z == 0)
             return false;
@@ -188,7 +188,7 @@ IGRF_MODEL_HPP
         std::array<float, N + 1> f2;
         std::array<float, N + 1> PreSqr;
 
-        constexpr float scalef = 1.0e-32;
+        constexpr float scalef = 1.0e-32f;
 
         for (n = 0; n <= 2 * nMax + 1; ++n)
         {
@@ -235,7 +235,7 @@ IGRF_MODEL_HPP
         }
 
         pmm = PreSqr[2] * scalef;
-        rescalem = 1.0 / scalef;
+        rescalem = 1.0f / scalef;
         kstart = 0;
 
         for (m = 1; m <= nMax - 1; ++m)

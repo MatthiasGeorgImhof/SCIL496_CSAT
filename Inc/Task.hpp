@@ -107,7 +107,7 @@ protected:
 		std::apply([&](auto &...adapter)
 				   { ([&]()
 					  {
-                int8_t res = adapter.cyphalTxPush(static_cast<CyphalMicrosecond>(0), &metadata, payload_size, payload);
+                int32_t res = adapter.cyphalTxPush(static_cast<CyphalMicrosecond>(0), &metadata, payload_size, payload);
                 all_successful = all_successful && (res > 0); }(), ...); }, adapters_);
 		if (!all_successful)
 			log(LOG_LEVEL_ERROR, "ERROR Task.publish push\r\n");

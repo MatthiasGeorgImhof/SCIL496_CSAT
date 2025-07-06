@@ -82,7 +82,7 @@ namespace coordinate_transformations
             lat_old = lat_rad;
             float N = WGS84_A / sqrtf(1.0f - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
             lat_rad = atan2f(ecef.z_m + WGS84_E2 * N * sinf(lat_rad), p);
-            geodetic.height_m = p / cos(lat_rad) - N;
+            geodetic.height_m = p / cosf(lat_rad) - N;
             iteration++;
             if (iteration > 100*MAX_ITERATIONS)
             {

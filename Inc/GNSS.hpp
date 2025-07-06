@@ -127,8 +127,8 @@ static constexpr bool ValidateChecksum(const uint8_t (&payload)[Size])
 class GNSS
 {
 private:
-	static constexpr int GNSS_BUFFER_SIZE = 201;
-	static constexpr int UBLOX_HEADER_SIZE = 6;
+	static constexpr uint16_t GNSS_BUFFER_SIZE = 201U;
+	static constexpr uint16_t UBLOX_HEADER_SIZE = 6U;
 
 public:
 	GNSS() = delete;
@@ -162,7 +162,7 @@ private:
 	uint32_t GetULong(const uint8_t *uartWorkingBuffer, uint16_t offset);
 	int32_t GetILong(const uint8_t *uartWorkingBuffer, uint16_t offset);
 
-	void Checksum(uint8_t dataLength, const uint8_t *payload, uint8_t *cka, uint8_t *ckb);
+	void Checksum(uint16_t dataLength, const uint8_t *payload, uint8_t *cka, uint8_t *ckb);
 
 private:
 	UART_HandleTypeDef *huart;

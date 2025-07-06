@@ -41,7 +41,7 @@ TEST_CASE("Magnetic Field Calculation equatorial sealevel cases") {
         expected.X =  27453.7f;
         expected.Y = -1927.6f;
         expected.Z = -16010.6f;
-        expected.F =  31839.6; 
+        expected.F =  31839.6f; 
         compareMagneticFields(result, expected);
     }
 
@@ -88,9 +88,9 @@ TEST_CASE("Magnetic Field Calculation 30N 100km cases") {
         MagneticField result = calculateMagneticField<MAX_ORDER>(latitude_deg, longitude_deg, radius_m, 2025, magneticGaussCoefficients);
         MagneticField expected;
         expected.D =  0.7790f;
-        expected.I =  40.2420;
+        expected.I =  40.2420f;
         expected.H =  29552.1f;
-        expected.X =  29549.4;
+        expected.X =  29549.4f;
         expected.Y =  401.8f;
         expected.Z =  25010.6f;
         expected.F =  38715.1f; 
@@ -120,7 +120,7 @@ TEST_CASE("Magnetic Field Calculation 30N 100km cases") {
         expected.D = -5.7105f;
         expected.I =  45.6416f;
         expected.H =  32328.6f;
-        expected.X =  32168.2;
+        expected.X =  32168.2f;
         expected.Y = -3216.8f;
         expected.Z =  33060.9f;
         expected.F =  46240.3f; 
@@ -140,9 +140,9 @@ TEST_CASE("Magnetic Field Calculation 85N 400km cases") {
         MagneticField result = calculateMagneticField<MAX_ORDER>(latitude_deg, longitude_deg, radius_m, 2025, magneticGaussCoefficients);
         MagneticField expected;
         expected.D =  0.7643f;
-        expected.I =  85.9568;
+        expected.I =  85.9568f;
         expected.H =  3358.8f;
-        expected.X =  3358.5;
+        expected.X =  3358.5f;
         expected.Y =  39.385f; // should be 44.8f;
         expected.Z =  47517.9f;
         expected.F =  47636.5f; 
@@ -172,7 +172,7 @@ TEST_CASE("Magnetic Field Calculation 85N 400km cases") {
         expected.D =  30.3742f;
         expected.I =  89.1255f;
         expected.H =  745.5f;
-        expected.X =  643.2;
+        expected.X =  643.2f;
         expected.Y =  377.0f;
         expected.Z =  48843.2f;
         expected.F =  48848.9f; 

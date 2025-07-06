@@ -40,8 +40,8 @@ namespace magnetic_model
     // Constants (from IGRF documentation)
     constexpr float R_EARTH = 6371200.f; // Earth's radius in m
 
-    constexpr float DEG_TO_RAD = M_PI / 180.0f; // Conversion factor from degrees to radians
-    constexpr float RAD_TO_DEG = 180.0f / M_PI; // Conversion factor from radians to degrees
+    constexpr float DEG_TO_RAD = M_PIf / 180.0f; // Conversion factor from degrees to radians
+    constexpr float RAD_TO_DEG = 180.0f / M_PIf; // Conversion factor from radians to degrees
 
     constexpr float epsilon = 1e-6f;
 
@@ -76,8 +76,8 @@ namespace magnetic_model
             float g = coeff.g;
             float h = coeff.h;
 
-            float cos_m_longitude = cosf(m * longitude_rad);
-            float sin_m_longitude = sinf(m * longitude_rad);
+            float cos_m_longitude = cosf(static_cast<float>(m) * longitude_rad);
+            float sin_m_longitude = sinf(static_cast<float>(m) * longitude_rad);
 
             // Time adjustment (linear interpolation)
             float time_diff = (float)(year - irgf_year); // Example: Adjust based on the file
@@ -87,7 +87,7 @@ namespace magnetic_model
 
             // Radial distance factor
             float ratio = R_EARTH / radius_m;
-            float power = n + 2;
+            float power = static_cast<float>(n + 2);
             float term = powf(ratio, power);
 
             // Calculate X, Y, and Z components
@@ -99,7 +99,7 @@ namespace magnetic_model
             else
             {
                 X += term * (g * cos_m_longitude + h * sin_m_longitude) * dP;
-                Y += term * m * (g * sin_m_longitude - h * cos_m_longitude) * P / cos_latitude;
+                Y += term * static_cast<float>(m) * (g * sin_m_longitude - h * cos_m_longitude) * P / cos_latitude;
                 Z += term * static_cast<float>(n + 1) * (g * cos_m_longitude + h * sin_m_longitude) * P;
             }
         }

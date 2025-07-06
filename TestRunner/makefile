@@ -1,5 +1,5 @@
 CXX = g++
-EXTRA_CXXFLAGS = -Wall -Wextra -pedantic -Werror
+EXTRA_CXXFLAGS = -Wall -Wextra -pedantic -Werror -Wconversion # -Wsign-conversion -Wzero-as-null-pointer-constant
 CXXFLAGS = -g -MMD -std=c++20 $(EXTRA_CXXFLAGS)
 
 INCLUDE_PATHS = -I ../Inc \

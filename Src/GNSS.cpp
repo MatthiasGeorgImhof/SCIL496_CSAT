@@ -74,15 +74,16 @@ GNSS::GNSS(UART_HandleTypeDef *huart) : huart(huart) {}
  */
 uint8_t *GNSS::FindHeader(uint8_t classID, uint8_t messageID)
 {
-	for (size_t var = 0; var <= sizeof(uartBuffer) / 2; ++var)
+	constexpr uint16_t SIZE = sizeof(uartBuffer) / 2;
+	for (uint16_t var = 0; var <= SIZE; ++var)
 	{
 		if (uartBuffer[var] == 0xB5 && uartBuffer[var + 1] == 0x62)
 		{
-			uint16_t length = GetUShort(uartBuffer, var + 4);
-			uint8_t cka_message = GetUByte(uartBuffer, var + length + UBLOX_HEADER_SIZE);
-			uint8_t ckb_message = GetUByte(uartBuffer, var + length + UBLOX_HEADER_SIZE + 1);
+			uint16_t length = GetUShort(uartBuffer, static_cast<uint16_t>(var + 4));
+			uint8_t cka_message = GetUByte(uartBuffer, static_cast<uint16_t>(var + length + UBLOX_HEADER_SIZE));
+			uint8_t ckb_message = GetUByte(uartBuffer, static_cast<uint16_t>(var + length + UBLOX_HEADER_SIZE + 1));
 			uint8_t cka, ckb;
-			Checksum(length + 4, &uartBuffer[var + 2], &cka, &ckb);
+			Checksum(length + 4U, &uartBuffer[var + 2], &cka, &ckb);
 			if (cka != cka_message && ckb != ckb_message)
 			{
 				return nullptr;
@@ -248,7 +249,7 @@ void GNSS::SetMode(GNSSMode gnssMode)
 
 	if (dataToSend != nullptr)
 	{
-		HAL_UART_Transmit_DMA(huart, dataToSend, dataSize);
+		HAL_UART_Transmit_DMA(huart, dataToSend, static_cast<uint16_t>(dataSize));
 	}
 }
 
@@ -398,7 +399,7 @@ void GNSS::LoadConfig()
 /*!
  *  Creates a checksum based on UBX standard.
  */
-void GNSS::Checksum(uint8_t length, const uint8_t *payload, uint8_t *cka, uint8_t *ckb)
+void GNSS::Checksum(uint16_t length, const uint8_t *payload, uint8_t *cka, uint8_t *ckb)
 {
 	uint8_t cka_ = 0;
 	uint8_t ckb_ = 0;

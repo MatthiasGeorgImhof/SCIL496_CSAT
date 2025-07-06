@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 
-enum class ImageBufferError : uint32_t
+enum class ImageBufferError : uint16_t
 {
     NO_ERROR = 0,
     WRITE_ERROR = 1,

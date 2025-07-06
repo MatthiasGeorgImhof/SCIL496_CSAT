@@ -71,8 +71,8 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
     ImageMetadata metadata;
     metadata.timestamp = 0x12345678;
     metadata.image_size = 256;
-    metadata.latitude = 37.7749;
-    metadata.longitude = -122.4194;
+    metadata.latitude = 37.7749f;
+    metadata.longitude = -122.4194f;
     metadata.camera_index = 0xAB;
 
     std::vector<uint8_t> image_data(metadata.image_size);
@@ -163,8 +163,8 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
     ImageMetadata metadata;
     metadata.timestamp = 0x12345678;
     metadata.image_size = 256;
-    metadata.latitude = 37.7749;
-    metadata.longitude = -122.4194;
+    metadata.latitude = 37.7749f;
+    metadata.longitude = -122.4194f;
     metadata.camera_index = 0xAB;
 
     std::vector<uint8_t> image_data(metadata.image_size);
@@ -263,7 +263,7 @@ TEST_CASE("OutputStreamToFile satisfies OutputStreamConcept") {
     std::array<char, NAME_LENGTH> name = {'t', 'e', 's', 't', '.', 't', 'x', 't', 0, 0, 0};
     std::vector<uint8_t> data(10);
     for(size_t i=0; i < data.size(); ++i){
-        data[i] = i;
+        data[i] = static_cast<uint8_t>(i);
     }
     size_t size = data.size();
 

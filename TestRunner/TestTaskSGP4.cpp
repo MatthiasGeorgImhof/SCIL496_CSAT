@@ -20,165 +20,90 @@ TEST_CASE("duration_in_fractional_days - Basic")
 {
     TimeUtils::DateTimeComponents start = {2024, 1, 1, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 1, 2, 0, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(1.0f));
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(1.0f));
 
     start = {2024, 1, 1, 0, 0, 0, 0};
     end = {2024, 1, 1, 12, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(0.5f));
+    tp_start = TimeUtils::to_timepoint(start);
+    tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(0.5f));
 
     start = {2024, 1, 1, 0, 0, 0, 0};
     end = {2024, 1, 1, 0, 30, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(30.0f / (24.0f * 60.0f)));
+    tp_start = TimeUtils::to_timepoint(start);
+    tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(30.0f / (24.0f * 60.0f)));
 
     start = {2024, 1, 1, 0, 0, 0, 0};
     end = {2024, 1, 1, 0, 0, 30, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(30.0f / (24.0f * 3600.0f)));
+    tp_start = TimeUtils::to_timepoint(start);
+    tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(30.0f / (24.0f * 3600.0f)));
 }
 
 TEST_CASE("duration_in_fractional_days - Same day")
 {
     TimeUtils::DateTimeComponents start = {2024, 5, 15, 10, 30, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 5, 15, 12, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(1.5f / 24.0f));
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(1.5f / 24.0f));
 }
 
 TEST_CASE("duration_in_fractional_days - Different months")
 {
     TimeUtils::DateTimeComponents start = {2024, 1, 31, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 2, 1, 0, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(1.0f));
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(1.0f));
 }
 
 TEST_CASE("duration_in_fractional_days - Different years")
 {
     TimeUtils::DateTimeComponents start = {2023, 12, 31, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 1, 1, 0, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(1.0f));
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(1.0f));
 }
 
 TEST_CASE("duration_in_fractional_days - Leap year test")
 {
     TimeUtils::DateTimeComponents start = {2024, 2, 28, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 3, 1, 0, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(2.0f)); // 2 days because of Feb 29
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(2.0f)); // 2 days because of Feb 29
 }
 
 TEST_CASE("duration_in_fractional_days - End before start (should be negative)")
 {
     TimeUtils::DateTimeComponents start = {2024, 1, 2, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 1, 1, 0, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(-1.0f));
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(-1.0f));
 }
 
 TEST_CASE("duration_in_fractional_days - Large duration")
 {
     TimeUtils::DateTimeComponents start = {2000, 1, 1, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2050, 1, 1, 0, 0, 0, 0};
-    CHECK(duration_in_fractional_days(start, end) == 365.0f * 50 + 13);
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(365.0f * 50.f + 13.f));
 }
 
 TEST_CASE("duration_in_fractional_days - Millisecond Precision")
 {
     TimeUtils::DateTimeComponents start = {2024, 1, 1, 0, 0, 0, 0};
     TimeUtils::DateTimeComponents end = {2024, 1, 1, 0, 0, 0, 500};
-    CHECK(duration_in_fractional_days(start, end) == doctest::Approx(500.0f / (24.0f * 3600.0f * 1000.0f)));
-}
-
-TEST_CASE("year_day_to_date_time - Basic")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2024u, 1u);
-    CHECK(components.year == 2024);
-    CHECK(components.month == 1);
-    CHECK(components.day == 1);
-    CHECK(components.hour == 0);
-    CHECK(components.minute == 0);
-    CHECK(components.second == 0);
-    CHECK(components.millisecond == 0);
-}
-
-TEST_CASE("year_day_to_date_time - Different day of year")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2024, 32);
-    CHECK(components.year == 2024);
-    CHECK(components.month == 2);
-    CHECK(components.day == 1);
-    CHECK(components.hour == 0);
-    CHECK(components.minute == 0);
-    CHECK(components.second == 0);
-    CHECK(components.millisecond == 0);
-}
-
-TEST_CASE("year_day_to_date_time - Leap year day")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2024, 60); // Feb 29
-    CHECK(components.year == 2024);
-    CHECK(components.month == 2);
-    CHECK(components.day == 29);
-}
-
-TEST_CASE("year_day_to_date_time - End of year")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2023, 365);
-    CHECK(components.year == 2023);
-    CHECK(components.month == 12);
-    CHECK(components.day == 31);
-}
-
-TEST_CASE("year_day_to_date_time - Edge of year")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2024, 366); // Leap year
-    CHECK(components.year == 2024);
-    CHECK(components.month == 12);
-    CHECK(components.day == 31);
-}
-
-TEST_CASE("year_day_to_date_time - Specific time components")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2024, 1, 12, 30, 45, 500);
-    CHECK(components.year == 2024);
-    CHECK(components.month == 1);
-    CHECK(components.day == 1);
-    CHECK(components.hour == 12);
-    CHECK(components.minute == 30);
-    CHECK(components.second == 45);
-    CHECK(components.millisecond == 500);
-}
-
-TEST_CASE("year_day_to_date_time - Beginning of leap year")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2024, 1);
-    CHECK(components.year == 2024);
-    CHECK(components.month == 1);
-    CHECK(components.day == 1);
-}
-
-TEST_CASE("year_day_to_date_time - Large day number with year roll over")
-{
-    TimeUtils::DateTimeComponents components1 = year_day_to_date_time(2023, 365); // Not leap year.
-    CHECK(components1.year == 2023);
-    CHECK(components1.month == 12);
-    CHECK(components1.day == 31);
-
-    TimeUtils::DateTimeComponents components2 = year_day_to_date_time(2023, 366); // Not leap year.
-    CHECK(components2.year == 2024);
-    CHECK(components2.month == 1);
-    CHECK(components2.day == 1);
-}
-
-TEST_CASE("year_day_to_date_time - Minimal Year Day")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(2000, 1);
-    CHECK(components.year == 2000);
-    CHECK(components.month == 1);
-    CHECK(components.day == 1);
-}
-
-TEST_CASE("year_day_to_date_time - Year close to max uint16_t")
-{
-    TimeUtils::DateTimeComponents components = year_day_to_date_time(65535, 1);
-    CHECK(components.year == 65535);
-    CHECK(components.month == 1);
-    CHECK(components.day == 1);
+    std::chrono::system_clock::time_point tp_start = TimeUtils::to_timepoint(start);
+    std::chrono::system_clock::time_point tp_end = TimeUtils::to_timepoint(end);
+    CHECK(TimeUtils::to_fractional_days(tp_start, tp_end) == doctest::Approx(500.0f / (24.0f * 3600.0f * 1000.0f)));
 }
 
 void *loopardMemoryAllocate(size_t amount) { return static_cast<void *>(malloc(amount)); };
@@ -208,7 +133,7 @@ TEST_CASE("receive one TLE")
         .elementNumber = 999,
         .ephemerisType = 0,
         .epochYear = 25,
-        .epochDay = 173.704,
+        .epochDay = 173.704f,
         .meanMotionDerivative1 = 0.00010306f,
         .meanMotionDerivative2 = 0.0f,
         .bStarDrag = 0.00018707f,
@@ -274,7 +199,7 @@ TEST_CASE("receive two TLE")
         .elementNumber = 999,
         .ephemerisType = 0,
         .epochYear = 25,
-        .epochDay = 173.704,
+        .epochDay = 173.704f,
         .meanMotionDerivative1 = 0.00010306f,
         .meanMotionDerivative2 = 0.0f,
         .bStarDrag = 0.00018707f,
@@ -303,7 +228,7 @@ TEST_CASE("receive two TLE")
         .elementNumber = 999,
         .ephemerisType = 0,
         .epochYear = 25,
-        .epochDay = 173.704,
+        .epochDay = 173.704f,
         .meanMotionDerivative1 = 0.00010306f,
         .meanMotionDerivative2 = 0.0f,
         .bStarDrag = 0.00018707f,

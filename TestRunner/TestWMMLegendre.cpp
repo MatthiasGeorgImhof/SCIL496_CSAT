@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-constexpr float DEG_TO_RAD = M_PI / 180.0f; // Conversion factor from degrees to radians
-constexpr float RAD_TO_DEG = 180.0f / M_PI; // Conversion factor from radians to degrees
+constexpr float DEG_TO_RAD = M_PIf / 180.0f; // Conversion factor from degrees to radians
+constexpr float RAD_TO_DEG = 180.0f / M_PIf; // Conversion factor from radians to degrees
 
 TEST_CASE("Associated Legendre Polynomial Tests: 0.5")
 {
@@ -13,8 +13,8 @@ TEST_CASE("Associated Legendre Polynomial Tests: 0.5")
 
     constexpr int nMax = 4;
     constexpr size_t N = (nMax + 1) * (nMax + 2) / 2;
-    constexpr std::array<float, N + 1> expected = {1.0000, 0.5000, 0.8660, -0.1250, 0.7500, 0.6495, -0.4375, 0.1326,
-                                                   0.7262, 0.5135, -0.2891, -0.4279, 0.3144, 0.6793, 0.4160};
+    constexpr std::array<float, N + 1> expected = {1.f, 0.5000f, 0.8660f, -0.1250f, 0.7500f, 0.6495f, -0.4375f, 0.1326f,
+                                                   0.7262f, 0.5135f, -0.2891f, -0.4279f, 0.3144f, 0.6793f, 0.4160f};
 
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
@@ -46,8 +46,8 @@ TEST_CASE("Associated Legendre Polynomial Tests MAG_PcupHigh: 0.5")
 
     constexpr int nMax = 4;
     constexpr size_t N = (nMax + 1) * (nMax + 2) / 2;
-    constexpr std::array<float, N + 1> expected = {1.0000, 0.5000, 0.8660, -0.1250, 0.7500, 0.6495, -0.4375, 0.1326,
-                                                   0.7262, 0.5135, -0.2891, -0.4279, 0.3144, 0.6793, 0.4160};
+    constexpr std::array<float, N + 1> expected = {1.0000f, 0.5000f, 0.8660f, -0.1250f, 0.7500f, 0.6495f, -0.4375f, 0.1326f,
+                                                   0.7262f, 0.5135f, -0.2891f, -0.4279f, 0.3144f, 0.6793f, 0.4160f};
 
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
@@ -79,8 +79,8 @@ TEST_CASE("Associated Legendre Polynomial Tests: 0.1")
 
     constexpr int nMax = 4;
     constexpr size_t N = (nMax + 1) * (nMax + 2) / 2;
-    constexpr std::array<float, N + 1> expected = {1.0000, 0.1000, 0.9950, -0.4850, 0.1723, 0.8574, -0.1475,
-                                                   -0.5788, 0.1917, 0.7787, 0.3379, -0.2305, -0.5147, 0.2060, 0.7248};
+    constexpr std::array<float, N + 1> expected = {1.0000f, 0.1000f, 0.9950f, -0.4850f, 0.1723f, 0.8574f, -0.1475f,
+                                                   -0.5788f, 0.1917f, 0.7787f, 0.3379f, -0.2305f, -0.5147f, 0.2060f, 0.7248f};
 
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
@@ -112,9 +112,9 @@ TEST_CASE("Associated Legendre Polynomial Tests: 0.9")
 
     constexpr int nMax = 4;
     constexpr size_t N = (nMax + 1) * (nMax + 2) / 2;
-    constexpr std::array<float, N + 1> expected = {1.000000, 0.900000, 0.435890, 0.715000, 0.679485, 0.164545,
-                                                   0.472500, 0.814127, 0.331140, 0.065474, 0.207938, 0.828077,
-                                                   0.496016, 0.155906, 0.026696};
+    constexpr std::array<float, N + 1> expected = {1.000000f, 0.900000f, 0.435890f, 0.715000f, 0.679485f, 0.164545f,
+                                                   0.472500f, 0.814127f, 0.331140f, 0.065474f, 0.207938f, 0.828077f,
+                                                   0.496016f, 0.155906f, 0.026696f};
 
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
@@ -146,9 +146,9 @@ TEST_CASE("Associated Legendre Polynomial Tests: -0.9")
 
     constexpr int nMax = 4;
     constexpr size_t N = (nMax + 1) * (nMax + 2) / 2;
-    constexpr std::array<float, N + 1> expected = {1.000000, -0.900000, 0.435890, 0.715000, -0.679485, 0.164545,
-                                                   -0.472500, 0.814127, -0.331140, 0.065474, 0.207938, -0.828077,
-                                                   0.496016, -0.155906, 0.026696};
+    constexpr std::array<float, N + 1> expected = {1.000000f, -0.900000f, 0.435890f, 0.715000f, -0.679485f, 0.164545f,
+                                                   -0.472500f, 0.814127f, -0.331140f, 0.065474f, 0.207938f, -0.828077f,
+                                                   0.496016f, -0.155906f, 0.026696f};
 
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
@@ -180,9 +180,9 @@ TEST_CASE("Associated Legendre Polynomial Tests MAG_PcupHigh: -0.9")
 
     constexpr int nMax = 4;
     constexpr size_t N = (nMax + 1) * (nMax + 2) / 2;
-    constexpr std::array<float, N + 1> expected = {1.000000, -0.900000, 0.435890, 0.715000, -0.679485, 0.164545,
-                                                   -0.472500, 0.814127, -0.331140, 0.065474, 0.207938, -0.828077,
-                                                   0.496016, -0.155906, 0.026696};
+    constexpr std::array<float, N + 1> expected = {1.000000f, -0.900000f, 0.435890f, 0.715000f, -0.679485f, 0.164545f,
+                                                   -0.472500f, 0.814127f, -0.331140f, 0.065474f, 0.207938f, -0.828077f,
+                                                   0.496016f, -0.155906f, 0.026696f};
 
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
@@ -220,7 +220,7 @@ TEST_CASE("Derivative Associated Legendre Polynomial Tests: 0.5")
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
 
-    const float angle = 1.0472;
+    const float angle = 1.0472f;
     const float delta = 1e-3f;
     bool result = false;
     result = MAG_PcupLow<nMax, N>(Pcuph, dPcup, sinf(angle + 0.5f * delta));
@@ -256,7 +256,7 @@ TEST_CASE("Derivative Associated Legendre Polynomial Tests: -0.5")
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
 
-    const float angle = -1.0472;
+    const float angle = -1.0472f;
     const float delta = 1e-3f;
     bool result = false;
     result = MAG_PcupLow<nMax, N>(Pcuph, dPcup, sinf(angle + 0.5f * delta));
@@ -292,7 +292,7 @@ TEST_CASE("Derivative Associated Legendre Polynomial Tests MAG_PcupHigh: 0.5")
     std::array<float, N> Pcup{};
     std::array<float, N> dPcup{};
 
-    const float angle = 1.0472;
+    const float angle = 1.0472f;
     const float delta = 1e-3f;
     bool result = false;
     result = MAG_PcupHigh<nMax, N>(Pcuph, dPcup, sinf(angle + 0.5f * delta));

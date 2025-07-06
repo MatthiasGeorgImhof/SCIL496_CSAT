@@ -17,34 +17,6 @@
 #include <chrono>
 #include <cstdint>
 
-float duration_in_fractional_days(const TimeUtils::DateTimeComponents &start, const TimeUtils::DateTimeComponents &end)
-{
-    TimeUtils::epoch_duration start_duration = TimeUtils::to_epoch_duration(start);
-    TimeUtils::epoch_duration end_duration = TimeUtils::to_epoch_duration(end);
-
-    std::chrono::duration<double, std::ratio<24 * 3600>> diff = end_duration - start_duration; // Duration in days
-    return diff.count();
-}
-
-TimeUtils::DateTimeComponents year_day_to_date_time(uint16_t year, uint16_t days, uint8_t hour = 0, uint8_t minute = 0, uint8_t second = 0, uint16_t millisecond = 0)
-{
-    using namespace std::chrono;
-
-    std::chrono::year y{static_cast<int>(year)};
-    std::chrono::days day_of_year{days - 1};                                                                    // Adjust day_of_year to be 0-based
-    std::chrono::sys_days date_point = sys_days{y / std::chrono::month(1) / std::chrono::day(1)} + day_of_year; // Explicitly create sys_days
-    std::chrono::year_month_day ymd{date_point};
-
-    return TimeUtils::DateTimeComponents{
-        .year = static_cast<uint16_t>(static_cast<int>(ymd.year())),
-        .month = static_cast<uint8_t>(static_cast<unsigned int>(ymd.month())),
-        .day = static_cast<uint8_t>(static_cast<unsigned int>(ymd.day())),
-        .hour = hour,
-        .minute = minute,
-        .second = second,
-        .millisecond = millisecond};
-}
-
 template <typename... Adapters>
 class TaskSGP4 : public TaskPublishReceive<Adapters...>
 {
@@ -128,13 +100,12 @@ bool TaskSGP4<Adapters...>::predictSGP4(float r[3], float v[3], uint64_t &timest
     satrec.mo = tle_.meanAnomaly;
     satrec.no_kozai = tle_.meanMotion;
     satrec.revnum = tle_.revolutionNumberAtEpoch;
-    TimeUtils::DateTimeComponents epoch = year_day_to_date_time(tle_.epochYear + TimeUtils::EPOCH_YEAR, tle_.epochDay);
 
     TimeUtils::RTCDateTimeSubseconds rtc;
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
 
-    TimeUtils::DateTimeComponents now = {
+    TimeUtils::DateTimeComponents dtc = {
         .year = static_cast<uint16_t>(static_cast<uint16_t>(rtc.date.Year) + TimeUtils::EPOCH_YEAR),
         .month = rtc.date.Month,
         .day = rtc.date.Date,
@@ -142,13 +113,16 @@ bool TaskSGP4<Adapters...>::predictSGP4(float r[3], float v[3], uint64_t &timest
         .minute = rtc.time.Minutes,
         .second = rtc.time.Seconds,
         .millisecond = static_cast<uint16_t>(static_cast<uint64_t>(1000 * (rtc.time.SecondFraction - rtc.time.SubSeconds) / (rtc.time.SecondFraction + 1)))};
-    float fractional_days_since_epoch = duration_in_fractional_days(epoch, now);
 
+    std::chrono::system_clock::time_point now = TimeUtils::to_timepoint(dtc);
+    std::chrono::system_clock::time_point epoch = TimeUtils::to_timepoint(static_cast<uint16_t>(tle_.epochYear) + TimeUtils::EPOCH_YEAR, tle_.epochDay);
+    float fractional_days_since_epoch = TimeUtils::to_fractional_days(epoch, now);
+    
     std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
     timestamp = 1000 * milliseconds.count();
 
     gravconsttype whichconst = wgs84; // Choose the gravity model (wgs72old, wgs72, wgs84)
-    char opsmode = 'i'; // Operation mode ('a' for AFSPC, 'i' for improved)
+    char opsmode = 'i';               // Operation mode ('a' for AFSPC, 'i' for improved)
     SGP4Funcs::satrec2rv(opsmode, whichconst, satrec);
     return SGP4Funcs::sgp4(satrec, fractional_days_since_epoch, r, v);
 }

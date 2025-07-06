@@ -31,7 +31,7 @@ void removeMultiple(BoxSet<CONTENT, N> &box, size_t num_elements)
     size_t count = 0;
     for (size_t i = 0; i < N; ++i)
     {
-        if (box.is_used(i))
+        if (box.is_used(static_cast<uint8_t>(i)))
         {
             box.remove(static_cast<uint8_t>(i));
             count++;
@@ -103,7 +103,7 @@ void testAddAndIsUsed(BoxSet<CONTENT, N> &box)
     {
         box.add(static_cast<CONTENT>(std::to_string(i)));
         for (int j = 0; j < N; ++j)
-            CHECK(box.is_used(j) == (j <= i));
+            CHECK(box.is_used(static_cast<uint8_t>(j)) == (j <= i));
     }
 }
 

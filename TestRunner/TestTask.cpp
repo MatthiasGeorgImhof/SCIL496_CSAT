@@ -93,8 +93,7 @@ int8_t serialize_mock(const void* const data, uint8_t* const payload, size_t* co
     }
     else
     {
-        const int* int_data = static_cast<const int*>(data);
-        payload[0] = *int_data;
+        payload[0] = static_cast<const uint8_t*>(data)[0];
         *payload_size = 1;
     }
     return 1;

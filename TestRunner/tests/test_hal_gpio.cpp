@@ -95,7 +95,7 @@ TEST_CASE("get_gpio_pin_state and set_gpio_pin_reset")
 
     // Set it to low using set_gpio_pin_state
     reset_gpio_port_state(&GPIOx);
-    for(size_t i=0; i < MAX_GPIO_PINS; i++) {
+    for(uint16_t i=0; i < MAX_GPIO_PINS; i++) {
         CHECK(get_gpio_pin_state(&GPIOx, i) == GPIO_PIN_RESET);
     }
 }
