@@ -116,7 +116,7 @@ bool TaskSGP4<Adapters...>::predictSGP4(float r[3], float v[3], uint64_t &timest
 
     std::chrono::system_clock::time_point now = TimeUtils::to_timepoint(dtc);
     std::chrono::system_clock::time_point epoch = TimeUtils::to_timepoint(static_cast<uint16_t>(tle_.epochYear) + TimeUtils::EPOCH_YEAR, tle_.epochDay);
-    float fractional_days_since_epoch = TimeUtils::to_fractional_days(epoch, now);
+    float fractional_days_since_epoch = TimeUtils::to_fractional_days(epoch, now) * 60.f * 24.f;
     
     std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
     timestamp = 1000 * static_cast<uint64_t>(milliseconds.count());
