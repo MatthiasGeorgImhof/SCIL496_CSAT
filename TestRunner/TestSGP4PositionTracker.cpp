@@ -21,7 +21,7 @@ TEST_CASE("Sgp4PositionTracker fuses intermittent GPS updates") {
 
         tracker.setPrediction(pos, vel);
 
-        std::cout << "Step " << step + 1 << " — SGP4 pos: " << pos.transpose();
+        // std::cout << "Step " << step + 1 << " — SGP4 pos: " << pos.transpose();
 
         if (step % 2 == 0) {
             Eigen::Vector3f gps_noise;
@@ -31,14 +31,13 @@ TEST_CASE("Sgp4PositionTracker fuses intermittent GPS updates") {
             Eigen::Vector3f gps = pos + gps_noise;
 
             tracker.updateWithGps(gps);
-            std::cout << " | GPS: " << gps.transpose();
+            // std::cout << " | GPS: " << gps.transpose();
         } else {
-            std::cout << " | GPS: ---";
+            // std::cout << " | GPS: ---";
         }
 
         auto est = tracker.getState();
-        std::cout << " | Fused pos: " << est.head<3>().transpose()
-                  << " | vel: " << est.tail<3>().transpose() << "\n";
+        // std::cout << " | Fused pos: " << est.head<3>().transpose() << " | vel: " << est.tail<3>().transpose() << "\n";
 
         if (step % 2 == 0) {
             CHECK((est.head<3>() - pos).norm() < 0.1f);

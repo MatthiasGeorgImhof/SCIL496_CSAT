@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -g -MMD -std=c++20
 EXTRA_FLAGS = -Wall -Wextra -pedantic -Werror -Wconversion
-EXTRA_EXTRA_FLAGS = -Wzero-as-null-pointer-constant
+EXTRA_EXTRA_FLAGS = -Wzero-as-null-pointer-constant -Wsign-conversion
 
 INCLUDE_PATHS = -I ../Inc \
 				-I $(HOME)/Data/github/can/libcanard/libcanard \

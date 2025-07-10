@@ -38,9 +38,9 @@ TEST_CASE("PositionTracker9D handles asynchronous GPS and accel updates") {
     Eigen::Vector3f expected_vel = true_accel * sim_duration;
     Eigen::Vector3f expected_acc = true_accel;
 
-    std::cout << "Estimated pos: " << est.segment<3>(0).transpose() << "\n";
-    std::cout << "Estimated vel: " << est.segment<3>(3).transpose() << "\n";
-    std::cout << "Estimated acc: " << est.segment<3>(6).transpose() << "\n";
+    // std::cout << "Estimated pos: " << est.segment<3>(0).transpose() << "\n";
+    // std::cout << "Estimated vel: " << est.segment<3>(3).transpose() << "\n";
+    // std::cout << "Estimated acc: " << est.segment<3>(6).transpose() << "\n";
 
     for (int i = 0; i < 3; ++i) {
         CHECK(est.segment<3>(0)(i) == doctest::Approx(expected_pos(i)).epsilon(0.15f));

@@ -51,10 +51,10 @@ TEST_CASE("1D Kalman Filter fuses mock SGP4 prediction with noisy GPS: 5 steps")
         kf.update(H, z);
 
         auto est = kf.getState();
-        std::cout << "Time t=" << t << " → "
-                  << "SGP4 p=" << predicted_p << ", "
-                  << "GPS z=" << z(0) << ", "
-                  << "Fused p=" << est(0) << ", v=" << est(1) << std::endl;
+        // std::cout << "Time t=" << t << " → "
+        //           << "SGP4 p=" << predicted_p << ", "
+        //           << "GPS z=" << z(0) << ", "
+        //           << "Fused p=" << est(0) << ", v=" << est(1) << std::endl;
 
         // Validate fused position stays close to SGP4 and measurement
         CHECK(std::abs(est(0) - std::sin(t)) < 0.05f);
@@ -104,10 +104,10 @@ TEST_CASE("1D Kalman Filter fuses mock SGP4 prediction with noisy GPS: 10 steps"
         kf.update(H, z);
 
         auto est = kf.getState();
-        std::cout << "Time t=" << t << " → "
-                  << "SGP4 p=" << predicted_p << ", "
-                  << "GPS z=" << z(0) << ", "
-                  << "Fused p=" << est(0) << ", v=" << est(1) << std::endl;
+        // std::cout << "Time t=" << t << " → "
+        //           << "SGP4 p=" << predicted_p << ", "
+        //           << "GPS z=" << z(0) << ", "
+        //           << "Fused p=" << est(0) << ", v=" << est(1) << std::endl;
 
         // Validate fused position stays close to SGP4 and measurement
         CHECK(std::abs(est(0) - std::sin(t)) < 0.1f);
@@ -161,12 +161,12 @@ TEST_CASE("1D Kalman Filter corrects phase-lagged SGP4 using noisy GPS") {
         kf.update(H, z_meas);
         auto est = kf.getState();
 
-        std::cout << "t=" << t
-                  << " | true=" << true_pos
-                  << " | SGP4=" << pred_pos
-                  << " | GPS=" << z
-                  << " | fused=" << est(0)
-                  << " | v=" << est(1) << "\n";
+        // std::cout << "t=" << t
+        //           << " | true=" << true_pos
+        //           << " | SGP4=" << pred_pos
+        //           << " | GPS=" << z
+        //           << " | fused=" << est(0)
+        //           << " | v=" << est(1) << "\n";
 
         CHECK(std::abs(est(0) - true_pos) < 0.2f);  // Position tracks truth
         CHECK(std::abs(est(1) - true_vel) < 0.2f);  // Position tracks truth
@@ -219,12 +219,12 @@ TEST_CASE("1D Kalman Filter corrects phase-lagged SGP4 tuned to using noisy GPS"
         kf.update(H, z_meas);
         auto est = kf.getState();
 
-        std::cout << "t=" << t
-                  << " | true=" << true_pos
-                  << " | SGP4=" << pred_pos
-                  << " | GPS=" << z
-                  << " | fused=" << est(0)
-                  << " | v=" << est(1) << "\n";
+        // std::cout << "t=" << t
+        //           << " | true=" << true_pos
+        //           << " | SGP4=" << pred_pos
+        //           << " | GPS=" << z
+        //           << " | fused=" << est(0)
+        //           << " | v=" << est(1) << "\n";
 
         CHECK(std::abs(est(0) - true_pos) < 0.15f);  // Position tracks truth
         CHECK(std::abs(est(1) - true_vel) < 0.15f);  // Position tracks truth
@@ -281,12 +281,12 @@ TEST_CASE("3D Kalman Filter fuses mock SGP4 with noisy GPS position") {
 
         auto fused = kf.getState();
 
-        std::cout << "Step " << step + 1
-                  << " — SGP4 pos: " << pos_sgp4.transpose()
-                  << ", GPS z: " << z.transpose()
-                  << ", Fused pos: " << fused.head<3>().transpose()
-                  << ", vel: " << fused.tail<3>().transpose()
-                  << std::endl;
+        // std::cout << "Step " << step + 1
+        //           << " — SGP4 pos: " << pos_sgp4.transpose()
+        //           << ", GPS z: " << z.transpose()
+        //           << ", Fused pos: " << fused.head<3>().transpose()
+        //           << ", vel: " << fused.tail<3>().transpose()
+        //           << std::endl;
 
         CHECK((fused.head<3>() - pos_sgp4).norm() < 0.1f); // Position close to true
         CHECK((fused.tail<3>() - vel_sgp4).norm() < 0.2f); // Velocity also tracked
@@ -330,7 +330,7 @@ TEST_CASE("3D Kalman Filter with intermittent GPS updates and SGP4 prior") {
         kf.stateVector = sgp4_pred;
         kf.stateCovarianceMatrix = Q;
 
-        std::cout << "Step " << step + 1 << " — SGP4 pos: " << p.transpose();
+        // std::cout << "Step " << step + 1 << " — SGP4 pos: " << p.transpose();
 
         if (step % 2 == 0) {
             // Simulate a GPS update
@@ -341,14 +341,14 @@ TEST_CASE("3D Kalman Filter with intermittent GPS updates and SGP4 prior") {
 
             Eigen::Matrix<float, MeasurementSize, 1> z = p + noise;
             kf.update(H, z);
-            std::cout << " | GPS: " << z.transpose();
+            // std::cout << " | GPS: " << z.transpose();
         } else {
-            std::cout << " | GPS: --- (no update)";
+            // std::cout << " | GPS: --- (no update)";
         }
 
         auto fused = kf.getState();
-        std::cout << " | Fused pos: " << fused.head<3>().transpose()
-                  << " | vel: " << fused.tail<3>().transpose() << "\n";
+        // std::cout << " | Fused pos: " << fused.head<3>().transpose()
+        //           << " | vel: " << fused.tail<3>().transpose() << "\n";
 
         // Optionally loosen checks during dropout
         if (step % 2 == 0) {
@@ -415,12 +415,12 @@ TEST_CASE("3D Kalman corrects systematic bias in SGP4 prediction using noisy GPS
 
         auto est = kf.getState();
 
-        std::cout << "t=" << t
-                  << " | true pos: " << p_true.transpose()
-                  << " | SGP4: " << p_sgp4.transpose()
-                  << " | GPS: " << z.transpose()
-                  << " | fused pos: " << est.head<3>().transpose()
-                  << " | vel: " << est.tail<3>().transpose() << "\n";
+        // std::cout << "t=" << t
+        //           << " | true pos: " << p_true.transpose()
+        //           << " | SGP4: " << p_sgp4.transpose()
+        //           << " | GPS: " << z.transpose()
+        //           << " | fused pos: " << est.head<3>().transpose()
+        //           << " | vel: " << est.tail<3>().transpose() << "\n";
 
         // Assert position is closer to true than to biased prediction
         float err_to_true  = (est.head<3>() - p_true).norm();

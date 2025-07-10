@@ -70,7 +70,7 @@ TEST_CASE("Orientation EKF tracks yaw using gyro + magnetometer (identity Jacobi
         float yaw = std::atan2(2.0f * (q_est.w() * q_est.z() + q_est.x() * q_est.y()),
                                1.0f - 2.0f * (q_est.y() * q_est.y() + q_est.z() * q_est.z()));
 
-        std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw * 180.0f / M_PI << " deg\n";
+        // std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw * 180.0f / M_PI << " deg\n";
         
         float unwrapped_yaw = fmodf(omega(2) * dt * static_cast<float>(step + 1), 2.0f * M_PIf);
         if (unwrapped_yaw > M_PIf) unwrapped_yaw -= 2.f * M_PIf;
@@ -153,7 +153,7 @@ TEST_CASE("Orientation EKF tracks yaw using gyro + magnetometer (analytic Jacobi
         float unwrapped_yaw = fmodf(omega(2) * dt * static_cast<float>(step + 1), 2.0f * M_PIf);
         if (unwrapped_yaw > M_PIf) unwrapped_yaw -= 2.f * M_PIf;
 
-        std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw * 180.f / M_PIf << " deg\n";
+        // std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw * 180.f / M_PIf << " deg\n";
         CHECK(std::abs(yaw - unwrapped_yaw) < 0.5f);
     }
 }
@@ -234,7 +234,7 @@ TEST_CASE("Orientation EKF tracks yaw using gyro + magnetometer (analytic Jacobi
         float unwrapped_yaw = fmodf(omega(2) * dt * static_cast<float>(step + 1), 2.0f * M_PIf);
         if (unwrapped_yaw > M_PIf) unwrapped_yaw -= 2.f * M_PIf;
 
-        std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw * 180.f / M_PIf << " deg\n";
+        // std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw * 180.f / M_PIf << " deg\n";
         CHECK(std::abs(yaw - unwrapped_yaw) < 0.5f);
     }
 }
@@ -334,9 +334,9 @@ TEST_CASE("3D EKF integrates gyro and magnetometer (external prediction)") {
                                     1.0f - 2.0f * (q_true.y() * q_true.y() + q_true.z() * q_true.z()));
 
         float yaw_error = std::atan2(std::sin(yaw_est - yaw_true), std::cos(yaw_est - yaw_true));
-        std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw_est * 180.f / M_PIf
-                  << " | True yaw: " << yaw_true * 180.f / M_PIf
-                  << " | Error: " << yaw_error * 180.f / M_PIf << " deg\n";
+        // std::cout << "Step " << step + 1 << " | Estimated yaw: " << yaw_est * 180.f / M_PIf
+        //           << " | True yaw: " << yaw_true * 180.f / M_PIf
+        //           << " | Error: " << yaw_error * 180.f / M_PIf << " deg\n";
 
         CHECK(std::abs(yaw_error) < 0.1f);
     }
@@ -413,8 +413,7 @@ TEST_CASE("Tumbling EKF tracks 3D orientation using gyro + tilted magnetometer")
         Eigen::Matrix3f R_true = q_true.toRotationMatrix();
         float angle_error_rad = std::acos(std::min(1.0f, std::max(-1.0f, 0.5f * (R_est.transpose() * R_true).trace() - 0.5f)));
 
-        std::cout << "Step " << step + 1
-                  << " | Orientation error: " << angle_error_rad * 180.f / M_PIf << " deg\n";
+        // std::cout << "Step " << step + 1 << " | Orientation error: " << angle_error_rad * 180.f / M_PIf << " deg\n";
 
         // Let error grow slightly to test long-term convergence
         CHECK(angle_error_rad < 0.3f);
@@ -494,8 +493,7 @@ TEST_CASE("Periodic tumbling EKF tracks full 3D orientation with magnetometer on
         Eigen::Matrix3f R_true = q_true.toRotationMatrix();
         float angle_error = std::acos(std::min(1.0f, std::max(-1.0f, 0.5f * (R_est.transpose() * R_true).trace() - 0.5f)));
 
-        std::cout << "Step " << step + 1
-                  << " | Orientation error: " << angle_error * 180.0f / M_PIf << " deg\n";
+        // std::cout << "Step " << step + 1 << " | Orientation error: " << angle_error * 180.0f / M_PIf << " deg\n";
 
         CHECK(angle_error < 0.3f);
     }
@@ -574,9 +572,9 @@ TEST_CASE("EKF with intermittent magnetometer updates during periodic tumbling")
         Eigen::Matrix3f R_true = q_true.toRotationMatrix();
         float angle_error = std::acos(std::min(1.0f, std::max(-1.0f, 0.5f * (R_est.transpose() * R_true).trace() - 0.5f)));
 
-        std::cout << "Step " << step + 1
-                  << " | Orientation error: " << angle_error * 180.0f / M_PIf << " deg"
-                  << (step % 6 == 0 ? "  <-- magnetometer update\n" : "\n");
+        // std::cout << "Step " << step + 1
+        //           << " | Orientation error: " << angle_error * 180.0f / M_PIf << " deg"
+        //           << (step % 6 == 0 ? "  <-- magnetometer update\n" : "\n");
 
         CHECK(angle_error < 5.0f); // Give room for drift between updates
     }

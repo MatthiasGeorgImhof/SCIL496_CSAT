@@ -53,8 +53,7 @@ TEST_CASE("Kalman Filter - 2D State, 1D Measurement")
 
     // Perform the update step
     kf.update(measurementMatrix, measurementVector);
-    std::cout << "Updated state estimate:\n"
-              << kf.getState().transpose() << std::endl;
+    // std::cout << "Updated state estimate:\n" << kf.getState().transpose() << std::endl;
 
     // Get the state estimate
     Eigen::Matrix<float, StateSize, 1> stateEstimate = kf.getState();
@@ -114,8 +113,7 @@ TEST_CASE("1D Kalman Filter deterministic test with known ground truth (numerica
     }
 
     auto est = kf.getState();
-    std::cout << "Final deterministic estimate:\n"
-              << est.transpose() << std::endl;
+    // std::cout << "Final deterministic estimate:\n" << est.transpose() << std::endl;
 
     CHECK(est(0) == doctest::Approx(4.5f).epsilon(0.001f));     // position
     CHECK(est(1) == doctest::Approx(1.92857f).epsilon(0.001f)); // velocity would be 3 but we ignore acceleration!
@@ -169,8 +167,7 @@ TEST_CASE("1D Position-Velocity Kalman Filter with Accel & GPS")
     }
 
     auto est = kf.getState();
-    std::cout << "Final estimated state:\n"
-              << est.transpose() << std::endl;
+    // std::cout << "Final estimated state:\n" << est.transpose() << std::endl;
 
     CHECK(est(0) > 0.0f);
     CHECK(est(1) > 0.0f);
@@ -221,8 +218,7 @@ TEST_CASE("Kalman Filter estimates acceleration from position-only measurements"
     }
 
     auto est = kf.getState();
-    std::cout << "Final estimated state:\n"
-              << est.transpose() << std::endl;
+    // std::cout << "Final estimated state:\n" << est.transpose() << std::endl;
 
     CHECK(est(0) == doctest::Approx(12.5f).epsilon(0.05f)); // position at t=5
     CHECK(est(1) == doctest::Approx(5.0f).epsilon(0.05f));  // velocity at t=5
@@ -290,8 +286,7 @@ TEST_CASE("3D Position-Velocity Kalman Filter with Accel & GPS")
     }
 
     Eigen::Matrix<float, StateSize, 1> est = kf.getState();
-    std::cout << "Final estimated 3D state:\n"
-              << est.transpose() << std::endl;
+    // std::cout << "Final estimated 3D state:\n" << est.transpose() << std::endl;
 
     CHECK(est(0) > 0.0f); // x
     CHECK(est(1) > 0.0f); // y
@@ -338,7 +333,7 @@ TEST_CASE("3D Position-Velocity Kalman Filter with Repeated Accel & GPS Updates"
 
     KalmanFilter<StateSize, MeasurementSize> kf(Q, R, P0, x0);
 
-    std::cout << "=== Simulating 10 time steps ===" << std::endl;
+    // std::cout << "=== Simulating 10 time steps ===" << std::endl;
     for (int i = 0; i < 10; ++i)
     {
         float t = static_cast<float>(i + 1);
@@ -358,10 +353,10 @@ TEST_CASE("3D Position-Velocity Kalman Filter with Repeated Accel & GPS Updates"
         // Update with noisy GPS measurement
         kf.update(H, z);
 
-        auto state = kf.getState();
-        std::cout << "Step " << i + 1 << " estimate:\n"
-                  << state.transpose() << "\n"
-                  << std::endl;
+        // auto state = kf.getState();
+        // std::cout << "Step " << i + 1 << " estimate:\n"
+        //           << state.transpose() << "\n"
+        //           << std::endl;
     }
 
     // Final state should show motion in +x, +y, -z directions
@@ -420,8 +415,7 @@ TEST_CASE("3D Kalman Filter estimates acceleration from GPS-only measurements")
     }
 
     Eigen::Matrix<float, StateSize, 1> est = kf.getState();
-    std::cout << "Estimated state:\n"
-              << est.transpose() << std::endl;
+    // std::cout << "Estimated state:\n" << est.transpose() << std::endl;
 
     // Expected values at t = 5
     Eigen::Vector3f expected_p = 0.5f * true_accel * 25.0f; // t² = 25
@@ -481,17 +475,17 @@ TEST_CASE("9D Kalman fuses sparse GPS updates")
         {
             Eigen::Vector3f gps_meas = true_pos + Eigen::Vector3f::Random() * 0.05f;
             kf.update(H_gps, gps_meas);
-            std::cout << "[t=" << t << "] GPS fused: " << gps_meas.transpose() << "\n";
+            // std::cout << "[t=" << t << "] GPS fused: " << gps_meas.transpose() << "\n";
         }
         else
         {
-            std::cout << "[t=" << t << "] GPS dropout\n";
+            // std::cout << "[t=" << t << "] GPS dropout\n";
         }
 
         auto est = kf.getState();
-        std::cout << "  est pos: " << est.segment<3>(0).transpose()
-                  << " | vel: " << est.segment<3>(3).transpose()
-                  << " | acc: " << est.segment<3>(6).transpose() << "\n";
+        // std::cout << "  est pos: " << est.segment<3>(0).transpose()
+        //           << " | vel: " << est.segment<3>(3).transpose()
+        //           << " | acc: " << est.segment<3>(6).transpose() << "\n";
 
         // Optional check: Position improves after GPS step
         if (i == 9)
@@ -569,17 +563,17 @@ TEST_CASE("9D Kalman fuses acceleration inputs as measurement and sparse GPS upd
         {
             Eigen::Vector3f gps_meas = true_pos + Eigen::Vector3f::Random() * 0.05f;
             kf.update(H_gps, gps_meas);
-            std::cout << "[t=" << t << "] GPS fused:  " << gps_meas.transpose() << "\n";
+            // std::cout << "[t=" << t << "] GPS fused:  " << gps_meas.transpose() << "\n";
         }
         else
         {
-            std::cout << "[t=" << t << "] GPS dropout\n";
+            // std::cout << "[t=" << t << "] GPS dropout\n";
         }
 
         auto est = kf.getState();
-        std::cout << "  est pos: " << est.segment<3>(0).transpose()
-                  << " | vel: " << est.segment<3>(3).transpose()
-                  << " | acc: " << est.segment<3>(6).transpose() << "\n";
+        // std::cout << "  est pos: " << est.segment<3>(0).transpose()
+        //           << " | vel: " << est.segment<3>(3).transpose()
+        //           << " | acc: " << est.segment<3>(6).transpose() << "\n";
 
         if (i == 9)
         {
