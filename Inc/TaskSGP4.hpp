@@ -1,4 +1,4 @@
-#ifndef INC_TASKRESPONDGETINFO_HPP_
+#ifndef INC_TASKSGP4_HPP_
 #define INC_TASKSGP4_HPP_
 
 #include "Task.hpp"
@@ -8,6 +8,7 @@
 
 #include "sgp4_tle.hpp"
 #include "SGP4.h"
+#include "au.hpp"
 
 #include "nunavut_assert.h"
 #include "_4111Spyglass.h"
@@ -17,16 +18,12 @@
 #include <chrono>
 #include <cstdint>
 
-template <typename... Adapters>
-class TaskSGP4 : public TaskPublishReceive<Adapters...>
+
+class SGP4
 {
 public:
-    TaskSGP4() = delete;
-    TaskSGP4(RTC_HandleTypeDef *hrtc, uint32_t interval, uint32_t tick, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters) : TaskPublishReceive<Adapters...>(interval, tick, transfer_id, adapters), hrtc_(hrtc), tle_({}) {}
-
-    virtual void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
-    virtual void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
-    virtual void handleTaskImpl() override;
+    SGP4() = delete;
+    SGP4(RTC_HandleTypeDef *hrtc, SGP4TwoLineElement tle = {}) : hrtc_(hrtc), tle_(tle) {}
 
     void setSGP4TLE(const SGP4TwoLineElement &tle)
     {
@@ -38,52 +35,20 @@ public:
         return tle_;
     }
 
-private:
-    void processTLEMessages();
-    bool predictSGP4(float r[3], float v[3], uint64_t &timestamp);
+    bool predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
 
 private:
     RTC_HandleTypeDef *hrtc_;
     SGP4TwoLineElement tle_;
 };
 
-template <typename... Adapters>
-void TaskSGP4<Adapters...>::processTLEMessages()
+bool SGP4::predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
 {
-    size_t count = TaskSGP4<Adapters...>::buffer_.size();
-    for (size_t i = 0; i < count; ++i)
+    if (tle_.satelliteNumber == 0)
     {
-        std::shared_ptr<CyphalTransfer> transfer = TaskSGP4<Adapters...>::buffer_.pop();
-        size_t payload_size = transfer->payload_size;
-        _4111spyglass_sat_data_SPG4TLE_0_1 data;
-        int8_t result = _4111spyglass_sat_data_SPG4TLE_0_1_deserialize_(&data, static_cast<const uint8_t *>(transfer->payload), &payload_size);
-        if (result != 0)
-        {
-            log(LOG_LEVEL_ERROR, "TaskSGP4: deserialization error\r\n");
-            return;
-        }
-        tle_ = {
-            .satelliteNumber = data.satelliteNumber,
-            .elementNumber = data.elementNumber,
-            .ephemerisType = data.ephemerisType,
-            .epochYear = data.epochYear,
-            .epochDay = data.epochDay,
-            .meanMotionDerivative1 = data.meanMotionDerivative1,
-            .meanMotionDerivative2 = data.meanMotionDerivative2,
-            .bStarDrag = data.bStarDrag,
-            .inclination = data.inclination,
-            .rightAscensionAscendingNode = data.rightAscensionAscendingNode,
-            .eccentricity = data.eccentricity,
-            .argumentOfPerigee = data.argumentOfPerigee,
-            .meanAnomaly = data.meanAnomaly,
-            .meanMotion = data.meanMotion,
-            .revolutionNumberAtEpoch = data.revolutionNumberAtEpoch};
+        return false;
     }
-}
 
-template <typename... Adapters>
-bool TaskSGP4<Adapters...>::predictSGP4(float r[3], float v[3], uint64_t &timestamp)
-{
     elsetrec satrec{};
     sprintf(satrec.satnum, "%05d", tle_.satelliteNumber);
     satrec.epochyr = tle_.epochYear;
@@ -117,60 +82,92 @@ bool TaskSGP4<Adapters...>::predictSGP4(float r[3], float v[3], uint64_t &timest
     std::chrono::system_clock::time_point now = TimeUtils::to_timepoint(dtc);
     std::chrono::system_clock::time_point epoch = TimeUtils::to_timepoint(static_cast<uint16_t>(tle_.epochYear) + TimeUtils::EPOCH_YEAR, tle_.epochDay);
     float fractional_days_since_epoch = TimeUtils::to_fractional_days(epoch, now) * 60.f * 24.f;
-    
-    std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
-    timestamp = 1000 * static_cast<uint64_t>(milliseconds.count());
 
+    float r_[3], v_[3];
     gravconsttype whichconst = wgs84; // Choose the gravity model (wgs72old, wgs72, wgs84)
     char opsmode = 'i';               // Operation mode ('a' for AFSPC, 'i' for improved)
     SGP4Funcs::satrec2rv(opsmode, whichconst, satrec);
-    return SGP4Funcs::sgp4(satrec, fractional_days_since_epoch, r, v);
+    bool result = SGP4Funcs::sgp4(satrec, fractional_days_since_epoch, r_, v_);
+
+    std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
+    timestamp = milliseconds;
+
+    std::transform(std::begin(r_), std::end(r_), std::begin(r), [](const auto &item)
+                   { return au::make_quantity<au::Kilo<au::Meters>>(item); });
+    std::transform(std::begin(v_), std::end(v_), std::begin(v), [](const auto &item)
+                   { return au::make_quantity<au::Kilo<au::MetersPerSecond>>(item); });
+
+    return result;
 }
 
-template <typename... Adapters>
-void TaskSGP4<Adapters...>::handleTaskImpl()
+#
+#
+#
+
+class TaskSGP4 : public TaskFromBuffer
+{
+public:
+    TaskSGP4() = delete;
+    TaskSGP4(SGP4 &sgp4, uint32_t interval, uint32_t tick) : TaskFromBuffer(interval, tick), sgp4_(sgp4) {}
+
+    virtual void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
+    virtual void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) override;
+    virtual void handleTaskImpl() override;
+
+private:
+    void processTLEMessages();
+
+private:
+    SGP4 &sgp4_;
+};
+
+void TaskSGP4::processTLEMessages()
+{
+    size_t count = TaskSGP4::buffer_.size();
+    for (size_t i = 0; i < count; ++i)
+    {
+        std::shared_ptr<CyphalTransfer> transfer = TaskSGP4::buffer_.pop();
+        size_t payload_size = transfer->payload_size;
+        _4111spyglass_sat_data_SPG4TLE_0_1 data;
+        int8_t result = _4111spyglass_sat_data_SPG4TLE_0_1_deserialize_(&data, static_cast<const uint8_t *>(transfer->payload), &payload_size);
+        if (result != 0)
+        {
+            log(LOG_LEVEL_ERROR, "TaskSGP4: deserialization error\r\n");
+            return;
+        }
+        SGP4TwoLineElement tle = {
+            .satelliteNumber = data.satelliteNumber,
+            .elementNumber = data.elementNumber,
+            .ephemerisType = data.ephemerisType,
+            .epochYear = data.epochYear,
+            .epochDay = data.epochDay,
+            .meanMotionDerivative1 = data.meanMotionDerivative1,
+            .meanMotionDerivative2 = data.meanMotionDerivative2,
+            .bStarDrag = data.bStarDrag,
+            .inclination = data.inclination,
+            .rightAscensionAscendingNode = data.rightAscensionAscendingNode,
+            .eccentricity = data.eccentricity,
+            .argumentOfPerigee = data.argumentOfPerigee,
+            .meanAnomaly = data.meanAnomaly,
+            .meanMotion = data.meanMotion,
+            .revolutionNumberAtEpoch = data.revolutionNumberAtEpoch};
+
+        sgp4_.setSGP4TLE(tle);
+    }
+}
+
+void TaskSGP4::handleTaskImpl()
 {
     // Process all transfers in the buffer
     processTLEMessages();
-    if (tle_.satelliteNumber == 0)
-    {
-        return;
-    }
-
-    uint64_t timestamp;
-    float r[3], v[3];
-    if (!predictSGP4(r, v, timestamp))
-    {
-        return;
-    };
-
-    for (int i = 0; i < 3; ++i)
-    {
-        r[i] *= 1000.0f;
-        v[i] *= 1000.0f;
-    }
-
-    _4111spyglass_sat_model_PositionVelocity_0_1 data;
-    data.timestamp.microsecond = timestamp;
-    memcpy(data.position_m, r, sizeof(r));
-    memcpy(data.velocity_ms, v, sizeof(v));
-
-    constexpr size_t PAYLOAD_SIZE = _4111spyglass_sat_model_PositionVelocity_0_1_SERIALIZATION_BUFFER_SIZE_BYTES_;
-    uint8_t payload[PAYLOAD_SIZE];
-
-    TaskSGP4<Adapters...>::publish(PAYLOAD_SIZE, payload, &data,
-                                   reinterpret_cast<int8_t (*)(const void *const, uint8_t *const, size_t *const)>(_4111spyglass_sat_model_PositionVelocity_0_1_serialize_),
-                                   _4111spyglass_sat_model_PositionVelocity_0_1_PORT_ID_);
 }
 
-template <typename... Adapters>
-void TaskSGP4<Adapters...>::registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+void TaskSGP4::registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
     manager->server(_4111spyglass_sat_data_SGP4_0_1_PORT_ID_, task);
 }
 
-template <typename... Adapters>
-void TaskSGP4<Adapters...>::unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+void TaskSGP4::unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
 {
     manager->unserver(_4111spyglass_sat_data_SGP4_0_1_PORT_ID_, task);
 }

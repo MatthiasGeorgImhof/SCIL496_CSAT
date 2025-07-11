@@ -1,14 +1,16 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "TaskSGP4.hpp"
+#include "TaskPositionService.hpp"
 #include "cyphal.hpp"
 
 #include "TimeUtils.hpp"
 #include <chrono>
 #include <cstdint>
-#include <cmath>  // For std::abs
-#include <limits> // For max and min values
+#include <cmath>
+#include <limits>
 
+#include "au.hpp"
 #include "mock_hal.h"
 
 #include "loopard_adapter.hpp"
@@ -124,7 +126,8 @@ TEST_CASE("receive one TLE")
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
-    auto task = std::make_shared<TaskSGP4<Cyphal<LoopardAdapter>>>(&hrtc, 1000, 0, static_cast<CyphalTransferID>(0), adapters);
+    SGP4 sgp4(&hrtc);
+    auto task = std::make_shared<TaskSGP4>(sgp4, 1000, 0);
 
     // Create a uavcan_time_Synchronization_1_0 message
     auto transfer = std::make_shared<CyphalTransfer>();
@@ -152,13 +155,13 @@ TEST_CASE("receive one TLE")
     transfer->payload = payload;
     transfer->payload_size = payload_size;
 
-    SGP4TwoLineElement tle = task->getSGP4TLE();
+    SGP4TwoLineElement tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == 0);
 
     task->handleMessage(transfer);
     task->handleTask();
 
-    tle = task->getSGP4TLE();
+    tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == data.satelliteNumber);
     CHECK(tle.elementNumber == data.elementNumber);
     CHECK(tle.ephemerisType == data.ephemerisType);
@@ -190,7 +193,8 @@ TEST_CASE("receive two TLE")
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
-    auto task = std::make_shared<TaskSGP4<Cyphal<LoopardAdapter>>>(&hrtc, 1000, 0, static_cast<CyphalTransferID>(0), adapters);
+    SGP4 sgp4(&hrtc);
+    auto task = std::make_shared<TaskSGP4>(sgp4, 1000, 0);
 
     // Create a uavcan_time_Synchronization_1_0 message
     auto transfer = std::make_shared<CyphalTransfer>();
@@ -218,7 +222,7 @@ TEST_CASE("receive two TLE")
     transfer->payload = payload;
     transfer->payload_size = payload_size;
 
-    SGP4TwoLineElement tle = task->getSGP4TLE();
+    SGP4TwoLineElement tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == 0);
 
     task->handleMessage(transfer);
@@ -248,7 +252,7 @@ TEST_CASE("receive two TLE")
     task->handleMessage(transfer);
     task->handleTask();
 
-    tle = task->getSGP4TLE();
+    tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == 99999);
     CHECK(tle.elementNumber == data.elementNumber);
     CHECK(tle.ephemerisType == data.ephemerisType);
@@ -293,8 +297,9 @@ TEST_CASE("send position 2025 6 25 18 0 0")
     Cyphal<LoopardAdapter> loopard_cyphal(&loopard);
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
-
-    auto task = std::make_shared<TaskSGP4<Cyphal<LoopardAdapter>>>(&hrtc, 1000, 0, static_cast<CyphalTransferID>(0), adapters);
+        
+    SGP4 sgp4(&hrtc);
+    auto task = std::make_shared<TaskPositionService<SGP4, Cyphal<LoopardAdapter>>>(sgp4, 1000, 0, 0, adapters);
 
     // ISS (ZARYA)
     char longstr1[] = "1 25544U 98067A   25176.73245655  .00008102  00000-0  14854-3 0  9994";
@@ -303,9 +308,9 @@ TEST_CASE("send position 2025 6 25 18 0 0")
     auto parsed = sgp4_utils::parseTLE(longstr1, longstr2);
     REQUIRE(parsed.has_value());
     SGP4TwoLineElement data = parsed.value();
-    task->setSGP4TLE(data);
+    sgp4.setSGP4TLE(data);
     
-    SGP4TwoLineElement tle = task->getSGP4TLE();
+    SGP4TwoLineElement tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == data.satelliteNumber);
     CHECK(tle.elementNumber == data.elementNumber);
     CHECK(tle.ephemerisType == data.ephemerisType);
@@ -322,7 +327,7 @@ TEST_CASE("send position 2025 6 25 18 0 0")
     CHECK(tle.revolutionNumberAtEpoch == data.revolutionNumberAtEpoch);
 
     CHECK(loopard.buffer.is_empty());
-    task->handleTask();
+    task->handleTaskImpl();
     REQUIRE(loopard.buffer.size() == 1);
 
     auto transfer = loopard.buffer.pop();
@@ -380,7 +385,8 @@ TEST_CASE("send position 2025 7 6 20 43 13")
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
-    auto task = std::make_shared<TaskSGP4<Cyphal<LoopardAdapter>>>(&hrtc, 1000, 0, static_cast<CyphalTransferID>(0), adapters);
+    SGP4 sgp4(&hrtc);
+    auto task = std::make_shared<TaskPositionService<SGP4, Cyphal<LoopardAdapter>>>(sgp4, 1000, 0, 0, adapters);
 
     // ISS (ZARYA)
     char longstr1[] = "1 25544U 98067A   25176.73245655  .00008102  00000-0  14854-3 0  9994";
@@ -389,9 +395,9 @@ TEST_CASE("send position 2025 7 6 20 43 13")
     auto parsed = sgp4_utils::parseTLE(longstr1, longstr2);
     REQUIRE(parsed.has_value());
     SGP4TwoLineElement data = parsed.value();
-    task->setSGP4TLE(data);
+    sgp4.setSGP4TLE(data);
     
-    SGP4TwoLineElement tle = task->getSGP4TLE();
+    SGP4TwoLineElement tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == data.satelliteNumber);
     CHECK(tle.elementNumber == data.elementNumber);
     CHECK(tle.ephemerisType == data.ephemerisType);
@@ -408,7 +414,7 @@ TEST_CASE("send position 2025 7 6 20 43 13")
     CHECK(tle.revolutionNumberAtEpoch == data.revolutionNumberAtEpoch);
 
     CHECK(loopard.buffer.is_empty());
-    task->handleTask();
+    task->handleTaskImpl();
     REQUIRE(loopard.buffer.size() == 1);
 
     auto transfer = loopard.buffer.pop();
