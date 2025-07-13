@@ -157,6 +157,22 @@ TEST_CASE("GNSS GetNavPVT Test")
     CHECK(navPVT.value().utcTime.sec == 11);
     CHECK(navPVT.value().utcTime.valid == 7);
     CHECK(navPVT.value().fixType == 3);
+
+    CHECK(navPVT.value().position.lon == -957483035);
+    CHECK(navPVT.value().position.lat == 297291607);
+    CHECK(navPVT.value().position.height == 1014);
+    CHECK(navPVT.value().position.hMSL == 3441);
+    CHECK(navPVT.value().position.hAcc == 489);
+    CHECK(navPVT.value().position.vAcc == 473);
+
+    CHECK(navPVT.value().velocity.velN == -51);
+    CHECK(navPVT.value().velocity.velE == 23);
+    CHECK(navPVT.value().velocity.velD == 3);
+    CHECK(navPVT.value().velocity.headMot == 13458590);
+    CHECK(navPVT.value().velocity.speed == 0);
+    CHECK(navPVT.value().velocity.gSpeed == 56);
+    CHECK(navPVT.value().velocity.sAcc == 2363);
+    CHECK(navPVT.value().velocity.headAcc == 3072205);
 }
 
 TEST_CASE("GNSS GetNavPosLLH Test")
@@ -206,3 +222,52 @@ TEST_CASE("GNSS GetNavTimeUTC Test")
     CHECK(utcTime.value().min == 0);
     CHECK(utcTime.value().sec == 0);
 }
+
+#include "au.hpp"
+
+TEST_CASE("PositionECEF_AU ConvertPositionECEF(const PositionECEF &pos")
+{
+    PositionECEF pos = {1000000, 2000000, 3000000, 500};
+    PositionECEF_AU auPos = ConvertPositionECEF(pos);
+
+    CHECK(auPos.x.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefX)/100.f));
+    CHECK(auPos.y.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefY)/100.f));
+    CHECK(auPos.z.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefZ)/100.f));
+    CHECK(auPos.acc.in(au::meters) == doctest::Approx(static_cast<float>(pos.pAcc)/100.f));
+}
+
+TEST_CASE("PositionECEF_AU ConvertPositionECEF(const PositionECEF &neg")
+{
+    PositionECEF pos = {-1000000, -2000000, -3000000, 500};
+    PositionECEF_AU auPos = ConvertPositionECEF(pos);
+
+    CHECK(auPos.x.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefX)/100.f));
+    CHECK(auPos.y.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefY)/100.f));
+    CHECK(auPos.z.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefZ)/100.f));
+    CHECK(auPos.acc.in(au::meters) == doctest::Approx(static_cast<float>(pos.pAcc)/100.f));
+}
+
+TEST_CASE("VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &vel")
+{
+    VelocityECEF vel = {1000000, 2000000, 3000000, 500};
+    VelocityECEF_AU auVel = ConvertVelocityECEF(vel);
+
+    CHECK(auVel.x.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVX)/100.f));
+    CHECK(auVel.y.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVY)/100.f));
+    CHECK(auVel.z.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVZ)/100.f));
+    CHECK(auVel.acc.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.sAcc)/100.f));
+}
+
+TEST_CASE("VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &neg")
+{
+    VelocityECEF vel = {-1000000, -2000000, -3000000, 500};
+    VelocityECEF_AU auVel = ConvertVelocityECEF(vel);
+
+    CHECK(auVel.x.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVX)/100.f));
+    CHECK(auVel.y.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVY)/100.f));
+    CHECK(auVel.z.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVZ)/100.f));
+    CHECK(auVel.acc.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.sAcc)/100.f));
+}
+
+
+

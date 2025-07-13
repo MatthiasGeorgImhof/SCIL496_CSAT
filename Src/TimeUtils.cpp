@@ -192,12 +192,9 @@ epoch_duration from_uint64(uint64_t value) {
 }
 
 // Convert from STM32 RTC to epoch_duration
-epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds,
-                         uint32_t secondFraction) {
+epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds, uint32_t secondFraction) {
   DateTimeComponents components;
-  components.year =
-      rtcdatetimesubseconds.date.Year + EPOCH_YEAR;  // RTC Year is relative to
-                                                      // 2000
+  components.year = rtcdatetimesubseconds.date.Year + EPOCH_YEAR;  // RTC Year is relative to 2000
   components.month = rtcdatetimesubseconds.date.Month;
   components.day = rtcdatetimesubseconds.date.Date;
   components.hour = rtcdatetimesubseconds.time.Hours;
@@ -205,11 +202,19 @@ epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds,
   components.second = rtcdatetimesubseconds.time.Seconds;
 
   // Calculate milliseconds from subSeconds and secondFraction
-  // This assumes linear distribution of SubSeconds.  Adjust if needed.
-  components.millisecond = static_cast<uint16_t>(
-      static_cast<uint64_t>(1000 *
-                            (secondFraction - rtcdatetimesubseconds.time.SubSeconds) /
-                            (secondFraction + 1)));
+  // numerator plus 1 accounts for the fact that SubSeconds is 0-based 
+  // and we want to represent the full range of milliseconds
+  // (0 to secondFraction - 1) as milliseconds (0 to 999)
+  // This ensures that SubSeconds = 0 corresponds to 0 milliseconds and
+  // SubSeconds = secondFraction - 1 corresponds to 999 milliseconds.
+  // The formula is adjusted to ensure that the milliseconds are in the range [0, 999].
+  // The +1 in the numerator is to ensure that we get a full range
+  // of milliseconds from 0 to 999.
+  // The division by (secondFraction + 1) ensures that we scale the SubSeconds
+  // correctly to fit within the millisecond range.
+  // The result is rounded to the nearest integer to ensure it fits within the
+  // millisecond range.
+  components.millisecond = static_cast<uint16_t>(static_cast<uint64_t>((1000 * (secondFraction - rtcdatetimesubseconds.time.SubSeconds + 1)) / (secondFraction + 1)));
 
   return to_epoch_duration(components);
 }

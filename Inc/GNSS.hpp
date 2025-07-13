@@ -56,14 +56,15 @@ struct UTCTime
 
 struct PositionLLH
 {
-	int32_t lon, lat, height, hMSL; // Geodetic position (degrees, meters)
-	uint32_t hAcc, vAcc;			// Accuracy estimates (millimeters)
+	int32_t lon, lat;		// Geodetic position (degrees * 10^-7)
+	int32_t height, hMSL; 	// Geodetic position (millimeters)
+	uint32_t hAcc, vAcc;	// Accuracy estimates (millimeters)
 };
 
 struct PositionECEF
 {
-	int32_t ecefX, ecefY, ecefZ; // Earth-centered, Earth-fixed coordinates (millimeters)
-	uint32_t pAcc;				 // Position accuracy (millimeters)
+	int32_t ecefX, ecefY, ecefZ; // Earth-centered, Earth-fixed coordinates (centimeters)
+	uint32_t pAcc;				 // Position accuracy (centimeters)
 };
 
 struct VelocityNED
@@ -213,5 +214,22 @@ private:
 	static_assert(ValidateChecksum(setWristMode), "setWristMode checksum validation failed");
 	static_assert(ValidateChecksum(setBikeMode), "setBikeMode checksum validation failed");
 };
+
+#include "au.hpp"
+
+struct PositionECEF_AU
+{
+	au::QuantityF<au::Meters> x, y, z;
+	au::QuantityF<au::Meters> acc;
+};
+
+struct VelocityECEF_AU
+{
+	au::QuantityF<au::MetersPerSecond> x, y, z;
+	au::QuantityF<au::MetersPerSecond> acc;
+};
+
+PositionECEF_AU ConvertPositionECEF(const PositionECEF &pos);
+VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &vel);
 
 #endif /* INC_GNSS_H_ */

@@ -46,7 +46,8 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMockHal.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationTracker.cpp \
-			 TestPositionTracker9D.cpp \
+			 TestTaskPositionService.cpp \
+			 TestTaskPositionService.cpp \
 			 TestPowerMonitor.cpp \
 			 TestPowerSwitch.cpp \
 			 TestProcessRxQueue.cpp \
@@ -572,9 +573,9 @@ $(BIN_DIR)/TimeUtils.o : ../Src/TimeUtils.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTimeUtils : $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o 
+$(BIN_DIR)/TestTimeUtils : $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTimeUtils.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestKalmanPositionGPS with EXTRA_FLAGS only
 $(BIN_DIR)/TestKalmanPositionGPS.o : TestKalmanPositionGPS.cpp
@@ -629,6 +630,15 @@ $(BIN_DIR)/TestPositionTracker9D.o : TestPositionTracker9D.cpp
 $(BIN_DIR)/TestPositionTracker9D : $(BIN_DIR)/TestPositionTracker9D.o 
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPositionTracker9D.o $(LIBS)
+
+# Rule for TestTaskPositionService with with EXTRA_FLAGS only
+$(BIN_DIR)/TestTaskPositionService.o : TestTaskPositionService.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

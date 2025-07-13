@@ -284,23 +284,23 @@ NavigationPVT GNSS::ParseNavPVT(uint8_t *messageBuffer)
 			.tAcc = GetULong(messageBuffer, 12),							  // time accuracy
 			.valid = static_cast<uint8_t>(GetUByte(messageBuffer, 11) & 0x0f) // valid flags
 		},
-		.position = {
-			.lon = GetILong(messageBuffer, 24),	   // longitude
-			.lat = GetILong(messageBuffer, 28),	   // latitude
-			.height = GetILong(messageBuffer, 32), // height above ellipsoid
-			.hMSL = GetILong(messageBuffer, 36),   // height above mean sea level
-			.hAcc = GetULong(messageBuffer, 40),   // horizontal accuracy estimate
-			.vAcc = GetULong(messageBuffer, 44)	   // vertical accuracy estimate
+		.position = {									// position are in mm, so we divide by 10 to get cm
+			.lon = GetILong(messageBuffer, 24),			// longitude
+			.lat = GetILong(messageBuffer, 28),			// latitude
+			.height = GetILong(messageBuffer, 32) / 10, // height above ellipsoid
+			.hMSL = GetILong(messageBuffer, 36) / 10,	// height above mean sea level
+			.hAcc = GetULong(messageBuffer, 40) / 10,	// horizontal accuracy estimate
+			.vAcc = GetULong(messageBuffer, 44) / 10	// vertical accuracy estimate
 		},
-		.velocity = {
-			.velN = GetILong(messageBuffer, 48),	// north velocity component
-			.velE = GetILong(messageBuffer, 52),	// east velocity component
-			.velD = GetILong(messageBuffer, 56),	// down velocity component
-			.headMot = GetILong(messageBuffer, 64), // heading of motion (2-D)
+		.velocity = {									// velocities are in mm/s, so we divide by 10 to get cm/s
+			.velN = GetILong(messageBuffer, 48) / 10, 	// north velocity component
+			.velE = GetILong(messageBuffer, 52) / 10, 	// east velocity component
+			.velD = GetILong(messageBuffer, 56) / 10, 	// down velocity component
+			.headMot = GetILong(messageBuffer, 64),	  	// heading of motion (2-D)
 			.speed = 0,
-			.gSpeed = GetULong(messageBuffer, 60),	// ground speed estimate
-			.sAcc = GetULong(messageBuffer, 68),	// speed accuracy estimate
-			.headAcc = GetULong(messageBuffer, 72)	// heading accuracy estimate
+			.gSpeed = GetULong(messageBuffer, 60) / 10, // ground speed estimate
+			.sAcc = GetULong(messageBuffer, 68),		// speed accuracy estimate
+			.headAcc = GetULong(messageBuffer, 72)		// heading accuracy estimate
 		},
 		.fixType = GetIByte(messageBuffer, 20), // fix type
 		.numSV = GetUByte(messageBuffer, 23)	// number of satellites used
@@ -458,3 +458,22 @@ int32_t GNSS::GetILong(const uint8_t *messageBuffer, uint16_t offset)
 	}
 	return iLong.iLong;
 }
+
+PositionECEF_AU ConvertPositionECEF(const PositionECEF &pos)
+{
+	return PositionECEF_AU {
+		.x = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.ecefX)),
+		.y = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.ecefY)),
+		.z = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.ecefZ)),
+		.acc = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.pAcc))};
+}
+
+VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &vel)
+{
+	return VelocityECEF_AU {
+		.x = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.ecefVX)),
+		.y = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.ecefVY)),
+		.z = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.ecefVZ)),
+		.acc = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.sAcc))};
+}
+

@@ -34,25 +34,19 @@ struct RTCDateTimeSubseconds {
 };
 
 // Choose your duration type
-using epoch_duration =
-    std::chrono::milliseconds;  // or std::chrono::microseconds, or
-                                 // std::chrono::nanoseconds
-using epoch_time_point =
-    std::chrono::time_point<std::chrono::system_clock, epoch_duration>;
+using epoch_duration = std::chrono::milliseconds;  
+using epoch_time_point = std::chrono::time_point<std::chrono::system_clock, epoch_duration>;
 
 // Function declarations
-epoch_duration to_epoch_duration(
-    const std::chrono::system_clock::time_point &tp);
+epoch_duration to_epoch_duration(const std::chrono::system_clock::time_point &tp);
 epoch_duration to_epoch_duration(const DateTimeComponents &components);
 epoch_duration to_epoch_duration(uint16_t year, uint8_t month, uint8_t day,
                                  uint8_t hour, uint8_t minute, uint8_t second,
                                  int32_t nanosecond);
 
 std::chrono::system_clock::time_point to_timepoint(const epoch_duration &d);
-std::chrono::system_clock::time_point to_timepoint(uint16_t past_year,
-                                                    float past_fractional_day);
-std::chrono::system_clock::time_point to_timepoint(
-    const DateTimeComponents &components);
+std::chrono::system_clock::time_point to_timepoint(uint16_t past_year, float past_fractional_day);
+std::chrono::system_clock::time_point to_timepoint(const DateTimeComponents &components);
 
 float to_fractional_days(
     const std::chrono::system_clock::time_point &start,
@@ -63,8 +57,7 @@ float fractional_days_between(
     uint8_t current_minute, uint8_t current_second,
     uint16_t current_millisecond);
 
-DateTimeComponents extract_date_time(
-    const epoch_duration &d);  // Return the struct
+DateTimeComponents extract_date_time(const epoch_duration &d);
 
 // Function to get epoch_duration as uint64_t
 uint64_t to_uint64(const epoch_duration &d);
@@ -73,12 +66,10 @@ uint64_t to_uint64(const epoch_duration &d);
 epoch_duration from_uint64(uint64_t value);
 
 // Convert from STM32 RTC to epoch_duration
-epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds,
-                         uint32_t secondFraction);
+epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds, uint32_t secondFraction);
 
 RTCDateTimeSubseconds to_rtc(const epoch_duration &d, uint32_t secondFraction);
-RTCDateTimeSubseconds to_rtc(const DateTimeComponents &components,
-                             uint32_t secondFraction);
+RTCDateTimeSubseconds to_rtc(const DateTimeComponents &components, uint32_t secondFraction);
 
 // Error codes (adjust as needed)
 enum class TimeUtilsError {
