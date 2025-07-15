@@ -26,55 +26,55 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCachedImageBuffer.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
-			 TestCyphal.cpp \
 			 TestCoordinateTransformations.cpp \
+			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
 			 TestHalUtil.cpp \
 			 TestHSClockSwitch.cpp \
+			 TestIGRFModel.cpp \
 			 TestImageBuffer.cpp \
 			 TestImageBufferAccessor.cpp \
-			 TestIGRFModel.cpp \
-			 TestKalmanPositionGPS.cpp \
+			 TestInputOutputStream.cpp \
 			 TestKalmanFunctionGPS.cpp \
 			 TestKalmanOrientationMagnetic.cpp \
+			 TestKalmanPositionGPS.cpp \
 			 TestLogger.cpp \
 			 TestLoggerCyphal.cpp \
 			 TestMainLoop.cpp \
 			 TestMockHal.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationTracker.cpp \
-			 TestTaskPositionService.cpp \
-			 TestTaskPositionService.cpp \
 			 TestPowerMonitor.cpp \
 			 TestPowerSwitch.cpp \
 			 TestProcessRxQueue.cpp \
 			 TestRegistrationManager.cpp \
 			 TestServiceManager.cpp \
 			 TestSGP4PositionTracker.cpp \
+			 TestSGP4TLE.cpp \
 			 TestSubscriptionManager.cpp \
 			 TestTask.cpp \
 			 TestTaskBlinkLED.cpp \
 			 TestTaskCheckMemory.cpp \
+			 TestTaskOrientationService.cpp \
+			 TestTaskPositionService.cpp \
 			 TestTaskProcessTimeSynchronization.cpp \
 			 TestTaskRegisterServer.cpp \
 			 TestTaskRegistrationSubscription.cpp \
 			 TestTaskRequestGetInfo.cpp \
 			 TestTaskRequestRead.cpp \
-			 TestTaskRespondWrite.cpp \
 			 TestTaskRequestWrite.cpp \
 			 TestTaskRespondGetInfo.cpp \
+			 TestTaskRespondWrite.cpp \
 			 TestTaskSendHeartBeat.cpp \
 			 TestTaskSendNodePortList.cpp \
 			 TestTaskSendTimeSynchronization.cpp \
 			 TestTaskSetRTC.cpp \
 			 TestTaskSGP4.cpp \
-			 TestSGP4TLE.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
-			 TestInputOutputStream.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
@@ -636,9 +636,19 @@ $(BIN_DIR)/TestTaskPositionService.o : TestTaskPositionService.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTaskOrientationService with with EXTRA_FLAGS only
+$(BIN_DIR)/TestTaskOrientationService.o : TestTaskOrientationService.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskOrientationService : $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

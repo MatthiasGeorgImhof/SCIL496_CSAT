@@ -109,7 +109,7 @@ public:
 
 private:
     RTC_HandleTypeDef *hrtc_;
-    Tracker tracker_;
+    Tracker &tracker_;
     GNSS &gnss_;
     IMU &imu_;
 
