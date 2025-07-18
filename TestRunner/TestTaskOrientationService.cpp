@@ -87,7 +87,7 @@ private:
 void *loopardMemoryAllocate(size_t amount) { return static_cast<void *>(malloc(amount)); };
 void loopardMemoryFree(void *pointer) { free(pointer); };
 
-TEST_CASE("TaskOrientationService Test with IMUandMAGOrientation")
+TEST_CASE("TaskOrientationService Test with GyrMagOrientation")
 {
     // Arrange
     RTC_HandleTypeDef hrtc;
@@ -116,9 +116,9 @@ TEST_CASE("TaskOrientationService Test with IMUandMAGOrientation")
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
     MockIMU imu;
-    OrientationTracker tracker;
-    IMUandMAGOrientation<OrientationTracker, MockIMU, MockIMU> orientationTracker(&hrtc, tracker, imu, imu);
-    auto task = TaskOrientationService<IMUandMAGOrientation<OrientationTracker, MockIMU, MockIMU>, Cyphal<LoopardAdapter>>(orientationTracker, 100, 1, 123, adapters);
+    GyrMagOrientationTracker tracker;
+    GyrMagOrientation<GyrMagOrientationTracker, MockIMU, MockIMU> orientationTracker(&hrtc, tracker, imu, imu);
+    auto task = TaskOrientationService<GyrMagOrientation<GyrMagOrientationTracker, MockIMU, MockIMU>, Cyphal<LoopardAdapter>>(orientationTracker, 100, 1, 123, adapters);
 
 
     const float dt = 0.1f; // 100 ms
