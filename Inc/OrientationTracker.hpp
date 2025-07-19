@@ -91,18 +91,18 @@ public:
 
         Eigen::Matrix<float, MeasurementSize, StateSize> H_jac = Eigen::Matrix<float, MeasurementSize, StateSize>::Zero();
 
-        H_jac(0, 0) = 2 * (my * qz - mz * qy);
-        H_jac(0, 1) = 2 * (my * qy + mz * qz);
-        H_jac(0, 2) = 2 * (my * qw - mx * qz);
-        H_jac(0, 3) = -2 * (my * qx + mz * qy);
-        H_jac(1, 0) = 2 * (mz * qx - mx * qz);
-        H_jac(1, 1) = 2 * (mx * qx + mz * qw);
-        H_jac(1, 2) = 2 * (mx * qz - my * qw);
-        H_jac(1, 3) = -2 * (mx * qy + mz * qx);
-        H_jac(2, 0) = 2 * (mx * qy - my * qx);
-        H_jac(2, 1) = 2 * (mx * qz - mz * qx);
-        H_jac(2, 2) = 2 * (my * qz + mz * qy); // Corre
-        H_jac(2, 3) = -2 * (mx * qx + my * qy);
+        H_jac(0, 0) = 2.0f * (my * qz - mz * qy);
+        H_jac(0, 1) = 2.0f * (my * qy + mz * qz);
+        H_jac(0, 2) = 2.0f * (my * qw - mx * qz);
+        H_jac(0, 3) = -2.0f * (my * qx + mz * qy);
+        H_jac(1, 0) = 2.0f * (mz * qx - mx * qz);
+        H_jac(1, 1) = 2.0f * (mx * qx + mz * qw);
+        H_jac(1, 2) = 2.0f * (mx * qz - my * qw);
+        H_jac(1, 3) = -2.0f * (mx * qy + mz * qx);
+        H_jac(2, 0) = 2.0f * (mx * qy - my * qx);
+        H_jac(2, 1) = 2.0f * (mx * qz - mz * qx);
+        H_jac(2, 2) = 2.0f * (my * qz + mz * qy); // Corre
+        H_jac(2, 3) = -2.0f * (mx * qx + my * qy);
 
         ekf.updateEKF(h, H_jac, imu_meas_body);
 
@@ -222,6 +222,154 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
 #
 #
 
+// Eigen::Matrix<float, 3, 4> computeNumericalJacobian(const Eigen::Quaternionf &q, const Eigen::Vector3f &v) {
+//     const float eps = 1e-7f;
+//     Eigen::Matrix<float, 3, 4> J = Eigen::Matrix<float, 3, 4>::Zero();
+
+//     for (int i = 0; i < 4; ++i) {
+//         Eigen::Quaternionf q_plus = q;
+//         Eigen::Quaternionf q_minus = q;
+
+//         if (i == 0) {
+//             q_plus.x() += eps;
+//             q_minus.x() -= eps;
+//         } else if (i == 1) {
+//             q_plus.y() += eps;
+//             q_minus.y() -= eps;
+//         } else if (i == 2) {
+//             q_plus.z() += eps;
+//             q_minus.z() -= eps;
+//         } else {
+//             q_plus.w() += eps;
+//             q_minus.w() -= eps;
+//         }
+
+//         q_plus.normalize();
+//         q_minus.normalize();
+
+//         Eigen::Vector3f v_plus = q_plus.toRotationMatrix() * v;
+//         Eigen::Vector3f v_minus = q_minus.toRotationMatrix() * v;
+
+//         J.col(i) = (v_plus - v_minus) / (2.0f * eps);
+//     }
+//     std::cerr << "Jacobian computed via numerical perturbation:\n" << J << std::endl;
+//     return J;
+// }
+
+Eigen::Matrix<float, 3, 4> computeNumericalJacobian(const Eigen::Quaternionf &q, const Eigen::Vector3f &v)
+{
+    const float eps = 1e-4f;
+    Eigen::Matrix<float, 3, 4> J = Eigen::Matrix<float, 3, 4>::Zero();
+
+    for (int i = 0; i < 4; ++i)
+    {
+        Eigen::Quaternionf q_plus = q;
+        Eigen::Quaternionf q_minus = q;
+
+        if (i == 0)
+        {
+            q_plus.x() += eps;
+            q_minus.x() -= eps;
+        }
+        else if (i == 1)
+        {
+            q_plus.y() += eps;
+            q_minus.y() -= eps;
+        }
+        else if (i == 2)
+        {
+            q_plus.z() += eps;
+            q_minus.z() -= eps;
+        }
+        else
+        {
+            q_plus.w() += eps;
+            q_minus.w() -= eps;
+        }
+
+        q_plus.normalize();
+        q_minus.normalize();
+
+        Eigen::Vector3f v_plus = q_plus.conjugate() * v;
+        Eigen::Vector3f v_minus = q_minus.conjugate() * v;
+
+        J.col(i) = (v_plus - v_minus) / (2.0f * eps);
+    }
+    std::cerr << "Jacobian computed via numerical perturbation:\n"
+              << J << std::endl;
+    return J;
+}
+
+Eigen::Matrix<float, 3, 4> computeSemiAnalyticalJacobian(const Eigen::Quaternionf &q, const Eigen::Vector3f &v)
+{
+    // Rotation matrix from quaternion
+    // Eigen::Matrix3f R = q.toRotationMatrix();
+
+    // Derivatives of R wrt quaternion components
+    // Define dR/dx, dR/dy, dR/dz, dR/dw (precomputed or from symbolic derivation)
+
+    // For now we use finite differences on R itself as a sanity check
+    const float eps = 1e-5f;
+    Eigen::Matrix<float, 3, 4> J;
+
+    for (int i = 0; i < 4; ++i)
+    {
+        Eigen::Quaternionf q_plus = q;
+        Eigen::Quaternionf q_minus = q;
+
+        if (i == 0) q_plus.x() += eps, q_minus.x() -= eps;
+        if (i == 1) q_plus.y() += eps, q_minus.y() -= eps;
+        if (i == 2) q_plus.z() += eps, q_minus.z() -= eps;
+        if (i == 3) q_plus.w() += eps, q_minus.w() -= eps;
+
+        q_plus.normalize();
+        q_minus.normalize();
+
+        Eigen::Matrix3f R_plus = q_plus.toRotationMatrix();
+        Eigen::Matrix3f R_minus = q_minus.toRotationMatrix();
+
+        Eigen::Vector3f v_body_plus = R_plus.transpose() * v;
+        Eigen::Vector3f v_body_minus = R_minus.transpose() * v;
+
+        J.col(i) = (v_body_plus - v_body_minus) / (2.0f * eps);
+    }
+
+    // std::cerr << "Jacobian computed via matrix derivative (sanity):\n" << J << std::endl;
+    return J;
+}
+
+Eigen::Matrix<float, 3, 4> computeAnalyticalJacobian(const Eigen::Quaternionf& q, const Eigen::Vector3f& v)
+{
+    const float x = q.x(), y = q.y(), z = q.z(), w = q.w();
+    const float vx = v.x(), vy = v.y(), vz = v.z();
+
+    Eigen::Matrix<float, 3, 4> J;
+
+    // d(R^T * v) / dx
+    J(0, 0) = -4.0f * x * vx + 2.0f * y * vy + 2.0f * z * vz;
+    J(1, 0) =  2.0f * y * vx + 2.0f * x * vy + 2.0f * w * vz;
+    J(2, 0) =  2.0f * z * vx - 2.0f * w * vy + 2.0f * x * vz;
+
+    // d(...) / dy
+    J(0, 1) =  2.0f * y * vx + 2.0f * x * vy - 2.0f * w * vz;
+    J(1, 1) =  2.0f * x * vx - 4.0f * y * vy + 2.0f * z * vz;
+    J(2, 1) =  2.0f * w * vx + 2.0f * z * vy + 2.0f * y * vz;
+
+    // d(...) / dz
+    J(0, 2) =  2.0f * z * vx + 2.0f * w * vy + 2.0f * x * vz;
+    J(1, 2) = -2.0f * w * vx + 2.0f * z * vy + 2.0f * y * vz;
+    J(2, 2) =  2.0f * x * vx + 2.0f * y * vy - 4.0f * z * vz;
+
+    // // d(...) / dw
+    J(0, 3) = -2.0f * z * vy + 2.0f * y * vz;
+    J(1, 3) =  2.0f * z * vx - 2.0f * x * vz;
+    J(2, 3) = -2.0f * y * vx + 2.0f * x * vy;
+
+    // std::cerr << "Jacobian computed via analytical formula:\n" << J << std::endl;
+    // std::cout << "q raw: [x=" << x << ", y=" << y << ", z=" << z << ", w=" << w << "]\n";
+    return J;
+}
+
 class AccGyrMagOrientationTracker
 {
 public:
@@ -288,28 +436,6 @@ public:
         ekf.stateVector.segment<3>(4) = omega;
     }
 
-    Eigen::Matrix<float, 3, 4> computeJacobianConjugateRotation(const Eigen::Quaternionf &q, const Eigen::Vector3f &v)
-    {
-        const float eps = 1e-5f;
-        Eigen::Matrix<float, 3, 4> J;
-
-        for (int i = 0; i < 4; ++i)
-        {
-            Eigen::Quaternionf q_plus = q;
-            Eigen::Quaternionf q_minus = q;
-
-            q_plus.coeffs()(i) += eps;
-            q_minus.coeffs()(i) -= eps;
-
-            Eigen::Vector3f v_plus = q_plus.conjugate() * v;
-            Eigen::Vector3f v_minus = q_minus.conjugate() * v;
-
-            J.col(i) = (v_plus - v_minus) / (2.f * eps);
-        }
-
-        return J;
-    }
-
     void updateAccelerometerMagnetometer(const Eigen::Vector3f &accel_body,
                                          const Eigen::Vector3f &mag_body,
                                          float timestamp_sec)
@@ -317,7 +443,7 @@ public:
         predictTo(timestamp_sec);
 
         Eigen::Vector3f accel_ned(0.f, 0.f, 9.81f); // Gravity points down
-        Eigen::Vector3f mag_ned(1.f, 0.f, 0.f);    // Needs to be adjusted for magnetic declination and inclination
+        Eigen::Vector3f mag_ned(1.f, 0.f, 0.f);     // Needs to be adjusted for magnetic declination and inclination
 
         // Combined measurement vector
         Measurement combined_meas;
@@ -336,27 +462,23 @@ public:
             return z;
         };
 
-        //Manual Jacobian calculations can be error prone. Using Eigen's numerical differentiation
-        //Note: you should calculate the jacobian with analytical differentiation (ie, calculate by hand) when possible.
-        Eigen::Matrix<float, MeasurementSize, StateSize> H_jac;
-        H_jac = Eigen::Matrix<float, MeasurementSize, StateSize>::Zero();
-        Eigen::Matrix<float, MeasurementSize, StateSize> H_numerical;
-        H_numerical = Eigen::Matrix<float, MeasurementSize, StateSize>::Zero();
+        Eigen::Quaternionf q_raw(ekf.stateVector(3), ekf.stateVector(0), ekf.stateVector(1), ekf.stateVector(2));
+        Eigen::Matrix<float, 3, 4> J_accel_a = computeAnalyticalJacobian(q_raw, accel_ned);
+        Eigen::Matrix<float, 3, 4> J_mag_a = computeAnalyticalJacobian(q_raw, mag_ned);
+        Eigen::Matrix<float, MeasurementSize, StateSize> H_analytical = Eigen::Matrix<float, MeasurementSize, StateSize>::Zero();
+        H_analytical.block<3, 4>(0, 0) = J_accel_a;
+        H_analytical.block<3, 4>(3, 0) = J_mag_a;
 
-        float eps = 1e-5f; // Define a small value for numerical differentiation
+        // Eigen::Matrix<float, 3, 4> J_accel_n = computeNumericalJacobian(q_raw, accel_ned);
+        // Eigen::Matrix<float, 3, 4> J_mag_n = computeNumericalJacobian(q_raw, mag_ned);
+        // Eigen::Matrix<float, MeasurementSize, StateSize> H_numerical = Eigen::Matrix<float, MeasurementSize, StateSize>::Zero();
+        // H_numerical.block<3, 4>(0, 0) = J_accel_n;
+        // H_numerical.block<3, 4>(3, 0) = J_mag_n;
 
-        for (int j = 0; j < StateSize; ++j) {
-            StateVector x_plus = ekf.stateVector;
-            StateVector x_minus = ekf.stateVector;
-            x_plus(j) += eps;
-            x_minus(j) -= eps;
+        // std::cout << "Jacobian diff:\n"
+        //           << H_analytical - H_numerical << "\n";
 
-            Measurement h_plus = h(x_plus);
-            Measurement h_minus = h(x_minus);
-            H_numerical.col(j) = (h_plus - h_minus) / (2 * eps);
-        }
-
-        ekf.updateEKF(h, H_numerical, combined_meas);
+        ekf.updateEKF(h, H_analytical, combined_meas);
 
         auto &x = ekf.stateVector;
         Eigen::Quaternionf q_corr(x(3), x(0), x(1), x(2));
@@ -366,7 +488,7 @@ public:
         x(2) = q_corr.z();
         x(3) = q_corr.w();
     }
-    
+
     void setGyroAngularRate(const Eigen::Vector3f &omega)
     {
         ekf.stateVector.segment<3>(4) = omega;
