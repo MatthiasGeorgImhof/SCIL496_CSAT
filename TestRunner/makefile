@@ -50,6 +50,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestPowerMonitor.cpp \
 			 TestPowerSwitch.cpp \
 			 TestProcessRxQueue.cpp \
+			 TestQuaternion.cpp \
 			 TestRegistrationManager.cpp \
 			 TestServiceManager.cpp \
 			 TestSGP4PositionTracker.cpp \
@@ -612,6 +613,15 @@ $(BIN_DIR)/TestOrientationTracker.o : TestOrientationTracker.cpp
 $(BIN_DIR)/TestOrientationTracker : $(BIN_DIR)/TestOrientationTracker.o 
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestOrientationTracker.o $(LIBS)
+
+# Rule for TestQuaternion with with EXTRA_FLAGS only
+$(BIN_DIR)/TestQuaternion.o : TestQuaternion.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestQuaternion : $(BIN_DIR)/TestQuaternion.o 
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestQuaternion.o $(LIBS)
 
 # Rule for TestSGP4PositionTracker with with EXTRA_FLAGS only
 $(BIN_DIR)/TestSGP4PositionTracker.o : TestSGP4PositionTracker.cpp
