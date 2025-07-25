@@ -468,3 +468,242 @@ TEST_CASE("TaskPositionService Test with mock_hal: time round trip")
         set_mocked_rtc_date(rtc.date);
     }
 }
+
+TEST_CASE("TimeUtils::to_fractional_days")
+{
+    // https://aa.usno.navy.mil/data/JulianDate
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2000, 
+            .month = 1,
+            .day = 1,
+            .hour = 12,
+            .minute = 0, 
+            .second = 0,
+            .millisecond = 0
+    });
+
+    SUBCASE("2001 07 23 02:55::00 UTC")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2001, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        CHECK(jdut2 == doctest::Approx(2452113.621528 - 2451545.0).epsilon(1e-6f));
+    }
+
+    SUBCASE("2005 07 23 02:55::00 UTC")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2005, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        CHECK(jdut2 == doctest::Approx(2453574.621528 - 2451545.0).epsilon(1e-6f));
+    }
+
+    SUBCASE("2015 07 23 02:55::00 UTC")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2015, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        CHECK(jdut2 == doctest::Approx(2457226.621528 - 2451545.0).epsilon(1e-6f));
+    }
+
+    
+    SUBCASE("2025 07 23 02:55::00 UTC")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2025, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        CHECK(jdut2 == doctest::Approx(2460879.621528 - 2451545.0).epsilon(1e-6f));
+    }
+    
+    SUBCASE("2035 07 23 02:55::00 UTC")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2035, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        CHECK(jdut2 == doctest::Approx(2464531.621528 - 2451545.0 ).epsilon(1e-6f));
+    }
+
+
+    SUBCASE("2045 07 23 02:55::00 UTC")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2045, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        CHECK(jdut2 == doctest::Approx(2468184.621528 - 2451545.0 ).epsilon(1e-6f));
+    }
+}
+
+TEST_CASE("TimeUtils::gsTimeJ2000")
+{
+    // https://aa.usno.navy.mil/data/siderealtime
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2000, 
+            .month = 1,
+            .day = 1,
+            .hour = 12,
+            .minute = 0, 
+            .second = 0,
+            .millisecond = 0
+    });
+
+    
+    SUBCASE("6939.833333")
+    {
+        float jdut2 = 6939.833333f;
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(14.712605328).epsilon(1e-3f));
+
+    }
+    
+    SUBCASE("2001 07 23 02:55::00 UTC -> 22:58:41.0238")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2001, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(22.0 + 58.0 / 60.0 + 41.0238 / 3600.0).epsilon(1e-3f));
+    }
+
+    SUBCASE("2005 07 23 02:55::00 UTC -> 22:58:48.4159")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2005, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(22.0 + 58.0 / 60.0 + 48.4159 / 3600.0).epsilon(1e-3f));
+    }
+
+    SUBCASE("2015 07 23 02:55::00 UTC -> 22:57:08.6196")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2015, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(22.0 + 57.0 / 60.0 + 08.6196 / 3600.0).epsilon(1e-3f));
+    }
+
+    
+    SUBCASE("2025 07 23 02:55::00 UTC -> 22:59:25.3806")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2025, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(22.0 + 59.0 / 60.0 + 25.3806/ 3600.0).epsilon(1e-3f));
+    }
+    
+    SUBCASE("2035 07 23 02:55::00 UTC -> 22:57:45.5880")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2035, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(22.0 + 57.0 / 60.0 + 45.5880 / 3600.0).epsilon(1e-3f));
+    }
+
+
+    SUBCASE("2045 07 23 02:55::00 UTC -> 23:00:02.3526")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents {
+            .year = 2045, 
+            .month = 7,
+            .day = 23,
+            .hour = 2,
+            .minute = 55, 
+            .second = 0,
+            .millisecond = 0
+        });
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        double gstime = TimeUtils::gsTimeJ2000(jdut2);
+        CHECK(gstime == doctest::Approx(23.0 + 0 / 60.0 + 2.3526 / 3600.0).epsilon(1e-3f));
+    }
+}

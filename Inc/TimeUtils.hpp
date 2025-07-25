@@ -71,6 +71,10 @@ epoch_duration from_rtc(const RTCDateTimeSubseconds &rtcdatetimesubseconds, uint
 RTCDateTimeSubseconds to_rtc(const epoch_duration &d, uint32_t secondFraction);
 RTCDateTimeSubseconds to_rtc(const DateTimeComponents &components, uint32_t secondFraction);
 
+
+float gsTimeJ2000(float days_J2000);
+
+
 // Error codes (adjust as needed)
 enum class TimeUtilsError {
   OK = 0,

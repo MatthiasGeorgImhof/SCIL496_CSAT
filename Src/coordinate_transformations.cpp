@@ -183,6 +183,20 @@ namespace coordinate_transformations
         return geodetic;
     }
 
+    float gsTimeJ2000(float days_J2000)
+    {
+        // constexpr float pi = 3.14159265358979323846f;
+        // constexpr float twopi = 2.0f * pi;
+        // constexpr float deg2rad = pi / 180.0f;
+
+        float tut1 = (days_J2000 - 0.5f)/ 36525.0f;
+        float temp = -6.2e-6f * tut1 * tut1 * tut1 + 0.093104f * tut1 * tut1 +
+                     (876600.0f * 3600.f + 8640184.812866f) * tut1 + 67310.54841f; // sec
+        return temp;
+    } // end gstime
+
+
+
     // --- TEME to ECEF Conversion ---
 
     inline float sgn(float x)
@@ -200,20 +214,41 @@ namespace coordinate_transformations
         return (a - b * floorf(a / b));
     }
 
+	void jday_SGP4(
+		int year, int mon, int day, int hr, int minute, float sec,
+		float &jd, float &jdFrac)
+	{
+		jd = 367.0f * (float)year -
+			 floorf((7 * ((float)year + floorf(((float)mon + 9) / 12.0f))) * 0.25f) +
+			 floorf(275.f * (float)mon / 9.0f) +
+			 (float)day + 1721013.5f; // use - 678987.0f to go to mjd directly
+		jdFrac = ((float)sec + (float)minute * 60.0f + (float)hr * 3600.0f) / 86400.0f;
+
+		// check that the day and fractional day are correct
+		if (fabsf(jdFrac) > 1.0f)
+		{
+			float dtt = floorf(jdFrac);
+			jd = jd + dtt;
+			jdFrac = jdFrac - dtt;
+		}
+
+		// - 0.5*sgn(100.0*year + mon - 190002.5f) + 0.5f;
+	} // jday
+
     float gstime(float jdut1)
     {
-        constexpr float pi = 3.14159265358979323846f;
-        constexpr float twopi = 2.0f * pi;
-        constexpr float deg2rad = pi / 180.0f;
+        // constexpr float pi = 3.14159265358979323846f;
+        // constexpr float twopi = 2.0f * pi;
+        // constexpr float deg2rad = pi / 180.0f;
 
         float tut1 = (jdut1 - 2451545.0f) / 36525.0f;
         float temp = -6.2e-6f * tut1 * tut1 * tut1 + 0.093104f * tut1 * tut1 +
                      (876600.0f * 3600.f + 8640184.812866f) * tut1 + 67310.54841f; // sec
-        temp = floatmod(temp * deg2rad / 240.0f, twopi);                           // 360/86400 = 1/240, to deg, to rad
+        // temp = floatmod(temp * deg2rad / 240.0f, twopi);                           // 360/86400 = 1/240, to deg, to rad
 
-        // ------------------------ check quadrants ---------------------
-        if (temp < 0.0f)
-            temp += twopi;
+        // // ------------------------ check quadrants ---------------------
+        // if (temp < 0.0f)
+        //     temp += twopi;
 
         return temp;
     } // end gstime

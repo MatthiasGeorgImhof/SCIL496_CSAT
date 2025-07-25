@@ -81,13 +81,13 @@ bool SGP4::predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::Q
 
     std::chrono::system_clock::time_point now = TimeUtils::to_timepoint(dtc);
     std::chrono::system_clock::time_point epoch = TimeUtils::to_timepoint(static_cast<uint16_t>(tle_.epochYear) + TimeUtils::EPOCH_YEAR, tle_.epochDay);
-    float fractional_days_since_epoch = TimeUtils::to_fractional_days(epoch, now) * 60.f * 24.f;
+    float fractional_minutes_since_epoch = TimeUtils::to_fractional_days(epoch, now) * 60.f * 24.f;
 
     float r_[3], v_[3];
     gravconsttype whichconst = wgs84; // Choose the gravity model (wgs72old, wgs72, wgs84)
     char opsmode = 'i';               // Operation mode ('a' for AFSPC, 'i' for improved)
     SGP4Funcs::satrec2rv(opsmode, whichconst, satrec);
-    bool result = SGP4Funcs::sgp4(satrec, fractional_days_since_epoch, r_, v_);
+    bool result = SGP4Funcs::sgp4(satrec, fractional_minutes_since_epoch, r_, v_);
 
     std::chrono::milliseconds milliseconds = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
     timestamp = milliseconds;

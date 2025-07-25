@@ -113,7 +113,7 @@ TEST_CASE("GyrMagOrientationTracker follows yaw rotation with magnetometer corre
 TEST_CASE("AccGyrMagOrientationTracker initializes with identity quaternion")
 {
     AccGyrMagOrientationTracker tracker;
-    auto q = tracker.getStableOrientation();
+    auto q = tracker.getOrientation();
     REQUIRE(q.isApprox(Eigen::Quaternionf::Identity(), 1e-6f));
 }
 
@@ -128,7 +128,7 @@ TEST_CASE("predictTo integrates quaternion forward using gyro state")
     // Now integrate 1 second forward from t=0.0 → t=1.0
     tracker.predictTo(1.0f);
 
-    Eigen::Quaternionf q = tracker.getStableOrientation();
+    Eigen::Quaternionf q = tracker.getOrientation();
     float yaw = std::atan2(2.f * (q.w() * q.z() + q.x() * q.y()),
                            1.f - 2.f * (q.y() * q.y() + q.z() * q.z()));
 
@@ -150,10 +150,10 @@ TEST_CASE("updateAccelerometerMagnetometer converges yaw orientation within enve
 
     // Add these lines:
     // std::cerr << "Before predictTo:\n";
-    // std::cerr << "  q_hat: " << tracker.getStableOrientation().coeffs().transpose() << "\n";
+    // std::cerr << "  q_hat: " << tracker.getOrientation().coeffs().transpose() << "\n";
     tracker.predictTo(0.1f);
     // std::cerr << "After predictTo:\n";
-    // std::cerr << "  q_hat: " << tracker.getStableOrientation().coeffs().transpose() << "\n";
+    // std::cerr << "  q_hat: " << tracker.getOrientation().coeffs().transpose() << "\n";
 
     float yaw_true = M_PIf / 4.0f;
     std::vector<float> yaw_errors;
@@ -220,7 +220,7 @@ TEST_CASE("AccGyrMagOrientationTracker follows yaw rotation with accelerometer a
         tracker.updateAccelerometerMagnetometer(accel_meas, mag_meas, t);
 
         // Compare estimated yaw
-        Eigen::Quaternionf q_est = tracker.getStableOrientation();
+        Eigen::Quaternionf q_est = tracker.getOrientation();
         float yaw_est = std::atan2(2.f * (q_est.w() * q_est.z() + q_est.x() * q_est.y()),
                                    1.f - 2.f * (q_est.y() * q_est.y() + q_est.z() * q_est.z()));
 

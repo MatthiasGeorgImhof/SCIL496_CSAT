@@ -98,6 +98,7 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/irgf_model.cpp \
 			../Src/Logger.cpp \
 			../Src/RegistrationManager.cpp \
+			../Src/Quaternion.cpp \
 			../Src/ServiceManager.cpp \
 			../Src/sgp4_tle.cpp \
 			../Src/TaskBlinkLED.cpp \
@@ -526,9 +527,9 @@ $(BIN_DIR)/coordinate_transformations.o : ../Src/coordinate_transformations.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestCoordinateTransformations : $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o
+$(BIN_DIR)/TestCoordinateTransformations : $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCoordinateTransformations.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
 
 # Rule for TestGNSS with extra sources
 $(BIN_DIR)/TestGNSS.o : TestGNSS.cpp
@@ -610,18 +611,22 @@ $(BIN_DIR)/TestOrientationTracker.o : TestOrientationTracker.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestOrientationTracker : $(BIN_DIR)/TestOrientationTracker.o 
+$(BIN_DIR)/TestOrientationTracker : $(BIN_DIR)/TestOrientationTracker.o $(BIN_DIR)/Quaternion.o
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestOrientationTracker.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestOrientationTracker.o $(BIN_DIR)/Quaternion.o $(LIBS)
 
 # Rule for TestQuaternion with with EXTRA_FLAGS only
 $(BIN_DIR)/TestQuaternion.o : TestQuaternion.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestQuaternion : $(BIN_DIR)/TestQuaternion.o 
+$(BIN_DIR)/Quaternion.o : ../Src/Quaternion.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestQuaternion : $(BIN_DIR)/TestQuaternion.o $(BIN_DIR)/Quaternion.o
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestQuaternion.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestQuaternion.o $(BIN_DIR)/Quaternion.o $(LIBS)
 
 # Rule for TestSGP4PositionTracker with with EXTRA_FLAGS only
 $(BIN_DIR)/TestSGP4PositionTracker.o : TestSGP4PositionTracker.cpp
@@ -655,9 +660,9 @@ $(BIN_DIR)/TestTaskOrientationService.o : TestTaskOrientationService.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTaskOrientationService : $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestTaskOrientationService : $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/Quaternion.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/Quaternion.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 
 # Generic rule for all other tests

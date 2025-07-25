@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "coordinate_transformations.hpp"
+#include "TimeUtils.hpp"
 #include <random>
 #include <limits> // For NaN
 #include <cmath>  // For std::isnan
