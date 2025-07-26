@@ -281,17 +281,16 @@ namespace TimeUtils
     return (a - b * floorf(a / b));
   }
 
-  float gsTimeJ2000(
-      float jdut1)
+  float gsTimeJ2000(float jd2000)
   {
     // https://astronomy.stackexchange.com/questions/21002/how-to-find-greenwich-mean-sideral-time
-    float midnight = floorf(jdut1) + 0.5f;
-    float days_since_midnight = jdut1 - midnight;
-    
+    float midnight = floorf(jd2000) + 0.5f;
+    float days_since_midnight = jd2000 - midnight;
+
     float hours_since_midnight = days_since_midnight * 24.0f;
-    float days_since_epoch = jdut1;
+    float days_since_epoch = jd2000;
     float centuries_since_epoch = days_since_epoch / 36525.0f;
-    float whole_days_since_epoch = jdut1;
+    float whole_days_since_epoch = jd2000;
     whole_days_since_epoch = midnight;
 
     // https://astronomy.stackexchange.com/questions/21002/how-to-find-greenwich-mean-sideral-time
@@ -302,4 +301,11 @@ namespace TimeUtils
 
     return floatmod(GMST, 24.0f);
   }
+
+  float hoursToRadians(float gsm)
+  {
+    constexpr float M_2PIf = 2.0f * M_PIf;
+    return gsm * M_2PIf / 24.0f;
+  }
+
 } // namespace TimeUtils

@@ -58,16 +58,11 @@ namespace coordinate_transformations
     Geocentric geodeticToGeocentric(Geodetic geodetic);
     Geodetic geocentricToGeodetic(Geocentric geocentric);
 
-    float gsTimeJ2000(float days_J2000);
+    ECEF temeToECEF(TEME teme, float jd2000);
+    TEME ecefToTEME(ECEF ecef, float jd2000);
 
-    ECEF temeToECEF(TEME teme, float jdut1);
-    TEME ecefToTEME(ECEF ecef, float jdut1);
-
-    void jday_SGP4(
-		int year, int mon, int day, int hr, int minute, float sec,
-		float &jd, float &jdFrac);
-    
-    float gstime(float jdut1);
+    struct PolarMotion { float x, y; };
+    PolarMotion polarmMJD2000(float jd2000, float pm[3][3]);
 
 } /* namespace coordinate_transformations */
 

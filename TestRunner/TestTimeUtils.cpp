@@ -707,3 +707,4 @@ TEST_CASE("TimeUtils::gsTimeJ2000")
         CHECK(gstime == doctest::Approx(23.0 + 0 / 60.0 + 2.3526 / 3600.0).epsilon(1e-3f));
     }
 }
+

@@ -3,6 +3,8 @@
 #include <iostream>
 #include "coordinate_transformations.hpp"
 
+#include "TimeUtils.hpp"
+
 // Make sure to use the correct namespace
 namespace coordinate_transformations
 {
@@ -58,7 +60,7 @@ namespace coordinate_transformations
     Geodetic ecefToGeodetic(ECEF ecef)
     {
         Geodetic geodetic;
-        
+
         float p = sqrtf(ecef.x_m * ecef.x_m + ecef.y_m * ecef.y_m);
 
         if (approximatelyEqual(p, 0.0))
@@ -84,7 +86,7 @@ namespace coordinate_transformations
             lat_rad = atan2f(ecef.z_m + WGS84_E2 * N * sinf(lat_rad), p);
             geodetic.height_m = p / cosf(lat_rad) - N;
             iteration++;
-            if (iteration > 100*MAX_ITERATIONS)
+            if (iteration > 100 * MAX_ITERATIONS)
             {
                 // // // Did not converge, return NaN values
                 // geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
@@ -183,20 +185,6 @@ namespace coordinate_transformations
         return geodetic;
     }
 
-    float gsTimeJ2000(float days_J2000)
-    {
-        // constexpr float pi = 3.14159265358979323846f;
-        // constexpr float twopi = 2.0f * pi;
-        // constexpr float deg2rad = pi / 180.0f;
-
-        float tut1 = (days_J2000 - 0.5f)/ 36525.0f;
-        float temp = -6.2e-6f * tut1 * tut1 * tut1 + 0.093104f * tut1 * tut1 +
-                     (876600.0f * 3600.f + 8640184.812866f) * tut1 + 67310.54841f; // sec
-        return temp;
-    } // end gstime
-
-
-
     // --- TEME to ECEF Conversion ---
 
     inline float sgn(float x)
@@ -214,46 +202,38 @@ namespace coordinate_transformations
         return (a - b * floorf(a / b));
     }
 
-	void jday_SGP4(
-		int year, int mon, int day, int hr, int minute, float sec,
-		float &jd, float &jdFrac)
-	{
-		jd = 367.0f * (float)year -
-			 floorf((7 * ((float)year + floorf(((float)mon + 9) / 12.0f))) * 0.25f) +
-			 floorf(275.f * (float)mon / 9.0f) +
-			 (float)day + 1721013.5f; // use - 678987.0f to go to mjd directly
-		jdFrac = ((float)sec + (float)minute * 60.0f + (float)hr * 3600.0f) / 86400.0f;
-
-		// check that the day and fractional day are correct
-		if (fabsf(jdFrac) > 1.0f)
-		{
-			float dtt = floorf(jdFrac);
-			jd = jd + dtt;
-			jdFrac = jdFrac - dtt;
-		}
-
-		// - 0.5*sgn(100.0*year + mon - 190002.5f) + 0.5f;
-	} // jday
-
-    float gstime(float jdut1)
+    PolarMotion polarmMJD2000(float jd2000, float pm[3][3])
     {
-        // constexpr float pi = 3.14159265358979323846f;
-        // constexpr float twopi = 2.0f * pi;
-        // constexpr float deg2rad = pi / 180.0f;
+        constexpr float MJD2000 = 51544.5f;     // MJD for J2000 epoch
+        constexpr float MJDBULLETIN = 60880.0f; // MJD for IERS Bulletin A
+        constexpr float SHIFT = MJD2000 - MJDBULLETIN;
+        float days = jd2000 + SHIFT; // Adjusted MJD for J2000 epoch
 
-        float tut1 = (jdut1 - 2451545.0f) / 36525.0f;
-        float temp = -6.2e-6f * tut1 * tut1 * tut1 + 0.093104f * tut1 * tut1 +
-                     (876600.0f * 3600.f + 8640184.812866f) * tut1 + 67310.54841f; // sec
-        // temp = floatmod(temp * deg2rad / 240.0f, twopi);                           // 360/86400 = 1/240, to deg, to rad
+        constexpr float M_2PIf = 2.0f * M_PIf;
+        float A = M_2PIf * days / 365.25f;
+        float C = M_2PIf * days / 435.f;
 
-        // // ------------------------ check quadrants ---------------------
-        // if (temp < 0.0f)
-        //     temp += twopi;
+        // 24 July 2025                                      Vol. XXXVIII No. 030
+        float x = 0.1376f + 0.0836f * cosf(A) + 0.1286f * sinf(A) - 0.0263f * cosf(C) - 0.0762f * sinf(C);
+        float y = 0.3866f + 0.1244f * cosf(A) - 0.0728f * sinf(A) - 0.0762f * cosf(C) + 0.0263f * sinf(C);
 
-        return temp;
-    } // end gstime
+        // Polar motion coefficients in radians
+        float x_ = x * 4.84813681e-6f;
+        float y_ = y * 4.84813681e-6f;
+        pm[0][0] = cosf(x_);
+        pm[0][1] = 0.0f;
+        pm[0][2] = -sinf(x_);
+        pm[1][0] = sinf(x_) * sinf(y_);
+        pm[1][1] = cosf(y_);
+        pm[1][2] = cosf(x_) * sinf(y_);
+        pm[2][0] = sinf(x_) * cosf(y_);
+        pm[2][1] = -sinf(y_);
+        pm[2][2] = cosf(x_) * cosf(y_);
 
-    void polarm(float jdut1, float pm[3][3])
+        return {x, y};
+    }
+
+    void polarmJD(float jdut1, float pm[3][3])
     {
         // Predict polar motion coefficients using IERS Bulletin - A (Vol. XXVIII No. 030)
         float MJD = jdut1 - 2400000.5f; // Julian Date - 2,400,000.5 days
@@ -276,14 +256,33 @@ namespace coordinate_transformations
         pm[2][2] = cosf(xp) * cosf(yp);
     }
 
-    void teme2ecef(const float rteme[3], float jdut1, float recef[3])
+    float gsTimeJD(float jdut1)
+    {
+        constexpr float pi = 3.14159265358979323846f;
+        constexpr float twopi = 2.0f * pi;
+        constexpr float deg2rad = pi / 180.0f;
+
+        float tut1 = (jdut1 - 2451545.0f) / 36525.0f;
+        float temp = -6.2e-6f * tut1 * tut1 * tut1 + 0.093104f * tut1 * tut1 +
+                     (876600.0f * 3600.f + 8640184.812866f) * tut1 + 67310.54841f; // sec
+        temp = floatmod(temp * deg2rad / 240.0f, twopi);                           // 360/86400 = 1/240, to deg, to rad
+
+        // ------------------------ check quadrants ---------------------
+        if (temp < 0.0f)
+            temp += twopi;
+
+        return temp;
+    } // end gstime
+
+    void teme2ecef(const float rteme[3], float jd2000, float recef[3])
     {
         float st[3][3];
         float rpef[3];
         float pm[3][3];
 
         // Get Greenwich mean sidereal time
-        float gmst = gstime(jdut1);
+        float gmst = TimeUtils::hoursToRadians(TimeUtils::gsTimeJ2000(jd2000));
+        // float gmst = gsTimeJD(jd2000);
 
         // st is the pef - tod matrix
         st[0][0] = cosf(gmst);
@@ -302,7 +301,8 @@ namespace coordinate_transformations
         rpef[2] = st[2][2] * rteme[2];
 
         // Get polar motion vector
-        polarm(jdut1, pm);
+        (void)polarmMJD2000(jd2000, pm);
+        // (void)polarmJD(jd2000, pm);
 
         // ECEF postion vector is the inverse of the polar motion vector multiplied by rpef
         recef[0] = pm[0][0] * rpef[0] + pm[1][0] * rpef[1] + pm[2][0] * rpef[2];
@@ -310,13 +310,13 @@ namespace coordinate_transformations
         recef[2] = pm[0][2] * rpef[0] + pm[1][2] * rpef[1] + pm[2][2] * rpef[2];
     }
 
-    ECEF temeToECEF(TEME teme, float jdut1)
+    ECEF temeToECEF(TEME teme, float jd2000)
     {
         ECEF ecef;
         float rteme[3] = {teme.x_m / 1000.0f, teme.y_m / 1000.0f, teme.z_m / 1000.0f}; // km
         float recef[3];
 
-        teme2ecef(rteme, jdut1, recef);
+        teme2ecef(rteme, jd2000, recef);
 
         ecef.x_m = recef[0] * 1000.0f;
         ecef.y_m = recef[1] * 1000.0f;
@@ -325,14 +325,15 @@ namespace coordinate_transformations
         return ecef;
     }
 
-    void ecef2teme(const float recef[3], float jdut1, float rteme[3])
+    void ecef2teme(const float recef[3], float jd2000, float rteme[3])
     {
         float st[3][3];
         float rpef[3];
         float pm[3][3];
 
         // 1. Inverse Polar Motion:
-        polarm(jdut1, pm);
+        (void)polarmMJD2000(jd2000, pm);
+        // (void)polarmJD(jd2000, pm);
 
         // Transpose the polar motion matrix (pm) because we are inverting the transform.
         rpef[0] = pm[0][0] * recef[0] + pm[0][1] * recef[1] + pm[0][2] * recef[2];
@@ -340,7 +341,8 @@ namespace coordinate_transformations
         rpef[2] = pm[2][0] * recef[0] + pm[2][1] * recef[1] + pm[2][2] * recef[2];
 
         // 2. Inverse Greenwich Mean Sidereal Time Rotation:
-        float gmst = gstime(jdut1);
+        float gmst = TimeUtils::hoursToRadians(TimeUtils::gsTimeJ2000(jd2000));
+        // float gmst = gsTimeJD(jd2000);
 
         // Need the transpose (inverse) of the st matrix.
         st[0][0] = cosf(gmst);
@@ -359,13 +361,13 @@ namespace coordinate_transformations
         rteme[2] = st[2][2] * rpef[2];
     }
 
-    TEME ecefToTEME(ECEF ecef, float jdut1)
+    TEME ecefToTEME(ECEF ecef, float jd2000)
     {
         TEME teme;
         float recef[3] = {ecef.x_m / 1000.0f, ecef.y_m / 1000.0f, ecef.z_m / 1000.0f}; // Convert to km
         float rteme[3];
 
-        ecef2teme(recef, jdut1, rteme); // Call the inverse transformation function
+        ecef2teme(recef, jd2000, rteme); // Call the inverse transformation function
 
         teme.x_m = rteme[0] * 1000.0f; // Convert back to meters
         teme.y_m = rteme[1] * 1000.0f;

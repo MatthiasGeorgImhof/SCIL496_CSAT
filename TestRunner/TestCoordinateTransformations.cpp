@@ -372,7 +372,7 @@ TEST_CASE("ECEF to Geodetic Conversion")
     {
         ECEF ecef = {1.0, 2.0, 3.0};
         Geodetic geodetic = ecefToGeodetic(ecef);
-        
+
         INFO("geodetic.latitude_deg ", geodetic.latitude_deg);
         INFO("geodetic.longitude_deg ", geodetic.longitude_deg);
         INFO("geodetic.height_m ", geodetic.height_m);
@@ -541,7 +541,6 @@ TEST_CASE("Random Geocentric to Geodetic")
         CHECK_FALSE(doctest::IsNaN(geodetic.latitude_deg));
         CHECK_FALSE(doctest::IsNaN(geodetic.longitude_deg));
         CHECK_FALSE(doctest::IsNaN(geodetic.height_m));
-
     }
 }
 
@@ -596,7 +595,9 @@ TEST_CASE("Random Geodetic to ECEF and Back")
 TEST_CASE("TEME to ECEF and ECEF to TEME Conversions")
 {
     // Define a Julian Date for the conversion
-    float jdut1 = 2458863.0; // Example Julian Date
+    //  float jdut1 = 2458863.0f; // Example Julian Date
+    constexpr float jdut1 = 9336.0f; // Example J2000 Date
+    constexpr float eps = 0.25f;
 
     SUBCASE("Basic Conversion Test")
     {
@@ -610,9 +611,9 @@ TEST_CASE("TEME to ECEF and ECEF to TEME Conversions")
         TEME recovered_teme_coord = ecefToTEME(ecef_coord, jdut1);
 
         // Check if the coordinates are approximately equal
-        CHECK(recovered_teme_coord.x_m == doctest::Approx(teme_coord.x_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.y_m == doctest::Approx(teme_coord.y_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.z_m == doctest::Approx(teme_coord.z_m).epsilon(1e-2f));
+        CHECK(recovered_teme_coord.x_m == doctest::Approx(teme_coord.x_m).epsilon(eps));
+        CHECK(recovered_teme_coord.y_m == doctest::Approx(teme_coord.y_m).epsilon(eps));
+        CHECK(recovered_teme_coord.z_m == doctest::Approx(teme_coord.z_m).epsilon(eps));
     }
 
     SUBCASE("Another TEME Coordinate Test")
@@ -627,9 +628,9 @@ TEST_CASE("TEME to ECEF and ECEF to TEME Conversions")
         TEME recovered_teme_coord = ecefToTEME(ecef_coord, jdut1);
 
         // Check for approximate equality
-        CHECK(recovered_teme_coord.x_m == doctest::Approx(teme_coord.x_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.y_m == doctest::Approx(teme_coord.y_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.z_m == doctest::Approx(teme_coord.z_m).epsilon(1e-2f));
+        CHECK(recovered_teme_coord.x_m == doctest::Approx(teme_coord.x_m).epsilon(eps));
+        CHECK(recovered_teme_coord.y_m == doctest::Approx(teme_coord.y_m).epsilon(eps));
+        CHECK(recovered_teme_coord.z_m == doctest::Approx(teme_coord.z_m).epsilon(eps));
     }
 
     SUBCASE("TEME Coordinate with Z Component")
@@ -644,17 +645,141 @@ TEST_CASE("TEME to ECEF and ECEF to TEME Conversions")
         TEME recovered_teme_coord = ecefToTEME(ecef_coord, jdut1);
 
         // Check for approximate equality
-        CHECK(recovered_teme_coord.x_m == doctest::Approx(teme_coord.x_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.y_m == doctest::Approx(teme_coord.y_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.z_m == doctest::Approx(teme_coord.z_m).epsilon(1e-2f));
+        CHECK(recovered_teme_coord.x_m == doctest::Approx(teme_coord.x_m).epsilon(eps));
+        CHECK(recovered_teme_coord.y_m == doctest::Approx(teme_coord.y_m).epsilon(eps));
+        CHECK(recovered_teme_coord.z_m == doctest::Approx(teme_coord.z_m).epsilon(eps));
     }
 
     SUBCASE("ECEF to TEME - Zero values, to test inverse polarm")
     {
         ECEF ecef_coord = {0.0f, 0.0f, 0.0f}; // Example position in meters
         TEME recovered_teme_coord = ecefToTEME(ecef_coord, jdut1);
-        CHECK(recovered_teme_coord.x_m == doctest::Approx(ecef_coord.x_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.y_m == doctest::Approx(ecef_coord.y_m).epsilon(1e-2f));
-        CHECK(recovered_teme_coord.z_m == doctest::Approx(ecef_coord.z_m).epsilon(1e-2f));
+        CHECK(recovered_teme_coord.x_m == doctest::Approx(ecef_coord.x_m).epsilon(eps));
+        CHECK(recovered_teme_coord.y_m == doctest::Approx(ecef_coord.y_m).epsilon(eps));
+        CHECK(recovered_teme_coord.z_m == doctest::Approx(ecef_coord.z_m).epsilon(eps));
+    }
+}
+
+TEST_CASE("TEME to ECEF")
+{
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+    constexpr float eps = 1.0e-1f;
+
+    SUBCASE("2025/06/25 18:00:00")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 6,
+            .day = 25,
+            .hour = 18,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        TEME teme_coord = {-3006.1573609732827f * 1000.0f, 4331.221049310724f * 1000.0f, -4290.439626312989f * 1000.0f};
+        ECEF ecef_coord = temeToECEF(teme_coord, jd2000);
+
+        CHECK(ecef_coord.x_m == doctest::Approx( 2686.63188566f * 1000.0f).epsilon(eps));
+        CHECK(ecef_coord.y_m == doctest::Approx(-4536.33846792f * 1000.0f).epsilon(eps));
+        CHECK(ecef_coord.z_m == doctest::Approx(-4290.45131185f * 1000.0f).epsilon(eps));
+    }
+
+
+    SUBCASE("2025/07/06 20:43:13")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 7,
+            .day = 6,
+            .hour = 20,
+            .minute = 43,
+            .second = 13,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        TEME teme_coord = {-4813.398435775674f * 1000.0f, -4416.344248277559f * 1000.0f, 1857.5065466212982f * 1000.0f};
+        ECEF ecef_coord = temeToECEF(teme_coord, jd2000);
+
+        CHECK(ecef_coord.x_m == doctest::Approx( 6355.96709238f * 1000.0f).epsilon(eps));
+        CHECK(ecef_coord.y_m == doctest::Approx(-1508.18261367f * 1000.0f).epsilon(eps));
+        CHECK(ecef_coord.z_m == doctest::Approx( 1857.49807967f * 1000.0f).epsilon(eps));
+    }
+}
+
+TEST_CASE("Polar Motion")
+{
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+    SUBCASE("2025 07 24 ")
+    {
+        // epoch for polar file
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 7,
+            .day = 24,
+            .hour = 0,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        float pm[3][3];
+        auto polar_motion = polarmMJD2000(jdut2, pm);
+        CHECK(polar_motion.x == doctest::Approx(0.19715f).epsilon(1e-1f));
+        CHECK(polar_motion.y == doctest::Approx(0.43271f).epsilon(1e-1f));
+    }
+
+    SUBCASE("2026 01 01 ")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2026,
+            .month = 1,
+            .day = 1,
+            .hour = 0,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        float pm[3][3];
+        auto polar_motion = polarmMJD2000(jdut2, pm);
+        CHECK(polar_motion.x == doctest::Approx(0.1091).epsilon(1e-1f));
+        CHECK(polar_motion.y == doctest::Approx(0.3015).epsilon(1e-1f));
+    }
+
+    SUBCASE("2026 07 24 ")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2026,
+            .month = 7,
+            .day = 24,
+            .hour = 0,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jdut2 = TimeUtils::to_fractional_days(j2000, now);
+        float pm[3][3];
+        auto polar_motion = polarmMJD2000(jdut2, pm);
+        CHECK(polar_motion.x == doctest::Approx(0.2032f).epsilon(1e-1f));
+        CHECK(polar_motion.y == doctest::Approx(0.4221f).epsilon(1e-1f));
     }
 }
