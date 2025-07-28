@@ -343,17 +343,16 @@ TEST_CASE("send position 2025 6 25 18 0 0")
     REQUIRE(deserialization_result >= 0);
     CHECK(received_data.timestamp.microsecond == 804189600000000);
 
-    std::array<float,3> expected_r {-3006.1573609732827f, 4331.221049310724f, -4290.439626312989f};
-    std::array<float,3> expected_v {-3.3808196282756926f, -5.872899089174856f, -3.5610122777771087f};
+    std::array<float,3> expected_r {2715.4f, -4518.34f, -4291.31f};
+    std::array<float,3> expected_v {3.75928f, 5.63901f, -3.55967f};
     
-    CHECK(received_data.position_m[0] == doctest::Approx(expected_r[0] * 1000.f).epsilon(0.01));
-    CHECK(received_data.position_m[1] == doctest::Approx(expected_r[1] * 1000.f).epsilon(0.01));
-    CHECK(received_data.position_m[2] == doctest::Approx(expected_r[2] * 1000.f).epsilon(0.01));
-    CHECK(received_data.velocity_ms[0] == doctest::Approx(expected_v[0] * 1000.f).epsilon(0.01));
-    CHECK(received_data.velocity_ms[1] == doctest::Approx(expected_v[1] * 1000.f).epsilon(0.01));
-    CHECK(received_data.velocity_ms[2] == doctest::Approx(expected_v[2] * 1000.f).epsilon(0.01));
+    CHECK(received_data.position_m[0] == doctest::Approx(expected_r[0]*1000.0f).epsilon(0.01));
+    CHECK(received_data.position_m[1] == doctest::Approx(expected_r[1]*1000.0f).epsilon(0.01));
+    CHECK(received_data.position_m[2] == doctest::Approx(expected_r[2]*1000.0f).epsilon(0.01));
+    CHECK(received_data.velocity_ms[0] == doctest::Approx(expected_v[0]*1000.0f).epsilon(0.01));
+    CHECK(received_data.velocity_ms[1] == doctest::Approx(expected_v[1]*1000.0f).epsilon(0.01));
+    CHECK(received_data.velocity_ms[2] == doctest::Approx(expected_v[2]*1000.0f).epsilon(0.01));
     loopardMemoryFree(transfer.payload);
-
 }
 
 TEST_CASE("send position 2025 7 6 20 43 13")
@@ -430,8 +429,8 @@ TEST_CASE("send position 2025 7 6 20 43 13")
     REQUIRE(deserialization_result >= 0);
     CHECK(received_data.timestamp.microsecond == 805149793000000);
 
-    std::array<float,3> expected_r {-4813.398435775674f, -4416.344248277559f, 1857.5065466212982f};
-    std::array<float,3> expected_v {4.527454398550583f, -2.5557415078740733f, 5.632466916322536f};
+    std::array<float,3> expected_r {6356.42f, -1504.07f, 1859.27f};
+    std::array<float,3> expected_v {-0.42784f, 5.18216f, 5.63173f};
     
     CHECK(received_data.position_m[0] == doctest::Approx(expected_r[0] * 1000.f).epsilon(0.01));
     CHECK(received_data.position_m[1] == doctest::Approx(expected_r[1] * 1000.f).epsilon(0.01));
@@ -440,5 +439,4 @@ TEST_CASE("send position 2025 7 6 20 43 13")
     CHECK(received_data.velocity_ms[1] == doctest::Approx(expected_v[1] * 1000.f).epsilon(0.01));
     CHECK(received_data.velocity_ms[2] == doctest::Approx(expected_v[2] * 1000.f).epsilon(0.01));
     loopardMemoryFree(transfer.payload);
-
 }

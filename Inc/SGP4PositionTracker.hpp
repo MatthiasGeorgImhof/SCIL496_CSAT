@@ -62,7 +62,7 @@ public:
 
     SGP4andGNSSandPosition(RTC_HandleTypeDef *hrtc, Tracker &tracker, SGP4 &sgp4, GNSS &gnss, uint16_t sgp4_rate = 1, uint16_t gnss_rate = 1) : hrtc_(hrtc), tracker_(tracker), sgp4_(sgp4), gnss_(gnss), sgp4_rate_(sgp4_rate), gnss_rate_(gnss_rate), sgp4_counter_(0), gnss_counter_(0U) {}
 
-    bool predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
+    bool predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
 
 private:
     RTC_HandleTypeDef *hrtc_;
@@ -78,7 +78,7 @@ private:
 };
 
 template <typename Tracker, typename SGP4, typename GNSS>
-bool SGP4andGNSSandPosition<Tracker, SGP4, GNSS>::predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+bool SGP4andGNSSandPosition<Tracker, SGP4, GNSS>::predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
 {
     TimeUtils::RTCDateTimeSubseconds rtc;
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
@@ -88,8 +88,8 @@ bool SGP4andGNSSandPosition<Tracker, SGP4, GNSS>::predict(std::array<au::Quantit
     if (sgp4_counter_ % sgp4_rate_ == 0)
     {
         sgp4_.predict(r, v, timestamp);
-        tracker_.setPrediction(Eigen::Vector3f(r[0].in(au::meters), r[1].in(au::meters), r[2].in(au::meters)),
-                               Eigen::Vector3f(v[0].in(au::meters / au::seconds), v[1].in(au::meters / au::seconds), v[2].in(au::meters / au::seconds)));
+        tracker_.setPrediction(Eigen::Vector3f(r[0].in(au::meters * au::ecefs), r[1].in(au::meters * au::ecefs), r[2].in(au::meters * au::ecefs)),
+                               Eigen::Vector3f(v[0].in(au::meters * au::ecefs / au::seconds), v[1].in(au::meters * au::ecefs / au::seconds), v[2].in(au::meters * au::ecefs / au::seconds)));
     }
 
     if (gnss_counter_ % gnss_rate_ == 0)
@@ -98,15 +98,15 @@ bool SGP4andGNSSandPosition<Tracker, SGP4, GNSS>::predict(std::array<au::Quantit
         if (optional_pos_ecef.has_value())
         {
             auto pos_ecef = ConvertPositionECEF(optional_pos_ecef.value());
-            tracker_.updateWithGps(Eigen::Vector3f(pos_ecef.x.in(au::meters), pos_ecef.y.in(au::meters), pos_ecef.z.in(au::meters)));
+            tracker_.updateWithGps(Eigen::Vector3f(pos_ecef.x.in(au::meters * au::ecefs), pos_ecef.y.in(au::meters * au::ecefs), pos_ecef.z.in(au::meters * au::ecefs)));
         }
     }
 
     auto state = tracker_.getState();
     std::transform(state.data(), state.data() + 3, r.begin(), [](const auto &item)
-                   { return au::make_quantity<au::Meters>(item); });
+                   { return au::make_quantity<au::MetersInEcefFrame>(item); });
     std::transform(state.data() + 3, state.data() + 6, v.begin(), [](const auto &item)
-                   { return au::make_quantity<au::MetersPerSecond>(item); });
+                   { return au::make_quantity<au::MetersPerSecondInEcefFrame>(item); });
 
     ++sgp4_counter_;
     ++gnss_counter_;

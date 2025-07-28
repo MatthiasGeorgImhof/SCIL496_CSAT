@@ -2,6 +2,8 @@
 #define COORDINATE_TRANSFORMATIONS_HPP
 
 #include <cmath>
+#include <array>
+#include "au.hpp"
 
 namespace coordinate_transformations
 {
@@ -60,6 +62,11 @@ namespace coordinate_transformations
 
     ECEF temeToECEF(TEME teme, float jd2000);
     TEME ecefToTEME(ECEF ecef, float jd2000);
+
+    std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> temeToecef(const std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> teme, float jd2000);
+    std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> temeToecef(const std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> teme, float jd2000);
+    std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> ecefToteme(const std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> teme, float jd2000);
+    std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> ecefToteme(const std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> teme, float jd2000);
 
     struct PolarMotion { float x, y; };
     PolarMotion polarmMJD2000(float jd2000, float pm[3][3]);

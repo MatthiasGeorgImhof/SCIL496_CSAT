@@ -717,6 +717,278 @@ TEST_CASE("TEME to ECEF")
     }
 }
 
+TEST_CASE("AU Coordinates TEME to ECEF")
+{
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+    constexpr float eps = 1.0e-1f;
+
+    SUBCASE("2025/06/25 18:00:00")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 6,
+            .day = 25,
+            .hour = 18,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-3006.1573609732827f), 
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(4331.221049310724f), 
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-4290.439626312989f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+
+        CHECK(ecef_coord[0].in(au::kilo(au::meters * au::ecefs)) == doctest::Approx( 2686.63188566f).epsilon(eps));
+        CHECK(ecef_coord[1].in(au::kilo(au::meters * au::ecefs)) == doctest::Approx(-4536.33846792f).epsilon(eps));
+        CHECK(ecef_coord[2].in(au::kilo(au::meters * au::ecefs)) == doctest::Approx(-4290.45131185f).epsilon(eps));
+    }
+
+
+    SUBCASE("2025/07/06 20:43:13")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 7,
+            .day = 6,
+            .hour = 20,
+            .minute = 43,
+            .second = 13,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-4813.398435775674f),
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-4416.344248277559f), 
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(1857.5065466212982f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+
+        CHECK(ecef_coord[0].in(au::kilo(au::meters * au::ecefs)) == doctest::Approx( 6355.96709238f).epsilon(eps));
+        CHECK(ecef_coord[1].in(au::kilo(au::meters * au::ecefs)) == doctest::Approx(-1508.18261367f).epsilon(eps));
+        CHECK(ecef_coord[2].in(au::kilo(au::meters * au::ecefs)) == doctest::Approx( 1857.49807967f).epsilon(eps));
+    }
+}
+
+TEST_CASE("AU Coordinates TEME to ECEF to TEME")
+{
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+    constexpr float eps = 1.0e-1f;
+
+    SUBCASE("2025/06/25 18:00:00")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 6,
+            .day = 25,
+            .hour = 18,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-3006.1573609732827f), 
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(4331.221049310724f), 
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-4290.439626312989f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+        std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> result = ecefToteme(ecef_coord, jd2000);
+
+        CHECK(result[0].in(au::kilo(au::meters * au::temes)) == doctest::Approx(teme_coord[0].in(au::kilo(au::meters * au::temes))).epsilon(eps));
+        CHECK(result[1].in(au::kilo(au::meters * au::temes)) == doctest::Approx(teme_coord[1].in(au::kilo(au::meters * au::temes))).epsilon(eps));
+        CHECK(result[2].in(au::kilo(au::meters * au::temes)) == doctest::Approx(teme_coord[2].in(au::kilo(au::meters * au::temes))).epsilon(eps));
+    }
+
+
+    SUBCASE("2025/07/06 20:43:13")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 7,
+            .day = 6,
+            .hour = 20,
+            .minute = 43,
+            .second = 13,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-4813.398435775674f),
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(-4416.344248277559f), 
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(1857.5065466212982f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+        std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> result = ecefToteme(ecef_coord, jd2000);
+
+        CHECK(result[0].in(au::kilo(au::meters * au::temes)) == doctest::Approx(teme_coord[0].in(au::kilo(au::meters * au::temes))).epsilon(eps));
+        CHECK(result[1].in(au::kilo(au::meters * au::temes)) == doctest::Approx(teme_coord[1].in(au::kilo(au::meters * au::temes))).epsilon(eps));
+        CHECK(result[2].in(au::kilo(au::meters * au::temes)) == doctest::Approx(teme_coord[2].in(au::kilo(au::meters * au::temes))).epsilon(eps));
+    }
+}
+
+TEST_CASE("AU Velocities TEME to ECEF")
+{
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+    constexpr float eps = 1.0e-1f;
+
+    SUBCASE("2025/06/25 18:00:00")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 6,
+            .day = 25,
+            .hour = 18,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-3006.1573609732827f), 
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(4331.221049310724f), 
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-4290.439626312989f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+
+        CHECK(ecef_coord[0].in(au::kilo(au::meters * au::ecefs / au::seconds)) == doctest::Approx( 2686.63188566f).epsilon(eps));
+        CHECK(ecef_coord[1].in(au::kilo(au::meters * au::ecefs / au::seconds)) == doctest::Approx(-4536.33846792f).epsilon(eps));
+        CHECK(ecef_coord[2].in(au::kilo(au::meters * au::ecefs / au::seconds)) == doctest::Approx(-4290.45131185f).epsilon(eps));
+    }
+
+
+    SUBCASE("2025/07/06 20:43:13")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 7,
+            .day = 6,
+            .hour = 20,
+            .minute = 43,
+            .second = 13,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-4813.398435775674f),
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-4416.344248277559f), 
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(1857.5065466212982f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+
+        CHECK(ecef_coord[0].in(au::kilo(au::meters * au::ecefs / au::seconds)) == doctest::Approx( 6355.96709238f).epsilon(eps));
+        CHECK(ecef_coord[1].in(au::kilo(au::meters * au::ecefs / au::seconds)) == doctest::Approx(-1508.18261367f).epsilon(eps));
+        CHECK(ecef_coord[2].in(au::kilo(au::meters * au::ecefs / au::seconds)) == doctest::Approx( 1857.49807967f).epsilon(eps));
+    }
+}
+
+TEST_CASE("AU Velocities TEME to ECEF to TEME")
+{
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+    constexpr float eps = 1.0e-1f;
+
+    SUBCASE("2025/06/25 18:00:00")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 6,
+            .day = 25,
+            .hour = 18,
+            .minute = 0,
+            .second = 0,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-3006.1573609732827f), 
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(4331.221049310724f), 
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-4290.439626312989f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> result = ecefToteme(ecef_coord, jd2000);
+
+        CHECK(result[0].in(au::kilo(au::meters * au::temes / au::seconds)) == doctest::Approx(teme_coord[0].in(au::kilo(au::meters * au::temes / au::seconds))).epsilon(eps));
+        CHECK(result[1].in(au::kilo(au::meters * au::temes / au::seconds)) == doctest::Approx(teme_coord[1].in(au::kilo(au::meters * au::temes / au::seconds))).epsilon(eps));
+        CHECK(result[2].in(au::kilo(au::meters * au::temes / au::seconds)) == doctest::Approx(teme_coord[2].in(au::kilo(au::meters * au::temes / au::seconds))).epsilon(eps));
+    }
+
+
+    SUBCASE("2025/07/06 20:43:13")
+    {
+        auto now = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+            .year = 2025,
+            .month = 7,
+            .day = 6,
+            .hour = 20,
+            .minute = 43,
+            .second = 13,
+            .millisecond = 0});
+
+        float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> teme_coord = 
+        {
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-4813.398435775674f),
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(-4416.344248277559f), 
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(1857.5065466212982f)
+        };
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> ecef_coord = temeToecef(teme_coord, jd2000);
+        std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> result = ecefToteme(ecef_coord, jd2000);
+
+        CHECK(result[0].in(au::kilo(au::meters * au::temes / au::seconds)) == doctest::Approx(teme_coord[0].in(au::kilo(au::meters * au::temes / au::seconds))).epsilon(eps));
+        CHECK(result[1].in(au::kilo(au::meters * au::temes / au::seconds)) == doctest::Approx(teme_coord[1].in(au::kilo(au::meters * au::temes / au::seconds))).epsilon(eps));
+        CHECK(result[2].in(au::kilo(au::meters * au::temes / au::seconds)) == doctest::Approx(teme_coord[2].in(au::kilo(au::meters * au::temes / au::seconds))).epsilon(eps));
+    }
+}
+
 TEST_CASE("Polar Motion")
 {
     auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{

@@ -219,14 +219,14 @@ private:
 
 struct PositionECEF_AU
 {
-	au::QuantityF<au::Meters> x, y, z;
-	au::QuantityF<au::Meters> acc;
+	au::QuantityF<au::MetersInEcefFrame> x, y, z;
+	au::QuantityF<au::MetersInEcefFrame> acc;
 };
 
 struct VelocityECEF_AU
 {
-	au::QuantityF<au::MetersPerSecond> x, y, z;
-	au::QuantityF<au::MetersPerSecond> acc;
+	au::QuantityF<au::MetersPerSecondInEcefFrame> x, y, z;
+	au::QuantityF<au::MetersPerSecondInEcefFrame> acc;
 };
 
 PositionECEF_AU ConvertPositionECEF(const PositionECEF &pos);

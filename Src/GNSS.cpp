@@ -462,18 +462,18 @@ int32_t GNSS::GetILong(const uint8_t *messageBuffer, uint16_t offset)
 PositionECEF_AU ConvertPositionECEF(const PositionECEF &pos)
 {
 	return PositionECEF_AU {
-		.x = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.ecefX)),
-		.y = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.ecefY)),
-		.z = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.ecefZ)),
-		.acc = au::make_quantity<au::Centi<au::Meters>>(static_cast<float>(pos.pAcc))};
+		.x = au::make_quantity<au::Centi<au::MetersInEcefFrame>>(static_cast<float>(pos.ecefX)),
+		.y = au::make_quantity<au::Centi<au::MetersInEcefFrame>>(static_cast<float>(pos.ecefY)),
+		.z = au::make_quantity<au::Centi<au::MetersInEcefFrame>>(static_cast<float>(pos.ecefZ)),
+		.acc = au::make_quantity<au::Centi<au::MetersInEcefFrame>>(static_cast<float>(pos.pAcc))};
 }
 
 VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &vel)
 {
 	return VelocityECEF_AU {
-		.x = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.ecefVX)),
-		.y = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.ecefVY)),
-		.z = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.ecefVZ)),
-		.acc = au::make_quantity<au::Centi<au::MetersPerSecond>>(static_cast<float>(vel.sAcc))};
+		.x = au::make_quantity<au::Centi<au::MetersPerSecondInEcefFrame>>(static_cast<float>(vel.ecefVX)),
+		.y = au::make_quantity<au::Centi<au::MetersPerSecondInEcefFrame>>(static_cast<float>(vel.ecefVY)),
+		.z = au::make_quantity<au::Centi<au::MetersPerSecondInEcefFrame>>(static_cast<float>(vel.ecefVZ)),
+		.acc = au::make_quantity<au::Centi<au::MetersPerSecondInEcefFrame>>(static_cast<float>(vel.sAcc))};
 }
 

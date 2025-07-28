@@ -32,8 +32,8 @@ private:
 template <typename Tracker, typename... Adapters>
 void TaskPositionService<Tracker, Adapters...>::handleTaskImpl()
 {
-    std::array<au::QuantityF<au::Meters>, 3> r;
-    std::array<au::QuantityF<au::MetersPerSecond>, 3> v;
+    std::array<au::QuantityF<au::MetersInEcefFrame>, 3> r;
+    std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> v;
     au::QuantityU64<au::Milli<au::Seconds>> timestamp;
     if (!tracker_.predict(r, v, timestamp))
     {
@@ -42,8 +42,8 @@ void TaskPositionService<Tracker, Adapters...>::handleTaskImpl()
 
     _4111spyglass_sat_model_PositionVelocity_0_1 data;
     data.timestamp.microsecond = timestamp.in(au::micro(au::seconds));
-    std::transform(std::begin(r), std::end(r), std::begin(data.position_m), [](const auto &item) { return item.in(au::meters); });
-    std::transform(std::begin(v), std::end(v), std::begin(data.velocity_ms), [](const auto &item) { return item.in(au::meters / au::second); });
+    std::transform(std::begin(r), std::end(r), std::begin(data.position_m), [](const auto &item) { return item.in(au::meters * au::ecefs); });
+    std::transform(std::begin(v), std::end(v), std::begin(data.velocity_ms), [](const auto &item) { return item.in(au::meters * au::ecefs / au::second); });
 
     constexpr size_t PAYLOAD_SIZE = _4111spyglass_sat_model_PositionVelocity_0_1_SERIALIZATION_BUFFER_SIZE_BYTES_;
     uint8_t payload[PAYLOAD_SIZE];

@@ -95,8 +95,7 @@ namespace TimeUtils
   }
 
   // Function to convert year and fractional day to std::chrono::time_point
-  std::chrono::system_clock::time_point to_timepoint(uint16_t past_year,
-                                                     float past_fractional_day)
+  std::chrono::system_clock::time_point to_timepoint(uint16_t past_year, float past_fractional_day)
   {
     using namespace std::chrono;
 

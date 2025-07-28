@@ -5,6 +5,7 @@
 #include "RegistrationManager.hpp"
 #include "Logger.hpp"
 #include "TimeUtils.hpp"
+#include "coordinate_transformations.hpp"
 
 #include "sgp4_tle.hpp"
 #include "SGP4.h"
@@ -35,14 +36,15 @@ public:
         return tle_;
     }
 
-    bool predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
+    bool predict_teme(std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>, 3> &r, std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
+    bool predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
 
 private:
     RTC_HandleTypeDef *hrtc_;
     SGP4TwoLineElement tle_;
 };
 
-bool SGP4::predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+bool SGP4::predict_teme(std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>, 3> &r, std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
 {
     if (tle_.satelliteNumber == 0)
     {
@@ -93,9 +95,42 @@ bool SGP4::predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::Q
     timestamp = milliseconds;
 
     std::transform(std::begin(r_), std::end(r_), std::begin(r), [](const auto &item)
-                   { return au::make_quantity<au::Kilo<au::Meters>>(item); });
+                   { return au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(item); });
     std::transform(std::begin(v_), std::end(v_), std::begin(v), [](const auto &item)
-                   { return au::make_quantity<au::Kilo<au::MetersPerSecond>>(item); });
+                   { return au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(item); });
+
+    return result;
+}
+
+bool SGP4::predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+{
+    std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>, 3> r_teme;
+    std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>, 3> v_teme;
+    bool result = predict_teme(r_teme, v_teme, timestamp);
+
+    uint64_t milliseconds_since_epoch = timestamp.in(au::milli(au::seconds));
+    TimeUtils::epoch_duration duration(milliseconds_since_epoch);
+    auto now = TimeUtils::to_timepoint(duration);
+
+    auto j2000 = TimeUtils::to_timepoint(TimeUtils::DateTimeComponents{
+        .year = 2000,
+        .month = 1,
+        .day = 1,
+        .hour = 12,
+        .minute = 0,
+        .second = 0,
+        .millisecond = 0});
+
+
+    float jd2000 = TimeUtils::to_fractional_days(j2000, now);
+
+    auto r_ecefs = coordinate_transformations::temeToecef(r_teme, jd2000);
+    auto v_ecefs = coordinate_transformations::temeToecef(v_teme, jd2000);
+
+    std::transform(std::begin(r_ecefs), std::end(r_ecefs), std::begin(r), [](const auto &item)
+                   { return au::make_quantity<au::MetersInEcefFrame>(item.in(au::meters * au::ecefs)); });
+    std::transform(std::begin(v_ecefs), std::end(v_ecefs), std::begin(v), [](const auto &item)
+                   { return au::make_quantity<au::MetersPerSecondInEcefFrame>(item.in(au::meters * au::ecefs / au::seconds)); });
 
     return result;
 }

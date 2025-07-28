@@ -313,16 +313,52 @@ namespace coordinate_transformations
     ECEF temeToECEF(TEME teme, float jd2000)
     {
         ECEF ecef;
-        float rteme[3] = {teme.x_m / 1000.0f, teme.y_m / 1000.0f, teme.z_m / 1000.0f}; // km
+        float rteme[3] = {teme.x_m, teme.y_m, teme.z_m};
         float recef[3];
 
         teme2ecef(rteme, jd2000, recef);
 
-        ecef.x_m = recef[0] * 1000.0f;
-        ecef.y_m = recef[1] * 1000.0f;
-        ecef.z_m = recef[2] * 1000.0f;
+        ecef.x_m = recef[0];
+        ecef.y_m = recef[1];
+        ecef.z_m = recef[2];
 
         return ecef;
+    }
+
+    std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> temeToecef(std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> teme, float jd2000)
+    {
+        float rteme[3] = {
+            teme[0].in(au::kilo(au::meters * au::temes)),
+            teme[1].in(au::kilo(au::meters * au::temes)),
+            teme[2].in(au::kilo(au::meters * au::temes))
+        };
+        
+        float recef[3];
+        teme2ecef(rteme, jd2000, recef);
+
+        return std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> {
+            au::make_quantity<au::Kilo<au::MetersInEcefFrame>>(recef[0]),
+            au::make_quantity<au::Kilo<au::MetersInEcefFrame>>(recef[1]),
+            au::make_quantity<au::Kilo<au::MetersInEcefFrame>>(recef[2])
+        };    
+    }
+
+    std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> temeToecef(std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> teme, float jd2000)
+    {
+        float rteme[3] = {
+            teme[0].in(au::kilo(au::meters * au::temes / au::seconds)),
+            teme[1].in(au::kilo(au::meters * au::temes / au::seconds)),
+            teme[2].in(au::kilo(au::meters * au::temes / au::seconds))
+        };
+        
+        float recef[3];
+        teme2ecef(rteme, jd2000, recef);
+
+        return std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> {
+            au::make_quantity<au::Kilo<au::MetersPerSecondInEcefFrame>>(recef[0]),
+            au::make_quantity<au::Kilo<au::MetersPerSecondInEcefFrame>>(recef[1]),
+            au::make_quantity<au::Kilo<au::MetersPerSecondInEcefFrame>>(recef[2])
+        };    
     }
 
     void ecef2teme(const float recef[3], float jd2000, float rteme[3])
@@ -364,16 +400,54 @@ namespace coordinate_transformations
     TEME ecefToTEME(ECEF ecef, float jd2000)
     {
         TEME teme;
-        float recef[3] = {ecef.x_m / 1000.0f, ecef.y_m / 1000.0f, ecef.z_m / 1000.0f}; // Convert to km
+        float recef[3] = {ecef.x_m, ecef.y_m, ecef.z_m};
         float rteme[3];
 
         ecef2teme(recef, jd2000, rteme); // Call the inverse transformation function
 
-        teme.x_m = rteme[0] * 1000.0f; // Convert back to meters
-        teme.y_m = rteme[1] * 1000.0f;
-        teme.z_m = rteme[2] * 1000.0f;
+        teme.x_m = rteme[0];
+        teme.y_m = rteme[1];
+        teme.z_m = rteme[2];
 
         return teme;
     }
+
+    std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> ecefToteme(std::array<au::QuantityF<au::Kilo<au::MetersInEcefFrame>>,3> ecef, float jd2000)
+    {
+        float recef[3] = {
+            ecef[0].in(au::kilo(au::meters * au::ecefs)),
+            ecef[1].in(au::kilo(au::meters * au::ecefs)),
+            ecef[2].in(au::kilo(au::meters * au::ecefs))
+        };
+        
+        float rteme[3];
+        ecef2teme(recef, jd2000, rteme);
+
+        return std::array<au::QuantityF<au::Kilo<au::MetersInTemeFrame>>,3> {
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(rteme[0]),
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(rteme[1]),
+            au::make_quantity<au::Kilo<au::MetersInTemeFrame>>(rteme[2])
+        };    
+    }
+
+    std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> ecefToteme(std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInEcefFrame>>,3> ecef, float jd2000)
+    {
+        float recef[3] = {
+            ecef[0].in(au::kilo(au::meters * au::ecefs / au::seconds)),
+            ecef[1].in(au::kilo(au::meters * au::ecefs / au::seconds)),
+            ecef[2].in(au::kilo(au::meters * au::ecefs / au::seconds))
+        };
+        
+        float rteme[3];
+        ecef2teme(recef, jd2000, rteme);
+
+        return std::array<au::QuantityF<au::Kilo<au::MetersPerSecondInTemeFrame>>,3> {
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(rteme[0]),
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(rteme[1]),
+            au::make_quantity<au::Kilo<au::MetersPerSecondInTemeFrame>>(rteme[2])
+        };    
+    }
+
+
 
 } // namespace coordinate_transformations

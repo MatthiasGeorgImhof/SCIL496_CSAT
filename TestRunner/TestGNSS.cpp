@@ -230,10 +230,10 @@ TEST_CASE("PositionECEF_AU ConvertPositionECEF(const PositionECEF &pos")
     PositionECEF pos = {1000000, 2000000, 3000000, 500};
     PositionECEF_AU auPos = ConvertPositionECEF(pos);
 
-    CHECK(auPos.x.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefX)/100.f));
-    CHECK(auPos.y.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefY)/100.f));
-    CHECK(auPos.z.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefZ)/100.f));
-    CHECK(auPos.acc.in(au::meters) == doctest::Approx(static_cast<float>(pos.pAcc)/100.f));
+    CHECK(auPos.x.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.ecefX)/100.f));
+    CHECK(auPos.y.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.ecefY)/100.f));
+    CHECK(auPos.z.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.ecefZ)/100.f));
+    CHECK(auPos.acc.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.pAcc)/100.f));
 }
 
 TEST_CASE("PositionECEF_AU ConvertPositionECEF(const PositionECEF &neg")
@@ -241,10 +241,10 @@ TEST_CASE("PositionECEF_AU ConvertPositionECEF(const PositionECEF &neg")
     PositionECEF pos = {-1000000, -2000000, -3000000, 500};
     PositionECEF_AU auPos = ConvertPositionECEF(pos);
 
-    CHECK(auPos.x.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefX)/100.f));
-    CHECK(auPos.y.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefY)/100.f));
-    CHECK(auPos.z.in(au::meters) == doctest::Approx(static_cast<float>(pos.ecefZ)/100.f));
-    CHECK(auPos.acc.in(au::meters) == doctest::Approx(static_cast<float>(pos.pAcc)/100.f));
+    CHECK(auPos.x.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.ecefX)/100.f));
+    CHECK(auPos.y.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.ecefY)/100.f));
+    CHECK(auPos.z.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.ecefZ)/100.f));
+    CHECK(auPos.acc.in(au::meters * au::ecefs) == doctest::Approx(static_cast<float>(pos.pAcc)/100.f));
 }
 
 TEST_CASE("VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &vel")
@@ -252,10 +252,10 @@ TEST_CASE("VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &vel")
     VelocityECEF vel = {1000000, 2000000, 3000000, 500};
     VelocityECEF_AU auVel = ConvertVelocityECEF(vel);
 
-    CHECK(auVel.x.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVX)/100.f));
-    CHECK(auVel.y.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVY)/100.f));
-    CHECK(auVel.z.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVZ)/100.f));
-    CHECK(auVel.acc.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.sAcc)/100.f));
+    CHECK(auVel.x.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVX)/100.f));
+    CHECK(auVel.y.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVY)/100.f));
+    CHECK(auVel.z.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVZ)/100.f));
+    CHECK(auVel.acc.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.sAcc)/100.f));
 }
 
 TEST_CASE("VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &neg")
@@ -263,10 +263,10 @@ TEST_CASE("VelocityECEF_AU ConvertVelocityECEF(const VelocityECEF &neg")
     VelocityECEF vel = {-1000000, -2000000, -3000000, 500};
     VelocityECEF_AU auVel = ConvertVelocityECEF(vel);
 
-    CHECK(auVel.x.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVX)/100.f));
-    CHECK(auVel.y.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVY)/100.f));
-    CHECK(auVel.z.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVZ)/100.f));
-    CHECK(auVel.acc.in(au::meters / au::seconds) == doctest::Approx(static_cast<float>(vel.sAcc)/100.f));
+    CHECK(auVel.x.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVX)/100.f));
+    CHECK(auVel.y.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVY)/100.f));
+    CHECK(auVel.z.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.ecefVZ)/100.f));
+    CHECK(auVel.acc.in(au::meters *  au::ecefs / au::seconds) == doctest::Approx(static_cast<float>(vel.sAcc)/100.f));
 }
 
 

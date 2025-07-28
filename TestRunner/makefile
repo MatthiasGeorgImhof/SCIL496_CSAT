@@ -53,6 +53,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestQuaternion.cpp \
 			 TestRegistrationManager.cpp \
 			 TestServiceManager.cpp \
+			 TestSGP4.cpp \
 			 TestSGP4PositionTracker.cpp \
 			 TestSGP4TLE.cpp \
 			 TestSubscriptionManager.cpp \
@@ -428,9 +429,19 @@ $(BIN_DIR)/SGP4.o : ../3rdParty/SGP4/SGP4.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTaskSGP4 : $(BIN_DIR)/TestTaskSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TestTaskSGP4.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/sgp4_tle.o
+$(BIN_DIR)/TestTaskSGP4 : $(BIN_DIR)/TestTaskSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/sgp4_tle.o $(LIBS) 
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(LIBS) 
+	@echo "Linking $@"
+
+# Rule for TestSGP4 with extra sources
+$(BIN_DIR)/TestSGP4.o : TestSGP4.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestSGP4 : $(BIN_DIR)/TestSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/sgp4_tle.o
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestSGP4.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/sgp4_tle.o $(LIBS) 
 	@echo "Linking $@"
 
 # Rule for TestMainLoop with extra sources
@@ -651,9 +662,9 @@ $(BIN_DIR)/TestTaskPositionService.o : TestTaskPositionService.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskOrientationService with with EXTRA_FLAGS only
 $(BIN_DIR)/TestTaskOrientationService.o : TestTaskOrientationService.cpp

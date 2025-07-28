@@ -105,7 +105,7 @@ public:
 
     GNSSandAccelPosition(RTC_HandleTypeDef *hrtc, Tracker &tracker, GNSS &gnss, IMU &imu, uint16_t gnss_rate = 1, uint16_t imu_rate = 1) : hrtc_(hrtc), tracker_(tracker), gnss_(gnss), imu_(imu), gnss_rate_(gnss_rate), imu_rate_(imu_rate), gnss_counter_(0U), imu_counter_(0) {}
 
-    bool predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
+    bool predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
 
 private:
     RTC_HandleTypeDef *hrtc_;
@@ -121,7 +121,7 @@ private:
 };
 
 template <typename Tracker, typename GNSS, typename IMU>
-bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<au::Meters>, 3> &r, std::array<au::QuantityF<au::MetersPerSecond>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
 {
     TimeUtils::RTCDateTimeSubseconds rtc;
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
@@ -135,7 +135,7 @@ bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<
         if (optional_pos_ecef.has_value())
         {
             auto pos_ecef = ConvertPositionECEF(optional_pos_ecef.value());
-            tracker_.updateWithGps(Eigen::Vector3f(pos_ecef.x.in(au::meters), pos_ecef.y.in(au::meters), pos_ecef.z.in(au::meters)), timestamp_sec.in(au::seconds));
+            tracker_.updateWithGps(Eigen::Vector3f(pos_ecef.x.in(au::meters * au::ecefs), pos_ecef.y.in(au::meters * au::ecefs), pos_ecef.z.in(au::meters * au::ecefs)), timestamp_sec.in(au::seconds));
         }
     }
 
@@ -151,9 +151,9 @@ bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<
 
     auto state = tracker_.getState();
     std::transform(state.data(), state.data() + 3, r.begin(), [](const auto &item)
-                   { return au::make_quantity<au::Meters>(item); });
+                   { return au::make_quantity<au::MetersInEcefFrame>(item); });
     std::transform(state.data() + 3, state.data() + 6, v.begin(), [](const auto &item)
-                   { return au::make_quantity<au::MetersPerSecond>(item); });
+                   { return au::make_quantity<au::MetersPerSecondInEcefFrame>(item); });
 
     ++gnss_counter_;
     ++imu_counter_;
