@@ -54,7 +54,7 @@ public:
     using StateVector = Eigen::Matrix<float, StateSize, 1>;
 
     PositionTracker9D()
-        : last_timestamp_sec_(-1.f),
+        : last_timestamp(au::make_quantity<au::Milli<au::Seconds>>(0)),
           A(Eigen::Matrix<float, StateSize, StateSize>::Identity()),
           H_gps(Eigen::Matrix<float, PosMeasSize, StateSize>::Zero()),
           H_acc(Eigen::Matrix<float, AccMeasSize, StateSize>::Zero()),
@@ -68,9 +68,9 @@ public:
         H_acc.block<3, 3>(0, 6) = Eigen::Matrix3f::Identity();
     }
 
-    void updateWithAccel(const Eigen::Vector3f &accel, float timestamp_sec)
+    void updateWithAccel(const Eigen::Vector3f &accel, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        maybePredict(timestamp_sec);
+        maybePredict(timestamp);
 
         // KalmanFilter<StateSize, AccMeasSize> accelKF(Q, R_accel, kf.stateCovarianceMatrix, kf.stateVector);
         // accelKF.update(H_acc, accel);
@@ -83,9 +83,9 @@ public:
         // std::cerr << "State end of updateWithAccel:\n" << kf.getState().transpose() << "\n";
     }
 
-    void updateWithGps(const Eigen::Vector3f &gps, float timestamp_sec)
+    void updateWithGps(const Eigen::Vector3f &gps, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        maybePredict(timestamp_sec);
+        maybePredict(timestamp);
         kf.update(H_gps, gps);
         // std::cerr << "timestamp_sec: " << timestamp_sec << ", A:\n" << A << "\n";
         // std::cerr << "State end of updateWithGps:\n" << kf.getState().transpose() << "\n";
@@ -98,25 +98,19 @@ public:
     }
 
 protected:
-    void maybePredict(float timestamp_sec)
+    void maybePredict(au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
         // std::cerr << "maybePredict: last_timestamp_sec_: " << last_timestamp_sec_ << " timestamp_sec: " << timestamp_sec << "\n";
         // std::cerr << "A\n: " << A << "\n";
         // std::cerr << "State end of maybePredict:\n" << kf.getState().transpose() << "\n";
 
-        if (last_timestamp_sec_ < 0.f)
-        {
-            last_timestamp_sec_ = timestamp_sec;
-            return;
-        }
-
-        float dt = timestamp_sec - last_timestamp_sec_;
+        float dt = 0.001f * static_cast<float>((timestamp - last_timestamp).in(au::milli(au::seconds)));
         if (dt <= 0.f)
             return;
 
         updateTransitionMatrix(dt);
         kf.predict(A);
-        last_timestamp_sec_ = timestamp_sec;
+        last_timestamp = timestamp;
     }
 
     void updateTransitionMatrix(float dt)
@@ -134,7 +128,7 @@ protected:
 }
 
 protected:
-    float last_timestamp_sec_;
+    au::QuantityU64<au::Milli<au::Seconds>> last_timestamp;
     Eigen::Matrix<float, StateSize, StateSize> A;
     Eigen::Matrix<float, PosMeasSize, StateSize> H_gps;
     Eigen::Matrix<float, AccMeasSize, StateSize> H_acc;
@@ -174,10 +168,6 @@ bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
     timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
-    // au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Milli<au::Seconds>>(static_cast<float>(timestamp.in(au::milli(au::seconds))));
-    au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Seconds>(static_cast<float>(timestamp.in(au::milli(au::seconds))) / 1000.0f);
-
-    // std::cerr << "GNSSandAccelPosition<Tracker, GNSS, IMU>::predict " << " timestamp_msec " << timestamp.in(au::milli(au::seconds)) << " timestamp_sec " << timestamp_sec.in(au::seconds) << std::endl;
 
     if (gnss_counter_ % gnss_rate_ == 0)
     {
@@ -185,7 +175,7 @@ bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<
         if (optional_pos_ecef.has_value())
         {
             auto pos_ecef = ConvertPositionECEF(optional_pos_ecef.value());
-            tracker_.updateWithGps(Eigen::Vector3f(pos_ecef.x.in(au::ecefs * au::meters), pos_ecef.y.in(au::ecefs * au::meters), pos_ecef.z.in(au::ecefs * au::meters)), timestamp_sec.in(au::seconds));
+            tracker_.updateWithGps(Eigen::Vector3f(pos_ecef.x.in(au::metersInEcefFrame), pos_ecef.y.in(au::metersInEcefFrame), pos_ecef.z.in(au::metersInEcefFrame)), timestamp);
         }
     }
     // std::cerr << "[GNSS] gnss_counter = " << gnss_counter_ << ", gnss_rate = " << gnss_rate_ << std::endl;
@@ -198,8 +188,8 @@ bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<
         {
             auto accel = optional_accel.value();
 
-            tracker_.updateWithAccel(Eigen::Vector3f(accel[0].in(au::ecefs * au::meters / au::seconds / au::seconds), accel[1].in(au::ecefs * au::meters / au::seconds / au::seconds), accel[2].in(au::ecefs * au::meters / au::seconds / au::seconds)), timestamp_sec.in(au::seconds));
-            // std::cerr << "[IMU] accel.z = " << accel[2].in(au::ecefs * au::meters / au::seconds / au::seconds) << std::endl;
+            tracker_.updateWithAccel(Eigen::Vector3f(accel[0].in(au::metersPerSecondSquaredInEcefFrame), accel[1].in(au::metersPerSecondSquaredInEcefFrame), accel[2].in(au::metersPerSecondSquaredInEcefFrame)), timestamp);
+            // std::cerr << "[IMU] accel.z = " << accel[2].in(au::metersPerSecondSquaredInEcefFrame) << std::endl;
         }
     }
     // std::cerr << "[IMU] imu_counter = " << imu_counter_ << ", imu_rate = " << imu_rate_ << std::endl;

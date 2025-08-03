@@ -32,14 +32,14 @@ public:
               initialMeasurementNoiseMatrix,
               initialStateCovarianceMatrix,
               initialStateVector),
-          last_timestamp_sec(0.0f),
+          last_timestamp(au::make_quantity<au::Milli<au::Seconds>>(0)),
           prev_orientation(Eigen::Quaternionf::Identity())
     {
     }
 
-    void predictTo(float new_timestamp_sec)
+    void predictTo(au::QuantityU64<au::Milli<au::Seconds>> new_timestamp)
     {
-        float dt = new_timestamp_sec - last_timestamp_sec;
+        float dt = 0.001f * static_cast<float>((new_timestamp - last_timestamp).in(au::milli(au::seconds)));
         if (dt <= 0.f)
             return;
 
@@ -69,12 +69,12 @@ public:
         x(2) = q.z();
         x(3) = q.w();
         ekf.stateCovarianceMatrix += ekf.processNoiseCovarianceMatrix;
-        last_timestamp_sec = new_timestamp_sec;
+        last_timestamp = new_timestamp;
     }
 
-    void updateGyro(const Eigen::Vector3f &omega, float timestamp_sec)
+    void updateGyro(const Eigen::Vector3f &omega, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        predictTo(timestamp_sec);
+        predictTo(timestamp);
         ekf.stateVector.template segment<3>(4) = omega;
     }
 
@@ -125,7 +125,7 @@ public:
 
 protected:
     KalmanFilter<StateSize, MeasurementSize> ekf;
-    float last_timestamp_sec;
+    au::QuantityU64<au::Milli<au::Seconds>> last_timestamp;
     Eigen::Quaternionf prev_orientation;
 };
 
@@ -145,9 +145,9 @@ public:
     {
     }
 
-    void updateMagnetometer(const Eigen::Vector3f &imu_meas_body, float timestamp_sec)
+    void updateMagnetometer(const Eigen::Vector3f &imu_meas_body, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        BaseOrientationTracker<StateSize, MeasurementSize>::predictTo(timestamp_sec);
+        BaseOrientationTracker<StateSize, MeasurementSize>::predictTo(timestamp);
 
         Eigen::Vector3f imu_ned(0.3f, 0.5f, 0.8f); // Fixed reference in NED
         imu_ned.normalize();
@@ -212,9 +212,9 @@ public:
 
     void updateAccelerometerMagnetometer(const Eigen::Vector3f &accel_body,
                                          const Eigen::Vector3f &mag_body,
-                                         float timestamp_sec)
+                                         au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        BaseOrientationTracker<StateSize, MeasurementSize>::predictTo(timestamp_sec);
+        BaseOrientationTracker<StateSize, MeasurementSize>::predictTo(timestamp);
 
         Eigen::Vector3f accel_ned(0.f, 0.f, 9.81f); // Gravity points down
         Eigen::Vector3f mag_ned(1.f, 0.f, 0.f);     // Needs to be adjusted for magnetic declination and inclination
@@ -280,6 +280,8 @@ public:
 
     bool predict(std::array<float, 4> &q, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
 
+    void update(au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
+
 private:
     RTC_HandleTypeDef *hrtc_;
     Tracker &tracker_;
@@ -300,17 +302,27 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
     timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
-    // au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Milli<au::Seconds>>(timestamp.in(au::milli(au::seconds)));
-    au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Seconds>(static_cast<float>(timestamp.in(au::milli(au::seconds))) / 1000.0f);
+    update(timestamp);
 
+    auto q_ = tracker_.getOrientation();
+    q[0] = q_.w();
+    q[1] = q_.x();
+    q[2] = q_.y();
+    q[3] = q_.z();
 
+    return true;
+}
+
+template <typename Tracker, typename IMU, typename MAG>
+void GyrMagOrientation<Tracker, IMU, MAG>::update(au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+{
     if (imu_counter_ % imu_rate_ == 0)
     {
         auto optional_angular = imu_.readGyroscope();
         if (optional_angular.has_value())
         {
             auto angular = optional_angular.value();
-            tracker_.updateGyro(Eigen::Vector3f(angular[0].in(au::bodys * au::radians / au::seconds), angular[1].in(au::bodys * au::radians / au::seconds), angular[2].in(au::bodys * au::radians / au::seconds)), timestamp_sec.in(au::seconds));
+            tracker_.updateGyro(Eigen::Vector3f(angular[0].in(au::radiansPerSecondInBodyFrame), angular[1].in(au::radiansPerSecondInBodyFrame), angular[2].in(au::radiansPerSecondInBodyFrame)), timestamp);
         }
     }
 
@@ -320,19 +332,12 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
         if (optional_magnetic.has_value())
         {
             auto magnetic = optional_magnetic.value();
-            tracker_.updateMagnetometer(Eigen::Vector3f(magnetic[0].in(au::bodys * au::tesla), magnetic[1].in(au::bodys * au::tesla), magnetic[2].in(au::bodys * au::tesla)), timestamp_sec.in(au::seconds));
+            tracker_.updateMagnetometer(Eigen::Vector3f(magnetic[0].in(au::bodys * au::tesla), magnetic[1].in(au::bodys * au::tesla), magnetic[2].in(au::bodys * au::tesla)), timestamp);
         }
     }
 
-    auto q_ = tracker_.getOrientation();
-    q[0] = q_.w();
-    q[1] = q_.x();
-    q[2] = q_.y();
-    q[3] = q_.z();
-
     ++imu_counter_;
     ++mag_counter_;
-    return true;
 }
 
 template <typename Tracker, typename IMU, typename MAG>
@@ -348,6 +353,8 @@ public:
     }
 
     bool predict(std::array<float, 4> &q, au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
+
+    void update(au::QuantityU64<au::Milli<au::Seconds>> &timestamp);
 
 private:
     RTC_HandleTypeDef *hrtc_;
@@ -369,15 +376,28 @@ bool AccGyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, a
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
     timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
-    au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Milli<au::Seconds>>(timestamp.in(au::milli(au::seconds)));
 
+    update(timestamp);
+
+    auto q_ = tracker_.getOrientation();
+    q[0] = q_.w();
+    q[1] = q_.x();
+    q[2] = q_.y();
+    q[3] = q_.z();
+
+    return true;
+}
+
+template <typename Tracker, typename IMU, typename MAG>
+void AccGyrMagOrientation<Tracker, IMU, MAG>::update(au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+{
     if (imu_counter_ % imu_rate_ == 0)
     {
         auto optional_angular = imu_.getGyroscope();
         if (optional_angular.has_value())
         {
             auto angular = optional_angular.value();
-            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::bodys * au::radians / au::seconds), angular.y.in(au::bodys * au::radians / au::seconds), angular.z.in(au::bodys * au::radians / au::seconds)), timestamp_sec.in(au::seconds));
+            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::radiansPerSecondInBodyFrame), angular.y.in(au::radiansPerSecondInBodyFrame), angular.z.in(au::radiansPerSecondInBodyFrame)), timestamp);
 
             auto optional_accel = imu_.getAccelerometer();
             auto optional_magnetic = imu_.getMagnetometer();
@@ -392,18 +412,11 @@ bool AccGyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, a
                                            accel.z.in(au::bodys * au::meters / (au::seconds * au::seconds)));
                 Eigen::Vector3f mag_body(magnetic.x.in(au::bodys * au::tesla), magnetic.y.in(au::bodys * au::tesla), magnetic.z.in(au::bodys * au::tesla));
 
-                tracker_.updateAccelerometerMagnetometer(accel_body, mag_body, timestamp_sec.in(au::seconds));
+                tracker_.updateAccelerometerMagnetometer(accel_body, mag_body, timestamp);
             }
         }
     }
 
-    auto q_ = tracker_.getOrientation();
-    q[0] = q_.w();
-    q[1] = q_.x();
-    q[2] = q_.y();
-    q[3] = q_.z();
-
     ++imu_counter_;
     ++mag_counter_;
-    return true;
 }

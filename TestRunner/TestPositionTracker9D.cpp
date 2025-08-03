@@ -55,14 +55,14 @@ class MockPositionTracker9D : public PositionTracker9D
 public:
     MockPositionTracker9D() : PositionTracker9D() {}
 
-    void updateWithAccel(const Eigen::Vector3f &accel, float timestamp_sec)
+    void updateWithAccel(const Eigen::Vector3f &accel, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        PositionTracker9D::updateWithAccel(accel, timestamp_sec);
+        PositionTracker9D::updateWithAccel(accel, timestamp);
     }
 
-    void updateWithGps(const Eigen::Vector3f &gps, float timestamp_sec)
+    void updateWithGps(const Eigen::Vector3f &gps, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        PositionTracker9D::updateWithGps(gps, timestamp_sec);
+        PositionTracker9D::updateWithGps(gps, timestamp);
     }
 
     StateVector getState() const
@@ -70,9 +70,9 @@ public:
         return PositionTracker9D::getState();
     }
 
-    void maybePredict(float timestamp_sec)
+    void maybePredict(au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        PositionTracker9D::maybePredict(timestamp_sec);
+        PositionTracker9D::maybePredict(timestamp);
     }
 
     void updateTransitionMatrix(float dt)
@@ -102,18 +102,23 @@ TEST_CASE("PositionTracker9D handles asynchronous GPS and accel updates")
     {
         // Simulate noisy accel measurement
         Eigen::Vector3f accel_meas = true_accel + Eigen::Vector3f::Random() * 0.02f;
-        tracker.updateWithAccel(accel_meas, time);
+        tracker.updateWithAccel(accel_meas, au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(time*1000.f)));
 
         // Simulate GPS at lower rate
         if (std::abs(time - next_gps_time) < 1e-4f)
         {
             Eigen::Vector3f true_pos = 0.5f * true_accel * time * time;
             Eigen::Vector3f gps_meas = true_pos + Eigen::Vector3f::Random() * 0.05f;
-            tracker.updateWithGps(gps_meas, time);
+            tracker.updateWithGps(gps_meas, au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(time*1000.f)));
             next_gps_time += gps_dt;
         }
 
         time += accel_dt;
+        // float dt = timestamp_sec - last_timestamp_sec_;
+        // if (dt <= 0.f)
+        //     return;
+
+
     }
 
     auto est = tracker.getState();
@@ -142,7 +147,7 @@ TEST_CASE("Acceleration update without frame rotation causes state inconsistency
 
     // GPS measurement at origin
     Eigen::Vector3f gps_position = Eigen::Vector3f::Zero();
-    tracker.updateWithGps(gps_position, t0);
+    tracker.updateWithGps(gps_position, au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(t0*1000.f)));
 
     // Simulated raw accelerometer reading (gravity in body frame)
     Eigen::Vector3f accel_body = Eigen::Vector3f(0.f, 0.f, -9.81f); // No rotation applied
@@ -150,7 +155,7 @@ TEST_CASE("Acceleration update without frame rotation causes state inconsistency
     // Update with IMU acceleration after small dt
     float dt = 0.1f; // 100 ms later
     float t1 = t0 + dt;
-    tracker.updateWithAccel(accel_body, t1);
+    tracker.updateWithAccel(accel_body, au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(t1*1000.f)));
 
     // Predicted state
     auto state = tracker.getState();
@@ -175,7 +180,7 @@ TEST_CASE("Rotated body-frame gravity suppresses bias in ECEF fusion")
 
     // Start at origin with zero velocity
     float t0 = 0.0f;
-    tracker.updateWithGps(Eigen::Vector3f::Zero(), t0);
+    tracker.updateWithGps(Eigen::Vector3f::Zero(), au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(t0*1000.f)));
 
     // Assume static orientation: body frame aligned with ECEF
     Eigen::Matrix3f R_ecef_from_body = Eigen::Matrix3f::Identity(); // No rotation for now
@@ -189,11 +194,11 @@ TEST_CASE("Rotated body-frame gravity suppresses bias in ECEF fusion")
     // Update tracker with rotated acceleration
     float dt = 0.1f;
     float t1 = t0 + dt;
-    tracker.updateWithAccel(accel_ecef, t1);
+    tracker.updateWithAccel(accel_ecef, au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(t1*1000.f)));
     for (int i = 1; i <= 100; ++i)
     {
         float t = t0 + static_cast<float>(i) * dt;
-        tracker.updateWithAccel(accel_ecef, t);
+        tracker.updateWithAccel(accel_ecef, au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(t*1000.f)));
     }
 
     auto state = tracker.getState();
@@ -393,7 +398,7 @@ TEST_CASE("Tracker integrates constant acceleration")
     for (int i = 0; i < 1000; ++i)
     {
         float t = static_cast<float>(i) * 0.01f; // 10 ms steps
-        tracker.updateWithAccel(Eigen::Vector3f(0, 0, -9.81f), t);
+        tracker.updateWithAccel(Eigen::Vector3f(0, 0, -9.81f), au::make_quantity<au::Milli<au::Seconds>>(static_cast<uint64_t>(t*1000.f)));
     }
     auto state = tracker.getState();
     CHECK(state[5] < 0); // vel.z
