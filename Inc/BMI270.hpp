@@ -26,17 +26,17 @@ struct ChipID
 
 struct Accelerometer
 {
-    au::QuantityF<au::MetersPerSecondSquared> x, y, z;
+    au::QuantityF<au::MetersPerSecondSquaredInBodyFrame> x, y, z;
 };
 
 struct Gyroscope
 {
-    au::QuantityF<au::DegreesPerSecond> x, y, z;
+    au::QuantityF<au::DegreesPerSecondInBodyFrame> x, y, z;
 };
 
 struct Magnetometer
 {
-	au::QuantityF<au::Tesla> x, y, z;
+	au::QuantityF<au::TeslaInBodyFrame> x, y, z;
 };
 
 struct Temperature

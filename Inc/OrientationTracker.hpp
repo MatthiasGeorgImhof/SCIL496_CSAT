@@ -298,7 +298,9 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
     timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
-    au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Milli<au::Seconds>>(timestamp.in(au::milli(au::seconds)));
+    // au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Milli<au::Seconds>>(timestamp.in(au::milli(au::seconds)));
+    au::QuantityF<au::Seconds> timestamp_sec = au::make_quantity<au::Seconds>(static_cast<float>(timestamp.in(au::milli(au::seconds))) / 1000.0f);
+
 
     if (imu_counter_ % imu_rate_ == 0)
     {
@@ -306,7 +308,7 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
         if (optional_angular.has_value())
         {
             auto angular = optional_angular.value();
-            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::radians / au::seconds), angular.y.in(au::radians / au::seconds), angular.z.in(au::radians / au::seconds)), timestamp_sec.in(au::seconds));
+            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::bodys * au::radians / au::seconds), angular.y.in(au::bodys * au::radians / au::seconds), angular.z.in(au::bodys * au::radians / au::seconds)), timestamp_sec.in(au::seconds));
         }
     }
 
@@ -316,7 +318,7 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
         if (optional_magnetic.has_value())
         {
             auto magnetic = optional_magnetic.value();
-            tracker_.updateMagnetometer(Eigen::Vector3f(magnetic.x.in(au::tesla), magnetic.y.in(au::tesla), magnetic.z.in(au::tesla)), timestamp_sec.in(au::seconds));
+            tracker_.updateMagnetometer(Eigen::Vector3f(magnetic.x.in(au::bodys * au::tesla), magnetic.y.in(au::bodys * au::tesla), magnetic.z.in(au::bodys * au::tesla)), timestamp_sec.in(au::seconds));
         }
     }
 
@@ -372,7 +374,7 @@ bool AccGyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, a
         if (optional_angular.has_value())
         {
             auto angular = optional_angular.value();
-            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::radians / au::seconds), angular.y.in(au::radians / au::seconds), angular.z.in(au::radians / au::seconds)), timestamp_sec.in(au::seconds));
+            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::bodys * au::radians / au::seconds), angular.y.in(au::bodys * au::radians / au::seconds), angular.z.in(au::bodys * au::radians / au::seconds)), timestamp_sec.in(au::seconds));
 
             auto optional_accel = imu_.getAccelerometer();
             auto optional_magnetic = imu_.getMagnetometer();
@@ -382,10 +384,10 @@ bool AccGyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, a
                 auto accel = optional_accel.value();
                 auto magnetic = optional_magnetic.value();
 
-                Eigen::Vector3f accel_body(accel.x.in(au::meters / (au::seconds * au::seconds)),
-                                           accel.y.in(au::meters / (au::seconds * au::seconds)),
-                                           accel.z.in(au::meters / (au::seconds * au::seconds)));
-                Eigen::Vector3f mag_body(magnetic.x.in(au::tesla), magnetic.y.in(au::tesla), magnetic.z.in(au::tesla));
+                Eigen::Vector3f accel_body(accel.x.in(au::bodys * au::meters / (au::seconds * au::seconds)),
+                                           accel.y.in(au::bodys * au::meters / (au::seconds * au::seconds)),
+                                           accel.z.in(au::bodys * au::meters / (au::seconds * au::seconds)));
+                Eigen::Vector3f mag_body(magnetic.x.in(au::bodys * au::tesla), magnetic.y.in(au::bodys * au::tesla), magnetic.z.in(au::bodys * au::tesla));
 
                 tracker_.updateAccelerometerMagnetometer(accel_body, mag_body, timestamp_sec.in(au::seconds));
             }

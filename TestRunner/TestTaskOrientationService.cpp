@@ -19,9 +19,9 @@ public:
 
     void setAcceleration(float x, float y, float z)
     {
-        acceleration.x = au::make_quantity<au::MetersPerSecondSquared>(x);
-        acceleration.y = au::make_quantity<au::MetersPerSecondSquared>(y);
-        acceleration.z = au::make_quantity<au::MetersPerSecondSquared>(z);
+        acceleration.x = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(x);
+        acceleration.y = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(y);
+        acceleration.z = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(z);
         has_acc_data = true;
     }
 
@@ -39,9 +39,9 @@ public:
 
     void setGyroscope(float x, float y, float z)
     {
-        gyroscope.x = au::make_quantity<au::DegreesPerSecond>(x);
-        gyroscope.y = au::make_quantity<au::DegreesPerSecond>(y);
-        gyroscope.z = au::make_quantity<au::DegreesPerSecond>(z);
+        gyroscope.x = au::make_quantity<au::DegreesPerSecondInBodyFrame>(x);
+        gyroscope.y = au::make_quantity<au::DegreesPerSecondInBodyFrame>(y);
+        gyroscope.z = au::make_quantity<au::DegreesPerSecondInBodyFrame>(z);
         has_gyro_data = true;
     }
 
@@ -59,9 +59,9 @@ public:
 
     void setMagnetometer(float x, float y, float z)
     {
-        magnetometer.x = au::make_quantity<au::Tesla>(x);
-        magnetometer.y = au::make_quantity<au::Tesla>(y);
-        magnetometer.z = au::make_quantity<au::Tesla>(z);
+        magnetometer.x = au::make_quantity<au::TeslaInBodyFrame>(x);
+        magnetometer.y = au::make_quantity<au::TeslaInBodyFrame>(y);
+        magnetometer.z = au::make_quantity<au::TeslaInBodyFrame>(z);
         has_mag_data = true;
     }
     

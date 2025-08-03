@@ -26,31 +26,31 @@ namespace coordinate_transformations
     {
         ECEF ecef;
 
-        if (geodetic.latitude_deg < -90.0f || geodetic.latitude_deg > 90.0f)
+        if (geodetic.latitude.in(au::degreesInGeodeticFrame) < -90.0f || geodetic.latitude.in(au::degreesInGeodeticFrame) > 90.0f)
         {
-            ecef.x_m = std::numeric_limits<float>::quiet_NaN();
-            ecef.y_m = std::numeric_limits<float>::quiet_NaN();
-            ecef.z_m = std::numeric_limits<float>::quiet_NaN();
+            ecef.x = au::make_quantity<au::MetersInEcefFrame>(std::numeric_limits<float>::quiet_NaN());
+            ecef.y = au::make_quantity<au::MetersInEcefFrame>(std::numeric_limits<float>::quiet_NaN());
+            ecef.z = au::make_quantity<au::MetersInEcefFrame>(std::numeric_limits<float>::quiet_NaN());
             return ecef;
         }
 
-        float lon_rad = geodetic.longitude_deg * DEG_TO_RAD;
-        float lat_rad = geodetic.latitude_deg * DEG_TO_RAD;
+        float lon_rad = geodetic.longitude.in(au::degreesInGeodeticFrame) * DEG_TO_RAD;
+        float lat_rad = geodetic.latitude.in(au::degreesInGeodeticFrame) * DEG_TO_RAD;
 
         float N = WGS84_A / sqrtf(1 - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
 
         // Explicitly handle North/South Pole case to avoid floating-point errors
-        if (approximatelyEqual(std::fabs(geodetic.latitude_deg), 90.0f))
+        if (approximatelyEqual(std::fabs(geodetic.latitude.in(au::degreesInGeodeticFrame)), 90.0f))
         {
-            ecef.x_m = 0.0f;
-            ecef.y_m = 0.0f;
-            ecef.z_m = ((1 - WGS84_E2) * N + geodetic.height_m) * sinf(lat_rad);
+            ecef.x = au::make_quantity<au::MetersInEcefFrame>(0.0f);
+            ecef.y = au::make_quantity<au::MetersInEcefFrame>(0.0f);
+            ecef.z = au::make_quantity<au::MetersInEcefFrame>(((1 - WGS84_E2) * N + geodetic.height.in(au::metersInGeodeticFrame)) * sinf(lat_rad));
         }
         else
         {
-            ecef.x_m = (N + geodetic.height_m) * cosf(lat_rad) * cosf(lon_rad);
-            ecef.y_m = (N + geodetic.height_m) * cosf(lat_rad) * sinf(lon_rad);
-            ecef.z_m = ((1 - WGS84_E2) * N + geodetic.height_m) * sinf(lat_rad);
+            ecef.x = au::make_quantity<au::MetersInEcefFrame>((N + geodetic.height.in(au::metersInGeodeticFrame)) * cosf(lat_rad) * cosf(lon_rad));
+            ecef.y = au::make_quantity<au::MetersInEcefFrame>((N + geodetic.height.in(au::metersInGeodeticFrame)) * cosf(lat_rad) * sinf(lon_rad));
+            ecef.z = au::make_quantity<au::MetersInEcefFrame>(((1 - WGS84_E2) * N + geodetic.height.in(au::metersInGeodeticFrame)) * sinf(lat_rad));
         }
 
         return ecef;
@@ -61,21 +61,21 @@ namespace coordinate_transformations
     {
         Geodetic geodetic;
 
-        float p = sqrtf(ecef.x_m * ecef.x_m + ecef.y_m * ecef.y_m);
+        float p = sqrtf(ecef.x.in(au::metersInEcefFrame) * ecef.x.in(au::metersInEcefFrame) + ecef.y.in(au::metersInEcefFrame) * ecef.y.in(au::metersInEcefFrame));
 
         if (approximatelyEqual(p, 0.0))
         {
             // Special case: point lies on the Z-axis, poles
-            geodetic.longitude_deg = 0.0;
-            geodetic.latitude_deg = (ecef.z_m >= 0.0) ? 90.0 : -90.0;
-            geodetic.height_m = std::fabs(ecef.z_m) - WGS84_A * (1.0f - WGS84_F);
+            geodetic.longitude = au::make_quantity<au::DegreesInGeodeticFrame>(0.0);
+            geodetic.latitude = au::make_quantity<au::DegreesInGeodeticFrame>((ecef.z.in(au::metersInEcefFrame) >= 0.0) ? 90.0 : -90.0);
+            geodetic.height = au::make_quantity<au::MetersInGeodeticFrame>(std::fabs(ecef.z.in(au::metersInEcefFrame)) - WGS84_A * (1.0f - WGS84_F));
             return geodetic;
         }
 
-        float lon_rad = atan2f(ecef.y_m, ecef.x_m);
-        geodetic.longitude_deg = lon_rad * RAD_TO_DEG;
+        float lon_rad = atan2f(ecef.y.in(au::metersInEcefFrame), ecef.x.in(au::metersInEcefFrame));
+        geodetic.longitude = au::make_quantity<au::DegreesInGeodeticFrame>(lon_rad * RAD_TO_DEG);
 
-        float lat_rad = atan2f(ecef.z_m, p * (1.0f - WGS84_E2)); // Initial approximation
+        float lat_rad = atan2f(ecef.z.in(au::metersInEcefFrame), p * (1.0f - WGS84_E2)); // Initial approximation
 
         int iteration = 0;
         float lat_old;
@@ -83,21 +83,21 @@ namespace coordinate_transformations
         {
             lat_old = lat_rad;
             float N = WGS84_A / sqrtf(1.0f - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
-            lat_rad = atan2f(ecef.z_m + WGS84_E2 * N * sinf(lat_rad), p);
-            geodetic.height_m = p / cosf(lat_rad) - N;
+            lat_rad = atan2f(ecef.z.in(au::metersInEcefFrame) + WGS84_E2 * N * sinf(lat_rad), p);
+            geodetic.height = au::make_quantity<au::MetersInGeodeticFrame>(p / cosf(lat_rad) - N);
             iteration++;
             if (iteration > 100 * MAX_ITERATIONS)
             {
                 // // // Did not converge, return NaN values
-                // geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
-                // geodetic.longitude_deg = std::numeric_limits<float>::quiet_NaN();
-                // geodetic.height_m = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.latitude = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.longitude = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.height = std::numeric_limits<float>::quiet_NaN();
                 // return geodetic;
                 break;
             }
         } while (std::fabs(lat_rad - lat_old) > EPSILON);
 
-        geodetic.latitude_deg = lat_rad * RAD_TO_DEG;
+        geodetic.latitude = au::make_quantity<au::DegreesInGeodeticFrame>(lat_rad * RAD_TO_DEG);
         return geodetic;
     }
 
@@ -106,26 +106,26 @@ namespace coordinate_transformations
     {
         Geocentric geocentric;
 
-        if (geodetic.latitude_deg < -90.0f || geodetic.latitude_deg > 90.0f)
+        if (geodetic.latitude.in(au::degreesInGeodeticFrame) < -90.0f || geodetic.latitude.in(au::degreesInGeodeticFrame) > 90.0f)
         {
-            geocentric.latitude_deg = std::numeric_limits<float>::quiet_NaN();
-            geocentric.longitude_deg = std::numeric_limits<float>::quiet_NaN();
-            geocentric.radius_m = std::numeric_limits<float>::quiet_NaN();
+            geocentric.latitude = au::make_quantity<au::DegreesInGeocentricFrame>(std::numeric_limits<float>::quiet_NaN());
+            geocentric.longitude = au::make_quantity<au::DegreesInGeocentricFrame>(std::numeric_limits<float>::quiet_NaN());
+            geocentric.radius = au::make_quantity<au::MetersInGeocentricFrame>(std::numeric_limits<float>::quiet_NaN());
             return geocentric;
         }
 
-        float lon_rad = geodetic.longitude_deg * DEG_TO_RAD;
-        float lat_rad = geodetic.latitude_deg * DEG_TO_RAD;
+        float lon_rad = geodetic.longitude.in(au::degreesInGeodeticFrame) * DEG_TO_RAD;
+        float lat_rad = geodetic.latitude.in(au::degreesInGeodeticFrame) * DEG_TO_RAD;
 
         float N = WGS84_A / sqrtf(1 - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
 
-        float x = (N + geodetic.height_m) * cosf(lat_rad) * cosf(lon_rad);
-        float y = (N + geodetic.height_m) * cosf(lat_rad) * sinf(lon_rad);
-        float z = ((1 - WGS84_E2) * N + geodetic.height_m) * sinf(lat_rad); // Corrected z-coordinate calculation
+        float x = (N + geodetic.height.in(au::metersInGeodeticFrame)) * cosf(lat_rad) * cosf(lon_rad);
+        float y = (N + geodetic.height.in(au::metersInGeodeticFrame)) * cosf(lat_rad) * sinf(lon_rad);
+        float z = ((1 - WGS84_E2) * N + geodetic.height.in(au::metersInGeodeticFrame)) * sinf(lat_rad);
 
-        geocentric.radius_m = sqrtf(x * x + y * y + z * z);
-        geocentric.latitude_deg = asinf(z / geocentric.radius_m) * RAD_TO_DEG;
-        geocentric.longitude_deg = geodetic.longitude_deg; // Longitude remains the same
+        geocentric.radius = au::make_quantity<au::MetersInGeocentricFrame>(sqrtf(x * x + y * y + z * z));
+        geocentric.latitude = au::make_quantity<au::DegreesInGeocentricFrame>(asinf(z / geocentric.radius.in(au::metersInGeocentricFrame))) * RAD_TO_DEG;
+        geocentric.longitude = au::make_quantity<au::DegreesInGeocentricFrame>(geodetic.longitude.in(au::degreesInGeodeticFrame));
         return geocentric;
     }
 
@@ -135,20 +135,20 @@ namespace coordinate_transformations
     {
         Geodetic geodetic;
 
-        if (geocentric.radius_m <= EPSILON || geocentric.latitude_deg < -90.0f || geocentric.latitude_deg > 90.0f)
+        if (geocentric.radius.in(au::metersInGeocentricFrame) <= EPSILON || geocentric.latitude.in(au::degreesInGeocentricFrame) < -90.0f || geocentric.latitude.in(au::degreesInGeocentricFrame) > 90.0f)
         {
-            geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
-            geodetic.longitude_deg = std::numeric_limits<float>::quiet_NaN();
-            geodetic.height_m = std::numeric_limits<float>::quiet_NaN();
+            geodetic.latitude = au::make_quantity<au::DegreesInGeodeticFrame>(std::numeric_limits<float>::quiet_NaN());
+            geodetic.longitude = au::make_quantity<au::DegreesInGeodeticFrame>(std::numeric_limits<float>::quiet_NaN());
+            geodetic.height = au::make_quantity<au::MetersInGeodeticFrame>(std::numeric_limits<float>::quiet_NaN());
             return geodetic;
         }
 
-        float lon_rad = geocentric.longitude_deg * DEG_TO_RAD;
-        float geocentric_lat_rad = geocentric.latitude_deg * DEG_TO_RAD;
+        float lon_rad = geocentric.longitude.in(au::degreesInGeocentricFrame) * DEG_TO_RAD;
+        float geocentric_lat_rad = geocentric.latitude.in(au::degreesInGeocentricFrame) * DEG_TO_RAD;
 
-        float x = geocentric.radius_m * cosf(geocentric_lat_rad) * cosf(lon_rad);
-        float y = geocentric.radius_m * cosf(geocentric_lat_rad) * sinf(lon_rad);
-        float z = geocentric.radius_m * sinf(geocentric_lat_rad);
+        float x = geocentric.radius.in(au::metersInGeocentricFrame) * cosf(geocentric_lat_rad) * cosf(lon_rad);
+        float y = geocentric.radius.in(au::metersInGeocentricFrame) * cosf(geocentric_lat_rad) * sinf(lon_rad);
+        float z = geocentric.radius.in(au::metersInGeocentricFrame) * sinf(geocentric_lat_rad);
 
         float lat_rad = atan2f(z, sqrtf(x * x + y * y)); // Initial guess for geodetic latitude
 
@@ -157,31 +157,31 @@ namespace coordinate_transformations
         int iteration = 0;
 
         // Iterative refinement for latitude and height
-        geodetic.height_m = 0; // Initial guess for height
+        geodetic.height = au::make_quantity<au::MetersInGeodeticFrame>(0.f); // Initial guess for height
 
         do
         {
             lat_old = lat_rad;
             N = WGS84_A / sqrtf(1 - WGS84_E2 * sinf(lat_rad) * sinf(lat_rad));
-            geodetic.height_m = sqrtf(x * x + y * y) / cosf(lat_rad) - N;
-            lat_rad = atan2f(z, (sqrtf(x * x + y * y) * (1 - WGS84_E2 * N / (N + geodetic.height_m))));
+            geodetic.height = au::make_quantity<au::MetersInGeodeticFrame>(sqrtf(x * x + y * y) / cosf(lat_rad) - N);
+            lat_rad = atan2f(z, (sqrtf(x * x + y * y) * (1 - WGS84_E2 * N / (N + geodetic.height.in(au::metersInGeodeticFrame)))));
             iteration++;
 
             // Check for oscillation in height and terminate early
             if (iteration > MAX_ITERATIONS)
             {
                 // // Did not converge, return NaN values
-                // geodetic.latitude_deg = std::numeric_limits<float>::quiet_NaN();
-                // geodetic.longitude_deg = std::numeric_limits<float>::quiet_NaN();
-                // geodetic.height_m = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.latitude = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.longitude = std::numeric_limits<float>::quiet_NaN();
+                // geodetic.height = std::numeric_limits<float>::quiet_NaN();
                 // return geodetic;
                 break;
             }
 
         } while (fabsf(lat_rad - lat_old) > EPSILON);
 
-        geodetic.latitude_deg = lat_rad * RAD_TO_DEG;
-        geodetic.longitude_deg = geocentric.longitude_deg; // Longitude remains the same
+        geodetic.latitude = au::make_quantity<au::DegreesInGeodeticFrame>(lat_rad * RAD_TO_DEG);
+        geodetic.longitude = au::make_quantity<au::DegreesInGeodeticFrame>(geocentric.longitude.in(au::degreesInGeocentricFrame));
         return geodetic;
     }
 
@@ -313,14 +313,14 @@ namespace coordinate_transformations
     ECEF temeToECEF(TEME teme, float jd2000)
     {
         ECEF ecef;
-        float rteme[3] = {teme.x_m, teme.y_m, teme.z_m};
+        float rteme[3] = {teme.x.in(au::metersInTemeFrame), teme.y.in(au::metersInTemeFrame), teme.z.in(au::metersInTemeFrame)};
         float recef[3];
 
         teme2ecef(rteme, jd2000, recef);
 
-        ecef.x_m = recef[0];
-        ecef.y_m = recef[1];
-        ecef.z_m = recef[2];
+        ecef.x = au::make_quantity<au::MetersInEcefFrame>(recef[0]);
+        ecef.y = au::make_quantity<au::MetersInEcefFrame>(recef[1]);
+        ecef.z = au::make_quantity<au::MetersInEcefFrame>(recef[2]);
 
         return ecef;
     }
@@ -400,14 +400,14 @@ namespace coordinate_transformations
     TEME ecefToTEME(ECEF ecef, float jd2000)
     {
         TEME teme;
-        float recef[3] = {ecef.x_m, ecef.y_m, ecef.z_m};
+        float recef[3] = {ecef.x.in(au::metersInEcefFrame), ecef.y.in(au::metersInEcefFrame), ecef.z.in(au::metersInEcefFrame)};
         float rteme[3];
 
         ecef2teme(recef, jd2000, rteme); // Call the inverse transformation function
 
-        teme.x_m = rteme[0];
-        teme.y_m = rteme[1];
-        teme.z_m = rteme[2];
+        teme.x = au::make_quantity<au::MetersInTemeFrame>(rteme[0]);
+        teme.y = au::make_quantity<au::MetersInTemeFrame>(rteme[1]);
+        teme.z = au::make_quantity<au::MetersInTemeFrame>(rteme[2]);
 
         return teme;
     }

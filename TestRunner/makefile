@@ -37,6 +37,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestIGRFModel.cpp \
 			 TestImageBuffer.cpp \
 			 TestImageBufferAccessor.cpp \
+			 TestIMU.cpp \
 			 TestInputOutputStream.cpp \
 			 TestKalmanFunctionGPS.cpp \
 			 TestKalmanOrientationMagnetic.cpp \
@@ -47,6 +48,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMockHal.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationTracker.cpp \
+			 TestPositionTracker9D.cpp \
 			 TestPowerMonitor.cpp \
 			 TestPowerSwitch.cpp \
 			 TestProcessRxQueue.cpp \
@@ -653,9 +655,9 @@ $(BIN_DIR)/TestPositionTracker9D.o : TestPositionTracker9D.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestPositionTracker9D : $(BIN_DIR)/TestPositionTracker9D.o 
+$(BIN_DIR)/TestPositionTracker9D : $(BIN_DIR)/TestPositionTracker9D.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPositionTracker9D.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPositionTracker9D.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/GNSS.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskPositionService with with EXTRA_FLAGS only
 $(BIN_DIR)/TestTaskPositionService.o : TestTaskPositionService.cpp
@@ -675,6 +677,14 @@ $(BIN_DIR)/TestTaskOrientationService : $(BIN_DIR)/TestTaskOrientationService.o 
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskOrientationService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/Quaternion.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestIMU with with EXTRA_FLAGS only
+$(BIN_DIR)/TestIMU.o : TestIMU.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestIMU : $(BIN_DIR)/TestIMU.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o # Link the object file
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestIMU.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

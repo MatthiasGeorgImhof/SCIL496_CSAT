@@ -14,6 +14,8 @@
 #include <array>
 #include <tuple>
 
+#include "au.hpp"
+
 // Mock GNSS class
 class MockGNSS
 {
@@ -53,9 +55,9 @@ public:
 
     void setAcceleration(float x, float y, float z)
     {
-        acceleration.x = au::make_quantity<au::MetersPerSecondSquared>(x);
-        acceleration.y = au::make_quantity<au::MetersPerSecondSquared>(y);
-        acceleration.z = au::make_quantity<au::MetersPerSecondSquared>(z);
+        acceleration.x = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(x);
+        acceleration.y = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(y);
+        acceleration.z = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(z);
         has_data = true;
     }
 
@@ -74,6 +76,38 @@ public:
 private:
     Accelerometer acceleration;
     bool has_data;
+};
+
+template <typename IMU>
+class MockIMUwithoutReorientation
+{
+public:
+    MockIMUwithoutReorientation(IMU &imu) : imu_(imu) {}
+
+    void setAcceleration(float x, float y, float z)
+    {
+        imu_.setAcceleration(x, y, z);
+    }
+
+    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>> getAcceleration()
+    {
+        auto optional_accel = imu_.getAcceleration();
+        if (optional_accel.has_value())
+        {
+            auto accel = optional_accel.value();
+            return std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>{
+                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel.x.in(au::bodys * au::meters / au::seconds / au::seconds)),
+                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel.y.in(au::bodys * au::meters / au::seconds / au::seconds)),
+                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel.z.in(au::bodys * au::meters / au::seconds / au::seconds))};
+        }
+        else
+        {
+            return std::nullopt;
+        }
+    }
+
+private:
+    IMU &imu_;
 };
 
 class MockSGP4
@@ -121,6 +155,19 @@ private:
     bool has_data;
 };
 
+class MockOrientation
+{
+public:
+    MockOrientation() = default;
+
+    bool predict(std::array<float, 4> &q, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
+    {
+        (void)timestamp;
+        q = {1.0f, 0.0f, 0.0f, 0.0f}; // w, x, y, z for identity rotation
+        return true;
+    }
+};
+
 void *loopardMemoryAllocate(size_t amount) { return static_cast<void *>(malloc(amount)); };
 void loopardMemoryFree(void *pointer) { free(pointer); };
 
@@ -153,10 +200,11 @@ TEST_CASE("TaskPositionService Test with GNSSandAccelPosition")
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
     MockGNSS gnss;
-    MockIMU imu;
-    PositionTracker9D tracker;
-    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMU> positionTracker(&hrtc, tracker, gnss, imu);
-    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMU>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
+    MockIMU imu_;
+    MockIMUwithoutReorientation imu(imu_);
+    PositionTracker9D position_tracker;
+    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>> positionTracker(&hrtc, position_tracker, gnss, imu);
+    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
 
     const float x0 = 100.0f;
     const float y0 = 200.0f;
@@ -248,10 +296,11 @@ TEST_CASE("TaskPositionService Test with GNSSandAccelPosition: noisy measurement
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
     MockGNSS gnss;
-    MockIMU imu;
-    PositionTracker9D tracker;
-    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMU> positionTracker(&hrtc, tracker, gnss, imu);
-    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMU>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
+    MockIMU imu_;
+    MockIMUwithoutReorientation<MockIMU> imu(imu_);
+    PositionTracker9D position_tracker;
+    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>> positionTracker(&hrtc, position_tracker, gnss, imu);
+    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
 
     const float x0 = 100.0f;
     const float y0 = 200.0f;
@@ -350,10 +399,10 @@ TEST_CASE("TaskPositionService Test with SGP4andGNSSandPosition")
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
-    MockSGP4 sgp4;  
+    MockSGP4 sgp4;
     MockGNSS gnss;
-    Sgp4PositionTracker tracker;
-    SGP4andGNSSandPosition<Sgp4PositionTracker, MockSGP4, MockGNSS> positionTracker(&hrtc, tracker, sgp4, gnss);
+    Sgp4PositionTracker position_tracker;
+    SGP4andGNSSandPosition<Sgp4PositionTracker, MockSGP4, MockGNSS> positionTracker(&hrtc, position_tracker, sgp4, gnss);
     auto task = TaskPositionService<SGP4andGNSSandPosition<Sgp4PositionTracker, MockSGP4, MockGNSS>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
 
     const float x0 = 100.0f;
@@ -458,19 +507,19 @@ TEST_CASE("plain SGP4: send position 2025 6 25 18 0 0")
     Cyphal<LoopardAdapter> loopard_cyphal(&loopard);
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
-        
+
     SGP4 sgp4(&hrtc);
     auto task = std::make_shared<TaskPositionService<SGP4, Cyphal<LoopardAdapter>>>(sgp4, 1000, 0, 0, adapters);
 
     // ISS (ZARYA)
     char longstr1[] = "1 25544U 98067A   25176.73245655  .00008102  00000-0  14854-3 0  9994";
-    char longstr2[] = "2 25544  51.6390 264.7180 0001990 278.3788 217.2311 15.50240116516482";  
+    char longstr2[] = "2 25544  51.6390 264.7180 0001990 278.3788 217.2311 15.50240116516482";
 
     auto parsed = sgp4_utils::parseTLE(longstr1, longstr2);
     REQUIRE(parsed.has_value());
     SGP4TwoLineElement data = parsed.value();
     sgp4.setSGP4TLE(data);
-    
+
     SGP4TwoLineElement tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == data.satelliteNumber);
     CHECK(tle.elementNumber == data.elementNumber);
@@ -500,13 +549,13 @@ TEST_CASE("plain SGP4: send position 2025 6 25 18 0 0")
     // Deserialize the payload and verify the values
     _4111spyglass_sat_model_PositionVelocity_0_1 received_data;
     size_t deserialized_size = transfer.payload_size;
-    int8_t deserialization_result = _4111spyglass_sat_model_PositionVelocity_0_1_deserialize_(&received_data, static_cast<const uint8_t*>(transfer.payload), &deserialized_size);
+    int8_t deserialization_result = _4111spyglass_sat_model_PositionVelocity_0_1_deserialize_(&received_data, static_cast<const uint8_t *>(transfer.payload), &deserialized_size);
     REQUIRE(deserialization_result >= 0);
     CHECK(received_data.timestamp.microsecond == 804189600000000);
 
-    std::array<float,3> expected_r {2715.4f, -4518.34f, -4291.31f};
-    std::array<float,3> expected_v {3.75928f, 5.63901f, -3.55967f};
-    
+    std::array<float, 3> expected_r{2715.4f, -4518.34f, -4291.31f};
+    std::array<float, 3> expected_v{3.75928f, 5.63901f, -3.55967f};
+
     CHECK(received_data.position_m[0] == doctest::Approx(expected_r[0] * 1000.f).epsilon(0.01));
     CHECK(received_data.position_m[1] == doctest::Approx(expected_r[1] * 1000.f).epsilon(0.01));
     CHECK(received_data.position_m[2] == doctest::Approx(expected_r[2] * 1000.f).epsilon(0.01));
@@ -514,7 +563,6 @@ TEST_CASE("plain SGP4: send position 2025 6 25 18 0 0")
     CHECK(received_data.velocity_ms[1] == doctest::Approx(expected_v[1] * 1000.f).epsilon(0.01));
     CHECK(received_data.velocity_ms[2] == doctest::Approx(expected_v[2] * 1000.f).epsilon(0.01));
     loopardMemoryFree(transfer.payload);
-
 }
 
 TEST_CASE("plain SGP4: send position 2025 7 6 20 43 13")
@@ -551,13 +599,13 @@ TEST_CASE("plain SGP4: send position 2025 7 6 20 43 13")
 
     // ISS (ZARYA)
     char longstr1[] = "1 25544U 98067A   25176.73245655  .00008102  00000-0  14854-3 0  9994";
-    char longstr2[] = "2 25544  51.6390 264.7180 0001990 278.3788 217.2311 15.50240116516482";  
+    char longstr2[] = "2 25544  51.6390 264.7180 0001990 278.3788 217.2311 15.50240116516482";
 
     auto parsed = sgp4_utils::parseTLE(longstr1, longstr2);
     REQUIRE(parsed.has_value());
     SGP4TwoLineElement data = parsed.value();
     sgp4.setSGP4TLE(data);
-    
+
     SGP4TwoLineElement tle = sgp4.getSGP4TLE();
     CHECK(tle.satelliteNumber == data.satelliteNumber);
     CHECK(tle.elementNumber == data.elementNumber);
@@ -587,13 +635,13 @@ TEST_CASE("plain SGP4: send position 2025 7 6 20 43 13")
     // Deserialize the payload and verify the values
     _4111spyglass_sat_model_PositionVelocity_0_1 received_data;
     size_t deserialized_size = transfer.payload_size;
-    int8_t deserialization_result = _4111spyglass_sat_model_PositionVelocity_0_1_deserialize_(&received_data, static_cast<const uint8_t*>(transfer.payload), &deserialized_size);
+    int8_t deserialization_result = _4111spyglass_sat_model_PositionVelocity_0_1_deserialize_(&received_data, static_cast<const uint8_t *>(transfer.payload), &deserialized_size);
     REQUIRE(deserialization_result >= 0);
     CHECK(received_data.timestamp.microsecond == 805149793000000);
 
-    std::array<float,3> expected_r {6356.42f, -1504.07f, 1859.27f};
-    std::array<float,3> expected_v {-0.42784f, 5.18216f, 5.63173f};
-    
+    std::array<float, 3> expected_r{6356.42f, -1504.07f, 1859.27f};
+    std::array<float, 3> expected_v{-0.42784f, 5.18216f, 5.63173f};
+
     CHECK(received_data.position_m[0] == doctest::Approx(expected_r[0] * 1000.f).epsilon(0.01));
     CHECK(received_data.position_m[1] == doctest::Approx(expected_r[1] * 1000.f).epsilon(0.01));
     CHECK(received_data.position_m[2] == doctest::Approx(expected_r[2] * 1000.f).epsilon(0.01));
@@ -601,5 +649,4 @@ TEST_CASE("plain SGP4: send position 2025 7 6 20 43 13")
     CHECK(received_data.velocity_ms[1] == doctest::Approx(expected_v[1] * 1000.f).epsilon(0.01));
     CHECK(received_data.velocity_ms[2] == doctest::Approx(expected_v[2] * 1000.f).epsilon(0.01));
     loopardMemoryFree(transfer.payload);
-
 }

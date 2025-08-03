@@ -23,33 +23,41 @@ namespace coordinate_transformations
     // Geodetic Coordinates (Latitude, Longitude, Height)
     struct Geodetic
     {
-        float latitude_deg;  // Latitude in degrees
-        float longitude_deg; // Longitude in degrees
-        float height_m;      // Height above ellipsoid in meters
+        au::QuantityF<au::DegreesInGeodeticFrame> latitude;  // Latitude in degrees
+        au::QuantityF<au::DegreesInGeodeticFrame> longitude;  // Longitude in degrees
+        au::QuantityF<au::MetersInGeodeticFrame> height;     // Height above ellipsoid in meters
     };
 
     // Geocentric Coordinates (Latitude, Longitude, Radius)
     struct Geocentric
     {
-        float latitude_deg;  // Geocentric latitude in degrees
-        float longitude_deg; // Longitude in degrees
-        float radius_m;      // Radius from center of Earth in meters
+        au::QuantityF<au::DegreesInGeocentricFrame> latitude;  // Latitude in degrees
+        au::QuantityF<au::DegreesInGeocentricFrame> longitude; // Longitude in degrees
+        au::QuantityF<au::MetersInGeocentricFrame> radius;     // Radius in meters
     };
 
     // ECEF Coordinates (X, Y, Z)
     struct ECEF
     {
-        float x_m; // X coordinate in meters
-        float y_m; // Y coordinate in meters
-        float z_m; // Z coordinate in meters
+        au::QuantityF<au::MetersInEcefFrame> x; // X coordinate in meters
+        au::QuantityF<au::MetersInEcefFrame> y; // Y coordinate in meters
+        au::QuantityF<au::MetersInEcefFrame> z; // Z coordinate in meters
     };
 
     // TEME Coordinates (X, Y, Z)
     struct TEME
     {
-        float x_m; // X coordinate in meters
-        float y_m; // Y coordinate in meters
-        float z_m; // Z coordinate in meters
+        au::QuantityF<au::MetersInTemeFrame> x; // X coordinate in meters
+        au::QuantityF<au::MetersInTemeFrame> y; // Y coordinate in meters
+        au::QuantityF<au::MetersInTemeFrame> z; // Z coordinate in meters
+    };
+
+    // TEME Coordinates (X, Y, Z)
+    struct NED
+    {
+        au::QuantityF<au::MetersInNedFrame> x; // X coordinate in meters
+        au::QuantityF<au::MetersInNedFrame> y; // Y coordinate in meters
+        au::QuantityF<au::MetersInNedFrame> z; // Z coordinate in meters
     };
 
     // --- Coordinate Conversion Functions ---
