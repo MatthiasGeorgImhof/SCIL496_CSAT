@@ -102,7 +102,7 @@ TEST_CASE("GNSS GetNavVelECEF Trivial Test")
     }
 }
 
-TEST_CASE("GNSS GetUniqID Test")
+TEST_CASE("GNSS getUniqID Test")
 {
     UART_HandleTypeDef huart;
     init_uart_handle(&huart);
@@ -114,7 +114,7 @@ TEST_CASE("GNSS GetUniqID Test")
     static_assert(ValidateChecksum(test_data));
     inject_uart_rx_data(const_cast<uint8_t *>(test_data), sizeof(test_data));
 
-    std::optional<UniqueID> uniqueID = gnss.GetUniqID();
+    std::optional<UniqueID> uniqueID = gnss.getUniqID();
 
     REQUIRE(uniqueID.has_value());
     CHECK(uniqueID.value().id[0] == 0x01);

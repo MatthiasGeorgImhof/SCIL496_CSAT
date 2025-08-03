@@ -119,7 +119,7 @@ constexpr uint8_t UBX_ID_PVT = 0x07;
 constexpr uint8_t UBX_ID_VELECEF = 0x11;
 constexpr uint8_t UBX_ID_VELNED = 0x12;
 
-std::optional<UniqueID> GNSS::GetUniqID()
+std::optional<UniqueID> GNSS::getUniqID()
 {
 	uint8_t *messageBuffer = Request(getUniqueID, sizeof(getUniqueID), UBX_CLASS_MON, UBX_ID_UNIQID);
 	if (messageBuffer == nullptr)

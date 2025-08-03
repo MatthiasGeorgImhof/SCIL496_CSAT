@@ -6,7 +6,7 @@
 #include <optional>
 
 struct StubIMU {
-    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInBodyFrame>, 3>> getAcceleration() {
+    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInBodyFrame>, 3>> readAccelerometer() {
         return std::array{
             au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(1.0f),
             au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(0.0f),
@@ -46,7 +46,7 @@ TEST_CASE("IMUWithReorientation: Identity rotation preserves acceleration direct
 
     IMUWithReorientation<StubIMU, StubOrientationProvider, StubPositionProvider> imu_reoriented(imu, orientation, position);
 
-    auto result = imu_reoriented.getAcceleration();
+    auto result = imu_reoriented.readAccelerometer();
     REQUIRE(result.has_value());
 
     auto accel_ecef = result.value();
@@ -56,7 +56,7 @@ TEST_CASE("IMUWithReorientation: Identity rotation preserves acceleration direct
 }
 
 struct StubIMUNoData {
-    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInBodyFrame>, 3>> getAcceleration() {
+    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInBodyFrame>, 3>> readAccelerometer() {
         return std::nullopt;
     }
 };
@@ -68,6 +68,6 @@ TEST_CASE("IMUWithReorientation: Returns nullopt when IMU data is missing") {
 
     IMUWithReorientation<StubIMUNoData, StubOrientationProvider, StubPositionProvider> imu_reoriented(imu, orientation, position);
 
-    auto result = imu_reoriented.getAcceleration();
+    auto result = imu_reoriented.readAccelerometer();
     CHECK_FALSE(result.has_value());
 }

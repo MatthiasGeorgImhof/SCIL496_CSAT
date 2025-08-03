@@ -3,7 +3,7 @@
 #include "TaskOrientationService.hpp"
 #include "OrientationTracker.hpp"
 
-#include "BMI270.hpp"
+#include "IMU.hpp"
 #include "mock_hal.h"
 #include "TimeUtils.hpp"
 #include "RegistrationManager.hpp"
@@ -12,20 +12,20 @@
 #include <tuple>
 
 // Mock IMU class
-class MockIMU
+class MockIMUinBodyFrame
 {
 public:
-    MockIMU() : has_acc_data(false), has_gyro_data(false), has_mag_data(false) {}
+    MockIMUinBodyFrame() : has_acc_data(false), has_gyro_data(false), has_mag_data(false) {}
 
     void setAcceleration(float x, float y, float z)
     {
-        acceleration.x = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(x);
-        acceleration.y = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(y);
-        acceleration.z = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(z);
+        acceleration= { au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(x), 
+                        au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(y),
+                        au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(z)};
         has_acc_data = true;
     }
 
-    std::optional<Accelerometer> getAcceleration()
+    std::optional<AccelerationInBodyFrame> readAccelerometer()
     {
         if (has_acc_data)
         {
@@ -39,13 +39,13 @@ public:
 
     void setGyroscope(float x, float y, float z)
     {
-        gyroscope.x = au::make_quantity<au::DegreesPerSecondInBodyFrame>(x);
-        gyroscope.y = au::make_quantity<au::DegreesPerSecondInBodyFrame>(y);
-        gyroscope.z = au::make_quantity<au::DegreesPerSecondInBodyFrame>(z);
+        gyroscope = { au::make_quantity<au::DegreesPerSecondInBodyFrame>(x),
+                      au::make_quantity<au::DegreesPerSecondInBodyFrame>(y),
+                      au::make_quantity<au::DegreesPerSecondInBodyFrame>(z)};
         has_gyro_data = true;
     }
 
-    std::optional<Gyroscope> getGyroscope()
+    std::optional<AngularVelocityInBodyFrame> readGyroscope()
     {
         if (has_gyro_data)
         {
@@ -59,13 +59,13 @@ public:
 
     void setMagnetometer(float x, float y, float z)
     {
-        magnetometer.x = au::make_quantity<au::TeslaInBodyFrame>(x);
-        magnetometer.y = au::make_quantity<au::TeslaInBodyFrame>(y);
-        magnetometer.z = au::make_quantity<au::TeslaInBodyFrame>(z);
+        magnetometer = { au::make_quantity<au::TeslaInBodyFrame>(x),
+                         au::make_quantity<au::TeslaInBodyFrame>(y),
+                         au::make_quantity<au::TeslaInBodyFrame>(z)};
         has_mag_data = true;
     }
     
-    std::optional<Magnetometer> getMagnetometer()
+    std::optional<MagneticFieldInBodyFrame> readMagnetometer()
     {
         if (has_mag_data)
         {
@@ -78,11 +78,14 @@ public:
     }
 
 private:
-    Accelerometer acceleration;
-    Gyroscope gyroscope;
-    Magnetometer magnetometer;
+    AccelerationInBodyFrame acceleration;
+    AngularVelocityInBodyFrame gyroscope;
+    MagneticFieldInBodyFrame magnetometer;
     bool has_acc_data, has_gyro_data, has_mag_data;
 };
+static_assert(HasBodyAccelerometer<MockIMUinBodyFrame>);
+static_assert(HasBodyGyroscope<MockIMUinBodyFrame>);
+static_assert(HasBodyMagnetometer<MockIMUinBodyFrame>);
 
 void *loopardMemoryAllocate(size_t amount) { return static_cast<void *>(malloc(amount)); };
 void loopardMemoryFree(void *pointer) { free(pointer); };
@@ -115,7 +118,7 @@ TEST_CASE("TaskOrientationService Test with GyrMagOrientation")
     loopard_cyphal.setNodeID(id);
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
-    MockIMU imu;
+    MockIMUinBodyFrame imu;
     GyrMagOrientationTracker tracker;
     GyrMagOrientation orientationTracker(&hrtc, tracker, imu, imu);
     auto task = TaskOrientationService(orientationTracker, 100, 1, 123, adapters);

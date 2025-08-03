@@ -250,7 +250,7 @@ private:
     std::optional<PositionECEF> pos_;
 };
 
-class MockIMU
+class MockIMUinEcefFrame
 {
 public:
     void setAcceleration(const Eigen::Vector3f &accel_mps2)
@@ -258,7 +258,7 @@ public:
         accel_ = accel_mps2;
     }
 
-    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>> getAcceleration() const
+    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>> readAccelerometer() const
     {
         if (!accel_.has_value())
             return std::nullopt;
@@ -274,6 +274,7 @@ public:
 private:
     std::optional<Eigen::Vector3f> accel_;
 };
+static_assert(HasEcefAccelerometer<MockIMUinEcefFrame>);
 
 class MockIMUinBodyFrame
 {
@@ -283,7 +284,7 @@ public:
         accel_ = accel_mps2;
     }
 
-    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInBodyFrame>, 3>> getAcceleration() const
+    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInBodyFrame>, 3>> readAccelerometer() const
     {
         if (!accel_.has_value())
             return std::nullopt;
@@ -299,6 +300,7 @@ public:
 private:
     std::optional<Eigen::Vector3f> accel_;
 };
+static_assert(HasBodyAccelerometer<MockIMUinBodyFrame>);
 
 class MockOrientationProvider
 {
@@ -342,7 +344,7 @@ TEST_CASE("Time advances correctly through mocked RTC")
 {
     PositionTracker9D tracker;
     MockGNSS gnss;
-    MockIMU imu;
+    MockIMUinEcefFrame imu;
 
     RTC_HandleTypeDef rtc_handle{};
     rtc_handle.Init.SynchPrediv = 1023;
@@ -402,7 +404,7 @@ TEST_CASE("Unrotated body-frame acceleration causes drift in ECEF fusion")
 {
     PositionTracker9D tracker;
     MockGNSS gnss;
-    MockIMU imu;
+    MockIMUinEcefFrame imu;
 
     RTC_HandleTypeDef mock_rtc{};
     mock_rtc.Init.SynchPrediv = 1023;

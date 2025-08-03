@@ -136,7 +136,7 @@ public:
 	GNSS(UART_HandleTypeDef *huart);
 
 	void SetMode(GNSSMode gnssMode);
-	std::optional<UniqueID> GetUniqID();
+	std::optional<UniqueID> getUniqID();
 	std::optional<UTCTime> GetNavTimeUTC();
 	std::optional<PositionLLH> GetNavPosLLH();
 	std::optional<PositionECEF> GetNavPosECEF();

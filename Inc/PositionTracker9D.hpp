@@ -6,6 +6,7 @@
 
 #include "TimeUtils.hpp"
 #include "GNSS.hpp"
+#include "IMU.hpp"
 #ifdef __arm__
 #include "usbd_cdc_if.h"
 #endif
@@ -166,6 +167,7 @@ private:
 };
 
 template <typename Tracker, typename GNSS, typename IMU>
+requires(HasEcefAccelerometer<IMU>)
 bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &r, std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &v, au::QuantityU64<au::Milli<au::Seconds>> &timestamp)
 {
     TimeUtils::RTCDateTimeSubseconds rtc;
@@ -191,7 +193,7 @@ bool GNSSandAccelPosition<Tracker, GNSS, IMU>::predict(std::array<au::QuantityF<
 
     if (imu_counter_ % imu_rate_ == 0)
     {
-        auto optional_accel = imu_.getAcceleration();
+        auto optional_accel = imu_.readAccelerometer();
         if (optional_accel.has_value())
         {
             auto accel = optional_accel.value();

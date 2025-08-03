@@ -6,7 +6,7 @@
 #include "TaskSGP4.hpp"
 
 #include "GNSS.hpp"
-#include "BMI270.hpp"
+#include "IMU.hpp"
 #include "mock_hal.h"
 #include "TimeUtils.hpp"
 #include "RegistrationManager.hpp"
@@ -48,20 +48,20 @@ private:
 };
 
 // Mock IMU class
-class MockIMU
+class MockIMUinBodyFrame
 {
 public:
-    MockIMU() : has_data(false) {}
+    MockIMUinBodyFrame() : has_data(false) {}
 
     void setAcceleration(float x, float y, float z)
     {
-        acceleration.x = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(x);
-        acceleration.y = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(y);
-        acceleration.z = au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(z);
+        acceleration = { au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(x),
+                         au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(y),
+                         au::make_quantity<au::MetersPerSecondSquaredInBodyFrame>(z)};
         has_data = true;
     }
 
-    std::optional<Accelerometer> getAcceleration()
+    std::optional<AccelerationInBodyFrame> readAccelerometer()
     {
         if (has_data)
         {
@@ -74,9 +74,10 @@ public:
     }
 
 private:
-    Accelerometer acceleration;
+    AccelerationInBodyFrame acceleration;
     bool has_data;
 };
+static_assert(HasBodyAccelerometer<MockIMUinBodyFrame>);
 
 template <typename IMU>
 class MockIMUwithoutReorientation
@@ -89,16 +90,16 @@ public:
         imu_.setAcceleration(x, y, z);
     }
 
-    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>> getAcceleration()
+    std::optional<std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>> readAccelerometer()
     {
-        auto optional_accel = imu_.getAcceleration();
+        auto optional_accel = imu_.readAccelerometer();
         if (optional_accel.has_value())
         {
             auto accel = optional_accel.value();
             return std::array<au::QuantityF<au::MetersPerSecondSquaredInEcefFrame>, 3>{
-                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel.x.in(au::bodys * au::meters / au::seconds / au::seconds)),
-                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel.y.in(au::bodys * au::meters / au::seconds / au::seconds)),
-                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel.z.in(au::bodys * au::meters / au::seconds / au::seconds))};
+                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel[0].in(au::metersPerSecondSquaredInBodyFrame)),
+                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel[1].in(au::metersPerSecondSquaredInBodyFrame)),
+                au::make_quantity<au::MetersPerSecondSquaredInEcefFrame>(accel[2].in(au::metersPerSecondSquaredInBodyFrame))};
         }
         else
         {
@@ -200,11 +201,11 @@ TEST_CASE("TaskPositionService Test with GNSSandAccelPosition")
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
     MockGNSS gnss;
-    MockIMU imu_;
+    MockIMUinBodyFrame imu_;
     MockIMUwithoutReorientation imu(imu_);
     PositionTracker9D position_tracker;
-    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>> positionTracker(&hrtc, position_tracker, gnss, imu);
-    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
+    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMUinBodyFrame>> positionTracker(&hrtc, position_tracker, gnss, imu);
+    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMUinBodyFrame>>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
 
     const float x0 = 100.0f;
     const float y0 = 200.0f;
@@ -296,11 +297,11 @@ TEST_CASE("TaskPositionService Test with GNSSandAccelPosition: noisy measurement
     std::tuple<Cyphal<LoopardAdapter>> adapters(loopard_cyphal);
 
     MockGNSS gnss;
-    MockIMU imu_;
-    MockIMUwithoutReorientation<MockIMU> imu(imu_);
+    MockIMUinBodyFrame imu_;
+    MockIMUwithoutReorientation<MockIMUinBodyFrame> imu(imu_);
     PositionTracker9D position_tracker;
-    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>> positionTracker(&hrtc, position_tracker, gnss, imu);
-    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMU>>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
+    GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMUinBodyFrame>> positionTracker(&hrtc, position_tracker, gnss, imu);
+    auto task = TaskPositionService<GNSSandAccelPosition<PositionTracker9D, MockGNSS, MockIMUwithoutReorientation<MockIMUinBodyFrame>>, Cyphal<LoopardAdapter>>(positionTracker, 100, 1, 123, adapters);
 
     const float x0 = 100.0f;
     const float y0 = 200.0f;

@@ -3,6 +3,7 @@
 #include <functional>
 #include "Kalman.hpp"
 #include "Quaternion.hpp"
+#include "IMU.hpp"
 
 #include "au.hpp"
 
@@ -269,6 +270,7 @@ public:
 #
 
 template <typename Tracker, typename IMU, typename MAG>
+requires HasBodyGyroscope<IMU> && HasBodyMagnetometer<MAG>
 class GyrMagOrientation
 {
 public:
@@ -304,21 +306,21 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
 
     if (imu_counter_ % imu_rate_ == 0)
     {
-        auto optional_angular = imu_.getGyroscope();
+        auto optional_angular = imu_.readGyroscope();
         if (optional_angular.has_value())
         {
             auto angular = optional_angular.value();
-            tracker_.updateGyro(Eigen::Vector3f(angular.x.in(au::bodys * au::radians / au::seconds), angular.y.in(au::bodys * au::radians / au::seconds), angular.z.in(au::bodys * au::radians / au::seconds)), timestamp_sec.in(au::seconds));
+            tracker_.updateGyro(Eigen::Vector3f(angular[0].in(au::bodys * au::radians / au::seconds), angular[1].in(au::bodys * au::radians / au::seconds), angular[2].in(au::bodys * au::radians / au::seconds)), timestamp_sec.in(au::seconds));
         }
     }
 
     if (mag_counter_ % mag_rate_ == 0)
     {
-        auto optional_magnetic = imu_.getMagnetometer();
+        auto optional_magnetic = imu_.readMagnetometer();
         if (optional_magnetic.has_value())
         {
             auto magnetic = optional_magnetic.value();
-            tracker_.updateMagnetometer(Eigen::Vector3f(magnetic.x.in(au::bodys * au::tesla), magnetic.y.in(au::bodys * au::tesla), magnetic.z.in(au::bodys * au::tesla)), timestamp_sec.in(au::seconds));
+            tracker_.updateMagnetometer(Eigen::Vector3f(magnetic[0].in(au::bodys * au::tesla), magnetic[1].in(au::bodys * au::tesla), magnetic[2].in(au::bodys * au::tesla)), timestamp_sec.in(au::seconds));
         }
     }
 
@@ -334,6 +336,7 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
 }
 
 template <typename Tracker, typename IMU, typename MAG>
+requires HasBodyGyroscope<IMU> && HasBodyMagnetometer<MAG> && HasBodyAccelerometer<IMU>
 class AccGyrMagOrientation
 {
 public:
