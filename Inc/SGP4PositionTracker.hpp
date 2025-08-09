@@ -83,7 +83,7 @@ bool SGP4andGNSSandPosition<Tracker, SGP4, GNSS>::predict(std::array<au::Quantit
     TimeUtils::RTCDateTimeSubseconds rtc;
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
-    timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
+    timestamp = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
 
     if (sgp4_counter_ % sgp4_rate_ == 0)
     {

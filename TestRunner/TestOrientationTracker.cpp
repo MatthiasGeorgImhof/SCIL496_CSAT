@@ -34,6 +34,9 @@ TEST_CASE("predictTo integrates quaternion forward using gyro state")
 TEST_CASE("updateMagnetometer reduces yaw error after prediction")
 {
     GyrMagOrientationTracker tracker;
+    tracker.setMagneticReference(0.3f, 0.5f, 0.8f);
+
+
     Eigen::Vector3f omega(0, 0, M_PIf / 180.0f * 45.0f); // 45 deg/s
     tracker.updateGyro(omega, au::make_quantity<au::Seconds>(1));
 
@@ -66,6 +69,8 @@ TEST_CASE("updateMagnetometer reduces yaw error after prediction")
 TEST_CASE("GyrMagOrientationTracker follows yaw rotation with magnetometer corrections")
 {
     GyrMagOrientationTracker tracker;
+    tracker.setMagneticReference(0.3f, 0.5f, 0.8f);
+
 
     float dt = 0.5f;
     float yaw_rate = 30.f * M_PIf / 180.f; // 30 deg/s
@@ -138,6 +143,7 @@ TEST_CASE("predictTo integrates quaternion forward using gyro state")
 TEST_CASE("updateAccelerometerMagnetometer converges yaw orientation within envelope")
 {
     AccGyrMagOrientationTracker tracker;
+    tracker.setMagneticReference(1.0f, 0.0f, 0.0f);
 
     Eigen::Quaternionf q_true(Eigen::AngleAxisf(M_PIf / 4.0f, Eigen::Vector3f::UnitZ()));
     Eigen::Vector3f accel_ned(0.0f, 0.0f, 9.81f);
@@ -195,6 +201,7 @@ TEST_CASE("updateAccelerometerMagnetometer converges yaw orientation within enve
 TEST_CASE("AccGyrMagOrientationTracker follows yaw rotation with accelerometer and magnetometer corrections")
 {
     AccGyrMagOrientationTracker tracker;
+    tracker.setMagneticReference(1.0f, 0.0f, 0.0f);
 
     float dt = 0.5f;
     float yaw_rate = 30.f * M_PIf / 180.f; // 30 deg/s
@@ -247,6 +254,7 @@ TEST_CASE("AccGyrMagOrientationTracker follows yaw rotation with accelerometer a
 TEST_CASE("updateAccelerometerMagnetometer converges yaw orientation within envelope - SIMPLIFIED")
 {
     AccGyrMagOrientationTracker tracker;
+    tracker.setMagneticReference(1.0f, 0.0f, 0.0f);
 
     // Set a known initial yaw error (e.g., start at 0 yaw, target is M_PI/4)
     Eigen::Quaternionf q_initial = Eigen::Quaternionf::Identity(); // Start with yaw = 0

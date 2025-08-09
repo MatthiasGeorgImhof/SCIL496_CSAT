@@ -148,4 +148,43 @@ private:
     }
 };
 
+template <typename IMU>
+class IMUWithMagneticCorrection
+{
+public:
+    IMUWithMagneticCorrection(IMU& imu,
+                               const Eigen::Vector3f& hardIronOffset,
+                               const Eigen::Matrix3f& softIronMatrix)
+        : imu_(imu), hardIronOffset_(hardIronOffset), softIronMatrix_(softIronMatrix) {}
+
+    std::optional<MagneticFieldInBodyFrame> readMagnetometer()
+    {
+        auto raw = imu_.readMagnetometer();
+        if (!raw.has_value()) return std::nullopt;
+
+        const auto& m_raw = raw.value();
+
+        // Convert to Eigen vector
+        Eigen::Vector3f m_vec(
+            m_raw[0].in(au::teslaInBodyFrame),
+            m_raw[1].in(au::teslaInBodyFrame),
+            m_raw[2].in(au::teslaInBodyFrame)
+        );
+
+        // Apply hard and soft iron corrections
+        Eigen::Vector3f m_corrected = softIronMatrix_ * (m_vec - hardIronOffset_);
+
+        return MagneticFieldInBodyFrame{
+            au::make_quantity<au::TeslaInBodyFrame>(m_corrected.x()),
+            au::make_quantity<au::TeslaInBodyFrame>(m_corrected.y()),
+            au::make_quantity<au::TeslaInBodyFrame>(m_corrected.z())
+        };
+    }
+
+private:
+    IMU& imu_;
+    Eigen::Vector3f hardIronOffset_;
+    Eigen::Matrix3f softIronMatrix_;
+};
+
 #endif // __IMU__HPP_

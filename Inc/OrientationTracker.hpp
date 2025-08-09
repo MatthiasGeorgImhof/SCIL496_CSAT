@@ -136,12 +136,15 @@ public:
     using StateVector = Eigen::Matrix<float, StateSize, 1>;
     using Measurement = Eigen::Vector3f;
 
+protected:
+    Eigen::Vector3f mag_ned;
+
+public:
     GyrMagOrientationTracker() : BaseOrientationTracker<StateSize, MeasurementSize>(
                                      Eigen::Matrix<float, StateSize, StateSize>::Identity() * 1e-5f,
                                      Eigen::Matrix3f::Identity() * 0.01f,
                                      Eigen::Matrix<float, StateSize, StateSize>::Identity() * 1e-5f,
-                                     []
-                                     { StateVector x; x << 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f; return x; }())
+                                     []{ StateVector x; x << 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f; return x; }())
     {
     }
 
@@ -149,19 +152,16 @@ public:
     {
         BaseOrientationTracker<StateSize, MeasurementSize>::predictTo(timestamp);
 
-        Eigen::Vector3f imu_ned(0.3f, 0.5f, 0.8f); // Fixed reference in NED
-        imu_ned.normalize();
-
         auto h = [&](const StateVector &x)
         {
             Eigen::Quaternionf q(x(3), x(0), x(1), x(2));
-            return q.conjugate() * imu_ned;
+            return q.conjugate() * mag_ned;
         };
 
         auto &x = BaseOrientationTracker<StateSize, MeasurementSize>::ekf.stateVector;
         Eigen::Quaternionf q_hat(x(3), x(0), x(1), x(2));
         float qw = q_hat.w(), qx = q_hat.x(), qy = q_hat.y(), qz = q_hat.z();
-        float mx = imu_ned(0), my = imu_ned(1), mz = imu_ned(2);
+        float mx = mag_ned(0), my = mag_ned(1), mz = mag_ned(2);
 
         Eigen::Matrix<float, MeasurementSize, StateSize> H_jac = Eigen::Matrix<float, MeasurementSize, StateSize>::Zero();
 
@@ -187,6 +187,12 @@ public:
         x(2) = q_corr.z();
         x(3) = q_corr.w();
     }
+
+    void setMagneticReference(float mx, float my, float mz)
+    {
+        mag_ned = Eigen::Vector3f(mx, my, mz);
+        mag_ned.normalize();
+    }
 };
 
 #
@@ -200,6 +206,10 @@ public:
     using StateVector = Eigen::Matrix<float, StateSize, 1>;
     using Measurement = Eigen::Matrix<float, MeasurementSize, 1>;
 
+private:
+    Eigen::Vector3f mag_ned;
+
+public:
     AccGyrMagOrientationTracker()
         : BaseOrientationTracker<StateSize, MeasurementSize>(
               Eigen::Matrix<float, StateSize, StateSize>::Identity() * 0.1f,
@@ -217,7 +227,7 @@ public:
         BaseOrientationTracker<StateSize, MeasurementSize>::predictTo(timestamp);
 
         Eigen::Vector3f accel_ned(0.f, 0.f, 9.81f); // Gravity points down
-        Eigen::Vector3f mag_ned(1.f, 0.f, 0.f);     // Needs to be adjusted for magnetic declination and inclination
+
 
         // Combined measurement vector
         Measurement combined_meas;
@@ -259,6 +269,13 @@ public:
         x(2) = q_corr.z();
         x(3) = q_corr.w();
     }
+
+    void setMagneticReference(float mx, float my, float mz)
+    {
+        mag_ned = Eigen::Vector3f(mx, my, mz);
+        mag_ned.normalize();
+    }
+
 };
 
 #
@@ -301,7 +318,7 @@ bool GyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, au::
     TimeUtils::RTCDateTimeSubseconds rtc;
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
-    timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
+    timestamp = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
     update(timestamp);
 
     auto q_ = tracker_.getOrientation();
@@ -375,8 +392,7 @@ bool AccGyrMagOrientation<Tracker, IMU, MAG>::predict(std::array<float, 4> &q, a
     TimeUtils::RTCDateTimeSubseconds rtc;
     HAL_RTC_GetTime(hrtc_, &rtc.time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(hrtc_, &rtc.date, RTC_FORMAT_BIN);
-    timestamp = au::make_quantity<au::Milli<au::Seconds>>(TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv).count());
-
+    timestamp = TimeUtils::from_rtc(rtc, hrtc_->Init.SynchPrediv);
     update(timestamp);
 
     auto q_ = tracker_.getOrientation();
