@@ -69,7 +69,11 @@ static void MX_I2C2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+extern int getentropy(void* buffer, size_t length) {
+    (void)buffer;
+    (void)length;
+    return -1; // ENOSYS: Function not implemented
+}
 /* USER CODE END 0 */
 
 /**
@@ -472,7 +476,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LED4_Pin|LED5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CAMERA_HW_CLK_GPIO_Port, CAMERA_HW_CLK_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(CAMERA_HW_CLK_GPIO_Port, CAMERA_HW_CLK_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, CAN2_STB_Pin|CAN2_SHTD_Pin, GPIO_PIN_RESET);

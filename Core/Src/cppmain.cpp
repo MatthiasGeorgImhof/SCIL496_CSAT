@@ -53,22 +53,22 @@ constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
 O1HeapInstance *o1heap;
 
-void* canardMemoryAllocate(CanardInstance *const canard, const size_t size)
+void* canardMemoryAllocate(CanardInstance *const /*canard*/, const size_t size)
 {
 	return o1heapAllocate(o1heap, size);
 }
 
-void canardMemoryDeallocate(CanardInstance *const canard, void *const pointer)
+void canardMemoryDeallocate(CanardInstance *const /*canard*/, void *const pointer)
 {
 	o1heapFree(o1heap, pointer);
 }
 
-void* serardMemoryAllocate(void *const user_reference, const size_t size)
+void* serardMemoryAllocate(void *const /*user_reference*/, const size_t size)
 {
 	return o1heapAllocate(o1heap, size);
 }
 
-void serardMemoryDeallocate(void *const user_reference, const size_t size, void *const pointer)
+void serardMemoryDeallocate(void *const /*user_reference*/, const size_t /*size*/, void *const pointer)
 {
 	o1heapFree(o1heap, pointer);
 };
@@ -115,7 +115,7 @@ void cppmain(HAL_Handles handles)
 		Error_Handler();
 	}
 
-	CAN_FilterTypeDef filter = { 0 };
+	CAN_FilterTypeDef filter = {};
 	filter.FilterIdHigh = 0x1fff;
 	filter.FilterIdLow = 0xffff;
 	filter.FilterMaskIdHigh = 0;
@@ -185,20 +185,20 @@ void cppmain(HAL_Handles handles)
 	service_manager.initializeServices(HAL_GetTick());
 
 	constexpr uint8_t INA226 = 64 + 1;
-	constexpr uint8_t INS226_CONFIG = 0x00;
-	constexpr uint8_t INS226_SHUNT = 0x01;
-	constexpr uint8_t INS226_BUS = 0x02;
-	constexpr uint8_t INS226_POWER = 0x03;
-	constexpr uint8_t INS226_CURRENT = 0x04;
-	constexpr uint8_t INS226_CALIBRATION = 0x05;
-	constexpr uint8_t INS226_MANUFACTURER_ID = 0xfe;
-	constexpr uint8_t INS226_DIE_ID = 0xff;
+//	constexpr uint8_t INS226_CONFIG = 0x00;
+//	constexpr uint8_t INS226_SHUNT = 0x01;
+//	constexpr uint8_t INS226_BUS = 0x02;
+//	constexpr uint8_t INS226_POWER = 0x03;
+//	constexpr uint8_t INS226_CURRENT = 0x04;
+//	constexpr uint8_t INS226_CALIBRATION = 0x05;
+//	constexpr uint8_t INS226_MANUFACTURER_ID = 0xfe;
+//	constexpr uint8_t INS226_DIE_ID = 0xff;
 
 	constexpr uint8_t GPIO_EXPANDER = 32;
-	constexpr uint8_t ENABLE3 = 0x01;
-	constexpr uint8_t ENABLE2 = 0x04;
-	constexpr uint8_t ENABLE1 = 0x10;
-	constexpr uint8_t ENABLE0 = 0x40;
+//	constexpr uint8_t ENABLE3 = 0x01;
+//	constexpr uint8_t ENABLE2 = 0x04;
+//	constexpr uint8_t ENABLE1 = 0x10;
+//	constexpr uint8_t ENABLE0 = 0x40;
 
 	HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin, GPIO_PIN_SET);
 	HAL_Delay(1);
@@ -227,7 +227,7 @@ void cppmain(HAL_Handles handles)
 		PowerMonitorData data;
 		power_monitor(data);
 		char buffer[256];
-		sprintf(buffer, "INA226: % 4x % 4x % 6d % 6d % 6d % 6d\r\n",
+		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d\r\n",
 			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA);
 		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
