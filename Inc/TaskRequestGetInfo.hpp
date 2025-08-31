@@ -21,14 +21,19 @@ public:
     virtual void handleTaskImpl() override;
 };
 
+template <typename T>
+consteval T consteval_max(const T& a, const T& b) {
+    return (a > b) ? a : b;
+}
+
 template <typename... Adapters>
 void TaskRequestGetInfo<Adapters...>::handleTaskImpl()
 {
     if (TaskForClient<Adapters...>::buffer_.is_empty())
     {
         uavcan_node_GetInfo_Request_1_0 data = {};
-        constexpr size_t PAYLOAD_SIZE = uavcan_node_GetInfo_Request_1_0_SERIALIZATION_BUFFER_SIZE_BYTES_;
-        uint8_t *payload{nullptr};
+        constexpr size_t PAYLOAD_SIZE = consteval_max<size_t>(uavcan_node_GetInfo_Request_1_0_SERIALIZATION_BUFFER_SIZE_BYTES_, size_t(1));
+        uint8_t payload[PAYLOAD_SIZE];
 
         TaskForClient<Adapters...>::publish(PAYLOAD_SIZE, payload, &data,
                                             reinterpret_cast<int8_t (*)(const void *const, uint8_t *const, size_t *const)>(uavcan_node_GetInfo_Request_1_0_serialize_),
