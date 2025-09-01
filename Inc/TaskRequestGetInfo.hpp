@@ -37,7 +37,7 @@ void TaskRequestGetInfo<Adapters...>::handleTaskImpl()
 
         TaskForClient<Adapters...>::publish(PAYLOAD_SIZE, payload, &data,
                                             reinterpret_cast<int8_t (*)(const void *const, uint8_t *const, size_t *const)>(uavcan_node_GetInfo_Request_1_0_serialize_),
-                                            uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, TaskRequestGetInfo<Adapters...>::node_id_, TaskRequestGetInfo<Adapters...>::transfer_id_);
+                                            uavcan_node_GetInfo_1_0_FIXED_PORT_ID_, TaskRequestGetInfo<Adapters...>::node_id_);
         log(LOG_LEVEL_DEBUG, "TaskRequestGetInfo: sent request\r\n");
 
         return;
