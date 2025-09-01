@@ -47,6 +47,12 @@ void TaskRequestGetInfo<Adapters...>::handleTaskImpl()
     for (size_t i = 0; i < count; ++i)
     {
         std::shared_ptr<CyphalTransfer> transfer = TaskForClient<Adapters...>::buffer_.pop();
+        if (transfer->metadata.remote_node_id != TaskRequestGetInfo<Adapters...>::node_id_)
+        {
+            log(LOG_LEVEL_DEBUG, "TaskRequestGetInfo: Unexpected Node ID\r\n");
+            return;
+        }
+        
         if (transfer->metadata.transfer_kind != CyphalTransferKindResponse)
         {
             log(LOG_LEVEL_ERROR, "TaskRequestGetInfo: Expected Response transfer kind\r\n");
