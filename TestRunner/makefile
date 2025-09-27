@@ -30,7 +30,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
-			 TestDrivers.cpp \
+			 TestTransport.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
@@ -211,14 +211,14 @@ $(BIN_DIR)/TestCameraSwitch : $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) 
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
-# Rule for TestDrivers with extra sources
-$(BIN_DIR)/TestDrivers.o : TestDrivers.cpp
+# Rule for TestTransport with extra sources
+$(BIN_DIR)/TestTransport.o : TestTransport.cpp
 	@echo "Compiling $<"
 	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestDrivers : $(BIN_DIR)/TestDrivers.o $(MOCK_HAL_OBJECTS) # Link the object file
+$(BIN_DIR)/TestTransport : $(BIN_DIR)/TestTransport.o $(MOCK_HAL_OBJECTS) # Link the object file
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestDrivers.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTransport.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestHSClockSwitch with extra sources
 $(BIN_DIR)/TestHSClockSwitch.o : TestHSClockSwitch.cpp

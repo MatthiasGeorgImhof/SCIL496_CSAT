@@ -2,7 +2,7 @@
 #include "doctest.h"
 #include "PowerSwitch.hpp"
 #include "mock_hal.h"
-#include "Drivers.hpp"
+#include "Transport.hpp"
 
 #include <iostream>  // For debugging output (remove in production tests)
 #include <bitset>    // For visualizing bit patterns
@@ -10,7 +10,7 @@
 TEST_CASE("PowerSwitch On/Off/Status") {
     static I2C_HandleTypeDef hi2c;
     constexpr uint8_t address = 0x40;
-    constexpr uint8_t ps_register = 9;
+    constexpr uint8_t ps_register = 0x0a;
 
     using SwitchConfig = I2C_Config<hi2c, address>;
     using SwitchTransport = I2CTransport<SwitchConfig>;
