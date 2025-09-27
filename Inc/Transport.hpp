@@ -62,7 +62,7 @@ public:
         return HAL_I2C_Master_Transmit(&Config::handle(), Config::address, const_cast<uint8_t *>(tx_buf), tx_len, Config::timeout) == HAL_OK;
     }
 
-    bool write_then_read(const uint8_t *tx_buf, uint16_t tx_len, uint8_t *rx_buf, uint16_t rx_len) const
+    bool write_then_read(uint8_t *tx_buf, uint16_t tx_len, uint8_t *rx_buf, uint16_t rx_len) const
     {
         return HAL_I2C_Master_Transmit(&Config::handle(), Config::address, tx_buf, tx_len, Config::timeout) == HAL_OK &&
                HAL_I2C_Master_Receive(&Config::handle(), Config::address, rx_buf, rx_len, Config::timeout) == HAL_OK;
@@ -112,7 +112,7 @@ public:
         return ok;
     }
 
-    bool write_then_read(const uint8_t *tx_buf, uint16_t tx_len, uint8_t *rx_buf, uint16_t rx_len) const
+    bool write_then_read(uint8_t *tx_buf, uint16_t tx_len, uint8_t *rx_buf, uint16_t rx_len) const
     {
         select();
         bool ok = HAL_SPI_Transmit(&Config::handle(), tx_buf, tx_len, Config::timeout) == HAL_OK;
@@ -155,7 +155,7 @@ class UARTTransport
 public:
     using config_type = Config;
 
-    bool send(const uint8_t *buf, uint16_t len) const
+    bool send(uint8_t *buf, uint16_t len) const
     {
         return HAL_UART_Transmit(&Config::handle(), buf, len, Config::timeout) == HAL_OK;
     }
