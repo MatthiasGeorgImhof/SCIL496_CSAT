@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -g -MMD -std=c++20
-EXTRA_FLAGS = -Wall -Wextra -pedantic -Werror -Wconversion -fconcepts-diagnostics-depth=2
+EXTRA_FLAGS = -Wall -Wextra -pedantic -Werror -Wconversion -fconcepts-diagnostics-depth=2 -Werror=maybe-uninitialized
 EXTRA_EXTRA_FLAGS = -Wzero-as-null-pointer-constant -Wsign-conversion
 
 INCLUDE_PATHS = -I ../Inc \
@@ -20,9 +20,9 @@ LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
 TEST_FILES = TestArrayList.cpp \
-			 TestBMI270.cpp \
-			 TestBMI270_MMC5983.cpp \
 			 TestBlobStore.cpp \
+			 TestBMI270_MMC5983.cpp \
+			 TestBMI270.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
 			 TestCachedImageBuffer.cpp \
@@ -31,7 +31,6 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
-			 TestTransport.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
@@ -47,13 +46,17 @@ TEST_FILES = TestArrayList.cpp \
 			 TestKalmanPositionGPS.cpp \
 			 TestLogger.cpp \
 			 TestLoggerCyphal.cpp \
+			 TestLVLHAttitudeTarget.cpp \
+			 TestMagneticBDotController.cpp \
+			 TestMagnetorquerActuation.cpp \
+			 TestMagnetorquerDriver.cpp \
 			 TestMainLoop.cpp \
 			 TestMMC5983.cpp \
-			 TestMR25H10.cpp \
 			 TestMockHal.cpp \
+			 TestMR25H10.cpp \
 			 TestO1HeapAllocator.cpp \
-			 TestOrientationTracker.cpp \
 			 TestOrientationService.cpp \
+			 TestOrientationTracker.cpp \
 			 TestPositionTracker9D.cpp \
 			 TestPowerMonitor.cpp \
 			 TestPowerSwitch.cpp \
@@ -85,21 +88,24 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSGP4.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
+			 TestTransport.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
 # HAL Test Files
 HAL_TEST_FILES =   tests/test_hal_can.cpp \
 				   tests/test_hal_clock.cpp \
-				   tests/test_hal_gpio.cpp \
-				   tests/test_hal_spi.cpp \
-				   tests/test_hal_usb.cpp \
 				   tests/test_hal_dcmi.cpp \
+				   tests/test_hal_gpio.cpp \
 				   tests/test_hal_i2c.cpp \
+				   tests/test_hal_spi.cpp \
+				   tests/test_hal_timer.cpp \
 				   tests/test_hal_uart.cpp \
+				   tests/test_hal_usb.cpp \
 				   tests/test_hal_misc.cpp 
 
 SRC_FILES = ../Src/coordiate_transformations.cpp \
+			../Src/coordiate_rotators.cpp \
 			../Src/cyphal.cpp \
 			../Src/GNSS.cpp \
 			../Src/GNSSCore.cpp \
@@ -107,6 +113,7 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/ImageBuffer.cpp \
 			../Src/irgf_model.cpp \
 			../Src/Logger.cpp \
+			../Src/LVLHAttitudeTarget.cpp \
 			../Src/RegistrationManager.cpp \
 			../Src/Quaternion.cpp \
 			../Src/ServiceManager.cpp \
@@ -129,6 +136,7 @@ MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
 					   ../Src/mock_hal/mock_hal_rtc.c \
 					   ../Src/mock_hal/mock_hal_spi.c \
 					   ../Src/mock_hal/mock_hal_time.c \
+					   ../Src/mock_hal/mock_hal_timer.c \
 					   ../Src/mock_hal/mock_hal_uart.c \
 					   ../Src/mock_hal/mock_hal_usb.c
 
@@ -720,18 +728,18 @@ $(BIN_DIR)/TestPositionTracker9D.o : TestPositionTracker9D.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestPositionTracker9D : $(BIN_DIR)/TestPositionTracker9D.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestPositionTracker9D : $(BIN_DIR)/TestPositionTracker9D.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPositionTracker9D.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestPositionTracker9D.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskPositionService with with EXTRA_FLAGS only
 $(BIN_DIR)/TestTaskPositionService.o : TestTaskPositionService.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestTaskPositionService : $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskPositionService.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/GNSS.o $(BIN_DIR)/GNSSCore.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/SGP4.o $(BIN_DIR)/sgp4_tle.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskOrientationService with with EXTRA_FLAGS only
 $(BIN_DIR)/TestTaskOrientationService.o : TestTaskOrientationService.cpp
@@ -747,9 +755,53 @@ $(BIN_DIR)/TestIMUExtension.o : TestIMUExtension.cpp
 	@echo "Compiling $<"
 	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestIMUExtension : $(BIN_DIR)/TestIMUExtension.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o # Link the object file
+$(BIN_DIR)/TestIMUExtension : $(BIN_DIR)/TestIMUExtension.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/TimeUtils.o # Link the object file
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestIMUExtension.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestIMUExtension.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/TimeUtils.o $(LIBS)
+
+# Rule for TestMagneticBDotController with with EXTRA_FLAGS only
+$(BIN_DIR)/TestMagneticBDotController.o : TestMagneticBDotController.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMagneticBDotController : $(BIN_DIR)/TestMagneticBDotController.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMagneticBDotController.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestMagnetorquerDriver with with EXTRA_FLAGS only
+$(BIN_DIR)/TestMagnetorquerDriver.o : TestMagnetorquerDriver.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMagnetorquerDriver : $(BIN_DIR)/TestMagnetorquerDriver.o # Link the object file
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMagnetorquerDriver.o $(LIBS)
+
+# Rule for TestMagnetorquerActuation with with EXTRA_FLAGS only
+$(BIN_DIR)/TestMagnetorquerActuation.o : TestMagnetorquerActuation.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMagnetorquerActuation : $(BIN_DIR)/TestMagnetorquerActuation.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMagnetorquerActuation.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestLVLHAttitudeTarget with with EXTRA_FLAGS only
+$(BIN_DIR)/TestLVLHAttitudeTarget.o : TestLVLHAttitudeTarget.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/LVLHAttitudeTarget.o : ../Src/LVLHAttitudeTarget.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/coordinate_rotators.o : ../Src/coordinate_rotators.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestLVLHAttitudeTarget : $(BIN_DIR)/TestLVLHAttitudeTarget.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestLVLHAttitudeTarget.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp
