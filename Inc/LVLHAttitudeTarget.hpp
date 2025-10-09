@@ -18,8 +18,8 @@ public:
         const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity) const;
 };
 
-struct RotationErrorTag {};
-using RotationError = NamedVector3f<RotationErrorTag>;
+struct AngularRotationTag {};
+using AngularRotation = NamedVector3f<AngularRotationTag>;
 
 class AttitudeError
 {
@@ -28,26 +28,35 @@ public:
         const Eigen::Quaternionf &q_desired,
         const Eigen::Quaternionf &q_current);
 
-    static RotationError rotationVector(const Eigen::Quaternionf &q_error);
+    static AngularRotation rotationVector(const Eigen::Quaternionf &q_error);
 };
+
+struct AngularVelocityTag {};
+using AngularVelocity = NamedVector3f<AngularVelocityTag>;
 
 class AttitudeController
 {
 public:
     AttitudeController(float kp, float kd) : Kp(kp), Kd(kd) {}
 
-    Eigen::Vector3f computeOmegaCommand(
-        const Eigen::Vector3f &rotation_error,
-        const Eigen::Vector3f &omega_measured) const;
+    AngularRotation computeOmegaCommand(
+        const AngularRotation &rotation_error,
+        const AngularVelocity &omega_measured) const;
 
 private:
     float Kp, Kd;
 };
 
+struct DipoleMomentTag {};
+using DipoleMoment = NamedVector3f<DipoleMomentTag>;
+
+struct MagneticFieldTag {};
+using MagneticField = NamedVector3f<MagneticFieldTag>;
+
 class MagnetorquerController
 {
 public:
-    static Eigen::Vector3f computeDipoleMoment(
-        const Eigen::Vector3f &omega_cmd,
-        const Eigen::Vector3f &B_body);
+    static DipoleMoment computeDipoleMoment(
+        const AngularRotation &omega_cmd,
+        const MagneticField &B_body);
 };

@@ -96,10 +96,10 @@ TEST_CASE("AttitudeController: computeOmegaCommand")
 {
     AttitudeController controller(0.5f, 0.1f);
 
-    Eigen::Vector3f rotation_error(0.1f, -0.2f, 0.3f);
-    Eigen::Vector3f omega_measured(0.05f, 0.05f, 0.05f);
+    AngularRotation rotation_error{0.1f, -0.2f, 0.3f};
+    AngularVelocity omega_measured{0.05f, 0.05f, 0.05f};
 
-    Eigen::Vector3f omega_cmd = controller.computeOmegaCommand(rotation_error, omega_measured);
+    AngularRotation omega_cmd = controller.computeOmegaCommand(rotation_error, omega_measured);
 
     SUBCASE("Omega command is computed correctly")
     {
@@ -111,10 +111,10 @@ TEST_CASE("AttitudeController: computeOmegaCommand")
 
 TEST_CASE("MagnetorquerController: computeDipoleMoment")
 {
-    Eigen::Vector3f omega_cmd(0.01f, 0.02f, 0.03f);
-    Eigen::Vector3f B_body(0.2f, -0.1f, 0.05f);
+    AngularRotation omega_cmd{0.01f, 0.02f, 0.03f};
+    MagneticField B_body{0.2f, -0.1f, 0.05f};
 
-    Eigen::Vector3f m_cmd = MagnetorquerController::computeDipoleMoment(omega_cmd, B_body);
+    DipoleMoment m_cmd = MagnetorquerController::computeDipoleMoment(omega_cmd, B_body);
 
     SUBCASE("Dipole moment is orthogonal to B")
     {
@@ -129,8 +129,8 @@ TEST_CASE("MagnetorquerController: computeDipoleMoment")
 
     SUBCASE("Zero field returns zero dipole")
     {
-        Eigen::Vector3f B_zero = Eigen::Vector3f::Zero();
-        Eigen::Vector3f m_zero = MagnetorquerController::computeDipoleMoment(omega_cmd, B_zero);
+        MagneticField B_zero{Eigen::Vector3f::Zero()};
+        DipoleMoment m_zero = MagnetorquerController::computeDipoleMoment(omega_cmd, B_zero);
         CHECK(m_zero.isZero(TOL));
     }
 }

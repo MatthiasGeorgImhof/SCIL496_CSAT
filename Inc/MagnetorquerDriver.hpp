@@ -57,14 +57,14 @@ public:
 
     PWMCommand computePWMCommand(
         const Eigen::Quaternionf& q_current,
-        const Eigen::Vector3f& omega_measured,
+        const AngularVelocity& omega_measured,
         const Eigen::Quaternionf& q_desired,
-        const Eigen::Vector3f& B_body) const
+        const MagneticField& B_body) const
     {
         Eigen::Quaternionf q_error = AttitudeError::computeQuaternionError(q_desired, q_current);
-        Eigen::Vector3f rot_vec = AttitudeError::rotationVector(q_error);
-        Eigen::Vector3f omega_cmd = config.controller.computeOmegaCommand(rot_vec, omega_measured);
-        Eigen::Vector3f m_cmd_body = MagnetorquerController::computeDipoleMoment(omega_cmd, B_body);
+        AngularRotation rot_vec = AttitudeError::rotationVector(q_error);
+        AngularRotation omega_cmd = config.controller.computeOmegaCommand(rot_vec, omega_measured);
+        DipoleMoment m_cmd_body = MagnetorquerController::computeDipoleMoment(omega_cmd, B_body);
         
         // std::cout << "explicit MagnetorquerControlPipeline::computePWMCommand " << "\n";
         // std::cout << "rot_vec: " << rot_vec.transpose() << "\n";

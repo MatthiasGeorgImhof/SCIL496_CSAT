@@ -45,21 +45,21 @@ Eigen::Quaternionf AttitudeError::computeQuaternionError(
     return q_desired * q_current.conjugate(); // Rotation from current to desired
 }
 
-Eigen::Vector3f AttitudeError::rotationVector(const Eigen::Quaternionf &q_error)
+AngularRotation AttitudeError::rotationVector(const Eigen::Quaternionf &q_error)
 {
-    return q_error.vec(); // For small-angle approximation
+    return AngularRotation(q_error.vec().eval());
 }
 
-Eigen::Vector3f AttitudeController::computeOmegaCommand(
-    const Eigen::Vector3f &rotation_error,
-    const Eigen::Vector3f &omega_measured) const
+AngularRotation AttitudeController::computeOmegaCommand(
+    const AngularRotation &rotation_error,
+    const AngularVelocity &omega_measured) const
 {
-    return -Kp * rotation_error - Kd * omega_measured;
+    return AngularRotation((-Kp * rotation_error.value - Kd * omega_measured.value).eval());
 }
 
-Eigen::Vector3f MagnetorquerController::computeDipoleMoment(
-    const Eigen::Vector3f &omega_cmd,
-    const Eigen::Vector3f &B_body)
+DipoleMoment MagnetorquerController::computeDipoleMoment(
+    const AngularRotation &omega_cmd,
+    const MagneticField &B_body)
 {
     constexpr float TOL = 1e-12f; // picotesla
     constexpr float gain = 1.0f;
@@ -72,6 +72,6 @@ Eigen::Vector3f MagnetorquerController::computeDipoleMoment(
     // std::cout << "B_norm_sq: " << B_norm_sq << "\n";
 
     if (B_norm_sq < TOL)
-        return Eigen::Vector3f::Zero(); // Avoid division by zero
-    return gain * omega_cmd.cross(B_body.normalized());
+        return DipoleMoment(Eigen::Vector3f::Zero().eval()); // Avoid division by zero
+    return DipoleMoment((gain * omega_cmd.cross(B_body.normalized())).eval());
 }

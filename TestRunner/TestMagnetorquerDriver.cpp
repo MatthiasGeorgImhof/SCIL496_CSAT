@@ -82,11 +82,11 @@ TEST_CASE("MagnetorquerControlPipeline: computes correct PWMCommand")
     // Define test inputs
     Eigen::Quaternionf q_desired = Eigen::Quaternionf::Identity();
     Eigen::Quaternionf q_current(Eigen::AngleAxisf(1.0f, Eigen::Vector3f::UnitY())); // ~57°
-    Eigen::Vector3f omega_measured(0.05f, -0.02f, 0.01f);                            // rad/s
+    AngularVelocity omega_measured(0.05f, -0.02f, 0.01f);                            // rad/s
 
     SUBCASE("B-body along X")
     {
-        Eigen::Vector3f B_body(40e-6f, 0.0f, 0.0f); // field along X in Tesla
+        MagneticField B_body{40e-6f, 0.0f, 0.0f}; // field along X in Tesla
 
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
 
@@ -106,7 +106,7 @@ TEST_CASE("MagnetorquerControlPipeline: computes correct PWMCommand")
 
     SUBCASE("B-body along Y")
     {
-        Eigen::Vector3f B_body(0.0f, 40e-6f, 0.0f); // field along Y in Tesla
+        MagneticField B_body{0.0f, 40e-6f, 0.0f}; // field along Y in Tesla
 
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
 
@@ -126,7 +126,7 @@ TEST_CASE("MagnetorquerControlPipeline: computes correct PWMCommand")
 
     SUBCASE("B-body along Z")
     {
-        Eigen::Vector3f B_body(0.0f, 0.0, 40e-6f); // field along Z in Tesla
+        MagneticField B_body{0.0f, 0.0, 40e-6f}; // field along Z in Tesla
 
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
 
@@ -146,7 +146,7 @@ TEST_CASE("MagnetorquerControlPipeline: computes correct PWMCommand")
 
     SUBCASE("B-body along XYZ")
     {
-        Eigen::Vector3f B_body(35e-6f, 35e-6f, 35e-6f); // field along XYZ in Tesla
+        MagneticField B_body{35e-6f, 35e-6f, 35e-6f}; // field along XYZ in Tesla
 
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
 
@@ -177,11 +177,11 @@ TEST_CASE("MagnetorquerControlPipeline: proportionality check")
     // Define test inputs
     Eigen::Quaternionf q_desired = Eigen::Quaternionf::Identity();
     Eigen::Quaternionf q_current(Eigen::AngleAxisf(0.05f, Eigen::Vector3f::UnitY()));
-    Eigen::Vector3f omega_measured(0.05f, -0.02f, 0.01f); // rad/s
+    AngularVelocity omega_measured(0.05f, -0.02f, 0.01f); // rad/s
 
     SUBCASE("B-body along X")
     {
-        Eigen::Vector3f B_body(40e-6f, 0.0f, 0.0f); // field along X in Tesla
+        MagneticField B_body{40e-6f, 0.0f, 0.0f}; // field along X in Tesla
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
 
         CHECK(pwm.duty_x == doctest::Approx(0.0));
@@ -191,7 +191,7 @@ TEST_CASE("MagnetorquerControlPipeline: proportionality check")
 
     SUBCASE("B-body along XY")
     {
-        Eigen::Vector3f B_body(40e-6f, 40e-6f, 0.0f); // field along XY in Tesla
+        MagneticField B_body{40e-6f, 40e-6f, 0.0f}; // field along XY in Tesla
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
 
         CHECK(pwm.duty_x > 0.0f);
