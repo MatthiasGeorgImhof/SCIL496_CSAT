@@ -27,10 +27,16 @@ struct NamedVector3f
     float z() const { return value.z(); }
 
     // Optional: add semantic methods
+    static NamedVector3f Zero()
+    {
+        return NamedVector3f(Eigen::Vector3f::Zero().eval());
+    }
+
     float norm() const { return value.norm(); }
 
     template <typename OtherTag>
-    Eigen::Vector3f cross(const NamedVector3f<OtherTag>& other) const {
+    Eigen::Vector3f cross(const NamedVector3f<OtherTag> &other) const
+    {
         return value.cross(other.value);
     }
 
@@ -41,6 +47,17 @@ struct NamedVector3f
     NamedVector3f normalized() const { return NamedVector3f(value.normalized()); }
 
     bool isZero(float tol = 1e-6f) const { return value.isZero(tol); }
+
+    bool isApprox(const Eigen::Vector3f &other, float tol = 1e-6f) const
+    {
+        return value.isApprox(other, tol);
+    }
+
+    template <typename OtherTag>
+    bool isApprox(const NamedVector3f<OtherTag> &other, float tol = 1e-6f) const
+    {
+        return value.isApprox(other.value, tol);
+    }
 
     friend NamedVector3f operator*(float scalar, const NamedVector3f &v)
     {
@@ -61,4 +78,29 @@ struct NamedVector3f
     {
         return NamedVector3f(a.value - b.value);
     }
+
+    friend NamedVector3f operator/(const NamedVector3f &v, float scalar)
+    {
+        return NamedVector3f(v.value / scalar);
+    }
 };
+
+struct AngularRotationTag
+{
+};
+using AngularRotation = NamedVector3f<AngularRotationTag>;
+
+struct AngularVelocityTag
+{
+};
+using AngularVelocity = NamedVector3f<AngularVelocityTag>;
+
+struct DipoleMomentTag
+{
+};
+using DipoleMoment = NamedVector3f<DipoleMomentTag>;
+
+struct MagneticFieldTag
+{
+};
+using MagneticField = NamedVector3f<MagneticFieldTag>;

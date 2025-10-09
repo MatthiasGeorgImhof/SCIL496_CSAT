@@ -18,9 +18,6 @@ public:
         const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity) const;
 };
 
-struct AngularRotationTag {};
-using AngularRotation = NamedVector3f<AngularRotationTag>;
-
 class AttitudeError
 {
 public:
@@ -30,9 +27,6 @@ public:
 
     static AngularRotation rotationVector(const Eigen::Quaternionf &q_error);
 };
-
-struct AngularVelocityTag {};
-using AngularVelocity = NamedVector3f<AngularVelocityTag>;
 
 class AttitudeController
 {
@@ -46,12 +40,6 @@ public:
 private:
     float Kp, Kd;
 };
-
-struct DipoleMomentTag {};
-using DipoleMoment = NamedVector3f<DipoleMomentTag>;
-
-struct MagneticFieldTag {};
-using MagneticField = NamedVector3f<MagneticFieldTag>;
 
 class MagnetorquerController
 {
