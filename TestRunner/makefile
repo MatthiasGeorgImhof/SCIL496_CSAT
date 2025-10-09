@@ -773,9 +773,9 @@ $(BIN_DIR)/TestMagnetorquerDriver.o : TestMagnetorquerDriver.cpp
 	@echo "Compiling $<"
 	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestMagnetorquerDriver : $(BIN_DIR)/TestMagnetorquerDriver.o # Link the object file
+$(BIN_DIR)/TestMagnetorquerDriver : $(BIN_DIR)/TestMagnetorquerDriver.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMagnetorquerDriver.o $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMagnetorquerDriver.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
 
 # Rule for TestMagnetorquerActuation with with EXTRA_FLAGS only
 $(BIN_DIR)/TestMagnetorquerActuation.o : TestMagnetorquerActuation.cpp

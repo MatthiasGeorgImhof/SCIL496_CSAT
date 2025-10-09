@@ -2,6 +2,8 @@
 
 #include "LVLHAttitudeTarget.hpp"
 #include "coordinate_rotators.hpp"
+#include <cstdio>
+#include <iostream>
 
 Eigen::Quaternionf LVLHAttitudeTarget::computeDesiredAttitudeECEF(
     const std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &ecef_position,
@@ -59,8 +61,17 @@ Eigen::Vector3f MagnetorquerController::computeDipoleMoment(
     const Eigen::Vector3f &omega_cmd,
     const Eigen::Vector3f &B_body)
 {
+    constexpr float TOL = 1e-12f; // picotesla
+    constexpr float gain = 1.0f;
     float B_norm_sq = B_body.squaredNorm();
-    if (B_norm_sq < 1e-8f)
+
+    // std::cout << "Eigen::Vector3f MagnetorquerController::computeDipoleMoment" << "\n";
+    // std::cout << "omega_cmd: " << omega_cmd.transpose() << "\n";
+    // std::cout << "B_body: " << B_body.transpose() << "\n";
+    // std::cout << "m_cmd: " << omega_cmd.cross(B_body).transpose() << "\n";
+    // std::cout << "B_norm_sq: " << B_norm_sq << "\n";
+
+    if (B_norm_sq < TOL)
         return Eigen::Vector3f::Zero(); // Avoid division by zero
-    return omega_cmd.cross(B_body) / B_norm_sq;
+    return gain * omega_cmd.cross(B_body.normalized());
 }

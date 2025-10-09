@@ -3,6 +3,7 @@
 #pragma once
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include "NamedVector3f.hpp"
 #include <array>
 #include "au.hpp"
 
@@ -17,6 +18,9 @@ public:
         const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity) const;
 };
 
+struct RotationErrorTag {};
+using RotationError = NamedVector3f<RotationErrorTag>;
+
 class AttitudeError
 {
 public:
@@ -24,7 +28,7 @@ public:
         const Eigen::Quaternionf &q_desired,
         const Eigen::Quaternionf &q_current);
 
-    static Eigen::Vector3f rotationVector(const Eigen::Quaternionf &q_error);
+    static RotationError rotationVector(const Eigen::Quaternionf &q_error);
 };
 
 class AttitudeController

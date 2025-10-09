@@ -65,6 +65,12 @@ public:
         Eigen::Vector3f rot_vec = AttitudeError::rotationVector(q_error);
         Eigen::Vector3f omega_cmd = config.controller.computeOmegaCommand(rot_vec, omega_measured);
         Eigen::Vector3f m_cmd_body = MagnetorquerController::computeDipoleMoment(omega_cmd, B_body);
+        
+        // std::cout << "explicit MagnetorquerControlPipeline::computePWMCommand " << "\n";
+        // std::cout << "rot_vec: " << rot_vec.transpose() << "\n";
+        // std::cout << "omega_cmd: " << omega_cmd.transpose() << "\n";
+        // std::cout << "m_cmd: " << m_cmd_body.transpose() << "\n";
+
         return config.driver.computePWM(m_cmd_body);
     }
 
