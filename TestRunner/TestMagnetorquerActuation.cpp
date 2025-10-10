@@ -187,3 +187,41 @@ TEST_CASE("MagnetorquerActuator: disableAll disables PWM and GPIO")
     CHECK(get_gpio_pin_state(&GPIOB, GPIO_PIN_2) == GPIO_PIN_SET);
     CHECK(get_gpio_pin_state(&GPIOC, GPIO_PIN_4) == GPIO_PIN_SET);
 }
+
+TEST_CASE("MagnetorquerActuator: apply with zero PWM sets compare to zero and polarity LOW") {
+    reset_timer_state(&htim_x);
+    reset_timer_state(&htim_y);
+    reset_timer_state(&htim_z);
+    reset_gpio_port_state(&GPIOA);
+    reset_gpio_port_state(&GPIOB);
+    reset_gpio_port_state(&GPIOC);
+
+    MagnetorquerHardwareInterface::ChannelMap pwm_map{
+        {&htim_x, TIM_CHANNEL_1, 255},
+        {&htim_y, TIM_CHANNEL_1, 255},
+        {&htim_z, TIM_CHANNEL_1, 255}};
+
+    MagnetorquerPolarityController::PinMap gpio_map = {
+        .x = MagnetorquerPolarityController::AxisPins{&GPIOA, GPIO_PIN_0, &GPIOA, GPIO_PIN_1},
+        .y = MagnetorquerPolarityController::AxisPins{&GPIOB, GPIO_PIN_2, &GPIOB, GPIO_PIN_3},
+        .z = MagnetorquerPolarityController::AxisPins{&GPIOC, GPIO_PIN_4, &GPIOC, GPIO_PIN_5}};
+
+    MagnetorquerActuator actuator(pwm_map, gpio_map);
+    PWMCommand cmd{0.0f, 0.0f, 0.0f};
+    actuator.apply(cmd);
+
+    // PWM checks
+    CHECK(get_compare_value(&htim_x, TIM_CHANNEL_1) == 0);
+    CHECK(get_compare_value(&htim_y, TIM_CHANNEL_1) == 0);
+    CHECK(get_compare_value(&htim_z, TIM_CHANNEL_1) == 0);
+
+    // Polarity checks — conventionally LOW for zero
+    CHECK(get_gpio_pin_state(&GPIOA, GPIO_PIN_1) == GPIO_PIN_RESET);
+    CHECK(get_gpio_pin_state(&GPIOB, GPIO_PIN_3) == GPIO_PIN_RESET);
+    CHECK(get_gpio_pin_state(&GPIOC, GPIO_PIN_5) == GPIO_PIN_RESET);
+
+    // Enable checks — still active
+    CHECK(get_gpio_pin_state(&GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
+    CHECK(get_gpio_pin_state(&GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET);
+    CHECK(get_gpio_pin_state(&GPIOC, GPIO_PIN_4) == GPIO_PIN_RESET);
+}

@@ -1,6 +1,7 @@
 // MagnetorquerHardwareInterface.hpp
 
 #pragma once
+#include "LVLHAttitudeTarget.hpp"
 #include "MagnetorquerDriver.hpp"
 
 #ifdef __arm__
@@ -99,7 +100,7 @@ private:
         HAL_GPIO_WritePin(axis.enable_port, axis.enable_pin, GPIO_PIN_RESET);
 
         // Polarity: HIGH for positive, LOW for negative
-        GPIO_PinState polarity = (duty >= 0.0f) ? GPIO_PIN_SET : GPIO_PIN_RESET;
+        GPIO_PinState polarity = (duty > 0.0f) ? GPIO_PIN_SET : GPIO_PIN_RESET;
         HAL_GPIO_WritePin(axis.polarity_port, axis.polarity_pin, polarity);
     }
 
@@ -132,3 +133,39 @@ private:
     MagnetorquerHardwareInterface pwm;
     MagnetorquerPolarityController polarity;
 };
+
+class MagnetorquerSystem {
+public:
+    struct Config {
+        AttitudeController controller;
+        MagnetorquerDriver driver;
+        MagnetorquerHardwareInterface::ChannelMap pwm_channels;
+        MagnetorquerPolarityController::PinMap gpio_pins;
+    };
+
+    explicit MagnetorquerSystem(const Config& cfg)
+        : pipeline({cfg.controller, cfg.driver}),
+          actuator(cfg.pwm_channels, cfg.gpio_pins) {}
+
+    void apply(const Eigen::Quaternionf& q_current,
+               const AngularVelocity& omega_measured,
+               const Eigen::Quaternionf& q_desired,
+               const MagneticField& B_body) const
+    {
+        PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
+        actuator.apply(pwm);
+    }
+
+    void stopAll() const {
+        actuator.stopAll();
+    }
+
+    void disableAll() const {
+        actuator.disableAll();
+    }
+
+private:
+    MagnetorquerControlPipeline pipeline;
+    MagnetorquerActuator actuator;
+};
+

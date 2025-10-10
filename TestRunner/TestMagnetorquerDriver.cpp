@@ -13,6 +13,16 @@ TEST_CASE("MagnetorquerDriver: computePWM")
     MagnetorquerDriver::Config config{0.05f, 0.10f, 0.20f}; // A·m²
     MagnetorquerDriver driver(config);
 
+    SUBCASE("Zero dipole")
+    {
+        Eigen::Vector3f m_cmd(0.0f, 0.0f, 0.0f);
+        auto pwm = driver.computePWM(m_cmd);
+
+        CHECK(std::abs(pwm.duty_x) < TOL);
+        CHECK(std::abs(pwm.duty_y) < TOL);
+        CHECK(std::abs(pwm.duty_z) < TOL);
+    }
+
     SUBCASE("Nominal dipole within bounds")
     {
         Eigen::Vector3f m_cmd(0.025f, -0.05f, 0.10f);

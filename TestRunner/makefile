@@ -31,6 +31,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
+			 TestDetumblerSystem.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
@@ -50,6 +51,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMagneticBDotController.cpp \
 			 TestMagnetorquerActuation.cpp \
 			 TestMagnetorquerDriver.cpp \
+			 TestMagnetorquerSystem.cpp \
 			 TestMainLoop.cpp \
 			 TestMMC5983.cpp \
 			 TestMockHal.cpp \
@@ -811,6 +813,24 @@ $(BIN_DIR)/coordinate_rotators.o : ../Src/coordinate_rotators.cpp
 $(BIN_DIR)/TestLVLHAttitudeTarget : $(BIN_DIR)/TestLVLHAttitudeTarget.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestLVLHAttitudeTarget.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
+
+# Rule for TestMagnetorquerSystem with with EXTRA_FLAGS only
+$(BIN_DIR)/TestMagnetorquerSystem.o : TestMagnetorquerSystem.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMagnetorquerSystem : $(BIN_DIR)/TestMagnetorquerSystem.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMagnetorquerSystem.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
+
+# Rule for TestDetumblerSystem with with EXTRA_FLAGS only
+$(BIN_DIR)/TestDetumblerSystem.o : TestDetumblerSystem.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestDetumblerSystem : $(BIN_DIR)/TestDetumblerSystem.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestDetumblerSystem.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/coordinate_rotators.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/TimeUtils.o $(LIBS)
 
 # Generic rule for all other tests
 $(BIN_DIR)/%.o : %.cpp

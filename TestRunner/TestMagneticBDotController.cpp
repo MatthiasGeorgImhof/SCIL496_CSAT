@@ -16,12 +16,14 @@ TEST_CASE("BDotController: second call returns scaled negative B-dot") {
     BDotController bdot(1e4f);
     MagneticField B1(10e-6f, -5e-6f, 20e-6f);
     MagneticField B2(12e-6f, -4e-6f, 18e-6f);
-    float dt = 0.1f;
+    float t0 = 0.1f;
+    float t1 = 0.2f;
 
-    bdot.computeDipoleMoment(B1, dt); // initialize
-    DipoleMoment m_cmd = bdot.computeDipoleMoment(B2, dt);
+    DipoleMoment m_cmd = bdot.computeDipoleMoment(B1, t0); // initialize
+    CHECK(m_cmd.isZero());
+    m_cmd = bdot.computeDipoleMoment(B2, t1);
 
-    MagneticField B_dot = (B2 - B1) / dt;
+    MagneticField B_dot = (B2 - B1) / (t1 - t0);
     Eigen::Vector3f expected = -1e4f * B_dot;
 
     CHECK(m_cmd.isApprox(expected));
