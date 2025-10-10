@@ -54,6 +54,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMMC5983.cpp \
 			 TestMockHal.cpp \
 			 TestMR25H10.cpp \
+			 TestNamedVector3f.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationService.cpp \
 			 TestOrientationTracker.cpp \
@@ -290,6 +291,14 @@ $(BIN_DIR)/TestTask.o : TestTask.cpp
 $(BIN_DIR)/TestTask : $(BIN_DIR)/TestTask.o $(MOCK_HAL_OBJECTS) # Link the object file
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTask.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestNamedVector3f with extra sources
+$(BIN_DIR)/TestNamedVector3f.o : TestNamedVector3f.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestNamedVector3f : $(BIN_DIR)/TestNamedVector3f.o 
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestNamedVector3f.o $(LIBS)
 
 # Rule for TestLogger with extra sources
 $(BIN_DIR)/TestLogger.o : TestLogger.cpp
