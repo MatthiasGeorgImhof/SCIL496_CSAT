@@ -168,7 +168,12 @@ LOGGER_EXTRA_DEFINES = -DLOGGER_ENABLED -DLOGGER_OUTPUT_STDERR -DLOGGER_OUTPUT_U
 LOGGER_CYPHAL_EXTRA_DEFINES = -DLOGGER_ENABLED -DLOGGER_OUTPUT_CYPHAL
 
 # Default target
-all: create_bin_dir $(EXECUTABLES)
+all: nunavut create_bin_dir $(EXECUTABLES)
+
+# Run Nunavut header generation before building
+nunavut:
+	@echo "Running Nunavut header generation..."
+	$(MAKE) -C ../OpenCyphal -f makefile
 
 # Create the bin directory
 create_bin_dir:
