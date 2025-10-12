@@ -8,12 +8,13 @@ INCLUDE_PATHS = -I ../Inc \
 				-I $(HOME)/Data/github/can/libudpard/libudpard \
 				-I $(HOME)/Data/github/can/libserard_ck/libserard \
 				-I $(HOME)/Data/github/can/o1heap/o1heap \
-				-I $(HOME)/Data/github/can/nunavut_out \
 				-I /usr/include/eigen3 \
 				-I /usr/include/doctest \
 				-I tests \
 				-I ../Src \
-				-I ../3rdParty/SGP4
+				-I ../3rdParty/SGP4 \
+				-I ../OpenCyphal/include \
+				-I ../OpenCyphal/target 
 
 LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd

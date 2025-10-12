@@ -25,7 +25,7 @@ $(STAMP): $(SRC_FILES)
 	@mkdir -p $(TRG)
 	@mkdir -p $(OUT_DIR)
 	@echo "Generating Nunavut headers..."
-	$(NNVG) --target-language c --outdir $(TRG) $(SRC_DIR) $(LOOKUP_DIRS)
+	$(NNVG) --outdir $(TRG) $(SRC_DIR) $(LOOKUP_DIRS)
 	@touch $(STAMP)
 
 # Clean target
