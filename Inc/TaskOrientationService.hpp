@@ -3,6 +3,7 @@
 
 #include "Task.hpp"
 #include "RegistrationManager.hpp"
+#include "OrientationService.hpp"
 #include "Logger.hpp"
 #include "au.hpp"
 
@@ -15,19 +16,6 @@
 #include <cstdint>
 #include <array>
 #include <numbers>
-
-std::array<float, 3> getYawPitchRoll(const std::array<float, 4> &q)
-{
-    float sinp = 2.f * (q[0] * q[2] - q[3] * q[1]);
-    sinp = std::clamp(sinp, -1.f, 1.f);
-
-    float yaw = atan2f(2.f * (q[0] * q[3] + q[1] * q[2]),
-                       1.f - 2.f * (q[2] * q[2] + q[3] * q[3]));
-    float pitch = asinf(sinp);
-    float roll = atan2f(2.f * (q[0] * q[1] + q[2] * q[3]), 1.f - 2.f * (q[1] * q[1] + q[2] * q[2]));
-    return {yaw, pitch, roll};
-}
-
 
 template <typename Tracker, typename... Adapters>
 class TaskOrientationService : public TaskWithPublication<Adapters...>
@@ -58,10 +46,8 @@ void TaskOrientationService<Tracker, Adapters...>::handleTaskImpl()
     data.timestamp.microsecond = timestamp.in(au::micro(au::seconds));
     memcpy(data.wxyz, q.data(), sizeof(data.wxyz));
 
-    std::array<float, 3> orientation = getYawPitchRoll(q);
-    constexpr float m_pif = static_cast<float>(std::numbers::pi);
-    constexpr float RAD_TO_DEG = 180.0f / m_pif;
-    log(LOG_LEVEL_DEBUG, "TaskOrientationService %f %f %f\r\n", orientation[0]*RAD_TO_DEG, orientation[1]*RAD_TO_DEG, orientation[2]*RAD_TO_DEG);
+    auto orientation = getEulerAngles(q);
+    log(LOG_LEVEL_DEBUG, "TaskOrientationService %f %f %f\r\n", orientation[0].in(au::degreesInNedFrame), orientation[1].in(au::degreesInNedFrame), orientation[2].in(au::degreesInNedFrame));
 
     constexpr size_t PAYLOAD_SIZE = uavcan_si_sample_angle_Quaternion_1_0_SERIALIZATION_BUFFER_SIZE_BYTES_;
     uint8_t payload[PAYLOAD_SIZE];

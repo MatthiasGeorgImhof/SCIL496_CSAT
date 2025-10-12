@@ -70,6 +70,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestSGP4.cpp \
 			 TestSGP4PositionTracker.cpp \
 			 TestSGP4TLE.cpp \
+			 TestSingleSlotBuffer.cpp \
 			 TestSubscriptionManager.cpp \
 			 TestTask.cpp \
 			 TestTaskBlinkLED.cpp \
