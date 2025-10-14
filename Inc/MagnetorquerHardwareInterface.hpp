@@ -3,6 +3,7 @@
 #pragma once
 #include "LVLHAttitudeTarget.hpp"
 #include "MagnetorquerDriver.hpp"
+#include "Logger.hpp"
 
 #ifdef __arm__
 #include "stm32l4xx_hal.h"
@@ -53,8 +54,7 @@ private:
 
         HAL_TIM_PWM_Start(ch.htim, ch.channel);
         __HAL_TIM_SET_COMPARE(ch.htim, ch.channel, pwm_value);
-
-        // Optional: set GPIO polarity if needed
+        // printf("MagnetorquerHardwareInterface::setDutyCycle: arr=%u, duty=%.3f → pwm_value=%u\n", ch.arr, duty, pwm_value);
     }
 
     void disable(const Channel& ch) const {
@@ -153,6 +153,7 @@ public:
                const MagneticField& B_body) const
     {
         PWMCommand pwm = pipeline.computePWMCommand(q_current, omega_measured, q_desired, B_body);
+        // printf("MagnetorquerSystem::apply PWMCommand: duty_x=%.3f, duty_y=%.3f, duty_z=%.3f\n", pwm.duty_x, pwm.duty_y, pwm.duty_z);
         actuator.apply(pwm);
     }
 

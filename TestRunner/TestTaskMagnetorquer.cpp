@@ -55,8 +55,8 @@ std::shared_ptr<CyphalTransfer> createOrientationSolutionTransfer(uint64_t times
     data.valid_angular_velocity = true;
     data.valid_magnetic_field = true;
 
-    data.quaternion_ned.wxyz[0] = 1.0f;
-    data.quaternion_ned.wxyz[1] = 0.0f;
+    data.quaternion_ned.wxyz[0] = 0.707f;  // cos(θ/2)
+    data.quaternion_ned.wxyz[1] = 0.707f;  // sin(θ/2) * x
     data.quaternion_ned.wxyz[2] = 0.0f;
     data.quaternion_ned.wxyz[3] = 0.0f;
 
@@ -245,13 +245,13 @@ TEST_CASE("TaskMagnetorquer sets correct PWM and GPIO states") {
     CHECK(is_pwm_started(&htim17, TIM_CHANNEL_1));
     CHECK(is_pwm_started(&htim15, TIM_CHANNEL_1));
 
-    CHECK(get_compare_value(&htim16, TIM_CHANNEL_1) > 0);
+    CHECK(get_compare_value(&htim16, TIM_CHANNEL_1) == 0);
     CHECK(get_compare_value(&htim17, TIM_CHANNEL_1) > 0);
     CHECK(get_compare_value(&htim15, TIM_CHANNEL_1) > 0);
 
     // Polarity checks (based on expected dipole signs)
-    CHECK(get_gpio_pin_state(&GPIOE, GPIO_PIN_2) == GPIO_PIN_SET); // X polarity
-    CHECK(get_gpio_pin_state(&GPIOE, GPIO_PIN_4) == GPIO_PIN_SET); // Y polarity
+    CHECK(get_gpio_pin_state(&GPIOE, GPIO_PIN_2) == GPIO_PIN_RESET); // X polarity
+    CHECK(get_gpio_pin_state(&GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET); // Y polarity
     CHECK(get_gpio_pin_state(&GPIOE, GPIO_PIN_6) == GPIO_PIN_SET); // Z polarity
 
     // Enable checks (LOW = active)
