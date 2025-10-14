@@ -76,8 +76,11 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTask.cpp \
 			 TestTaskBlinkLED.cpp \
 			 TestTaskCheckMemory.cpp \
+			 TestTaskDetumbler.cpp \
+			 TestTaskMagnetorquer.cpp \
 			 TestTaskOrientationService.cpp \
 			 TestTaskPositionService.cpp \
+			 TestTaskProcessHeartBeat.cpp \
 			 TestTaskProcessTimeSynchronization.cpp \
 			 TestTaskRegisterServer.cpp \
 			 TestTaskRegistrationSubscription.cpp \
@@ -379,6 +382,15 @@ $(BIN_DIR)/TestTaskSendHeartBeat : $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskSendHeartBeat.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestTaskProcessHeartBeat with extra sources
+$(BIN_DIR)/TestTaskProcessHeartBeat.o : TestTaskProcessHeartBeat.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskProcessHeartBeat : $(BIN_DIR)/TestTaskProcessHeartBeat.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskProcessHeartBeat.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
 # Rule for TestTaskSendNodePortList with extra sources
 $(BIN_DIR)/TestTaskSendNodePortList.o : TestTaskSendNodePortList.cpp
 	@echo "Compiling $<"
@@ -459,6 +471,24 @@ $(BIN_DIR)/TestTaskProcessTimeSynchronization.o : TestTaskProcessTimeSynchroniza
 $(BIN_DIR)/TestTaskProcessTimeSynchronization : $(BIN_DIR)/TestTaskProcessTimeSynchronization.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskProcessTimeSynchronization.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/TimeUtils.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTaskDetumbler with extra sources
+$(BIN_DIR)/TestTaskDetumbler.o : TestTaskDetumbler.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskDetumbler : $(BIN_DIR)/TestTaskDetumbler.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskDetumbler.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTaskMagnetorquer with extra sources
+$(BIN_DIR)/TestTaskMagnetorquer.o : TestTaskMagnetorquer.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskMagnetorquer : $(BIN_DIR)/TestTaskMagnetorquer.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskMagnetorquer.o $(BIN_DIR)/RegistrationManager.o $(BIN_DIR)/LVLHAttitudeTarget.o $(BIN_DIR)/TimeUtils.o $(BIN_DIR)/coordinate_transformations.o $(BIN_DIR)/coordinate_rotators.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTaskBlinkLED with extra sources
 $(BIN_DIR)/TestTaskBlinkLED.o : TestTaskBlinkLED.cpp

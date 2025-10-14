@@ -7,7 +7,7 @@
 
 Eigen::Quaternionf LVLHAttitudeTarget::computeDesiredAttitudeECEF(
     const std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &ecef_position,
-    const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity) const
+    const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity)
 {
     // Step 1: Convert to Eigen vectors
     Eigen::Vector3f pos_ecef{

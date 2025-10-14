@@ -13,9 +13,9 @@ public:
     LVLHAttitudeTarget() = default;
 
     // Computes desired body-to-NED quaternion for geocentric nadir pointing
-    Eigen::Quaternionf computeDesiredAttitudeECEF(
+    static Eigen::Quaternionf computeDesiredAttitudeECEF(
         const std::array<au::QuantityF<au::MetersInEcefFrame>, 3> &ecef_position,
-        const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity) const;
+        const std::array<au::QuantityF<au::MetersPerSecondInEcefFrame>, 3> &ecef_velocity);
 };
 
 class AttitudeError

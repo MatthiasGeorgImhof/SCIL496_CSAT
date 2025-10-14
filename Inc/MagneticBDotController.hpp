@@ -8,35 +8,35 @@
 
 class BDotController {
 public:
-    explicit BDotController(float gain) : k(gain), t_prev(0.0f), initialized(false) {}
+    explicit BDotController(float gain) : k(gain), last_timestamp(au::make_quantity<au::Milli<au::Seconds>>(0)), initialized(false) {}
 
     // Call this once per control cycle with current time and field
-    DipoleMoment computeDipoleMoment(const MagneticField& B_now, float t_now) {
-        if (!initialized || t_now <= t_prev) {
+    DipoleMoment computeDipoleMoment(const MagneticField& B_now, au::QuantityU64<au::Milli<au::Seconds>> timestamp) {
+        if (!initialized || timestamp <= last_timestamp) {
             B_prev = B_now;
-            t_prev = t_now;
+            last_timestamp = timestamp;
             initialized = true;
             return DipoleMoment::Zero();
         }
 
-        float dt = t_now - t_prev;
+        float dt = 0.001f * static_cast<float>((timestamp - last_timestamp).in(au::milli(au::seconds)));
         MagneticField B_dot = (B_now - B_prev) / dt;
 
         B_prev = B_now;
-        t_prev = t_now;
+        last_timestamp = timestamp;
 
         return DipoleMoment((-k * B_dot).value.eval());
     }
 
     void reset() {
         initialized = false;
-        t_prev = 0.0f;
+        last_timestamp = au::make_quantity<au::Milli<au::Seconds>>(0);
         B_prev = DipoleMoment::Zero();
     }
 
 private:
     float k;
-    float t_prev;
+    au::QuantityU64<au::Milli<au::Seconds>> last_timestamp;
     bool initialized;
     MagneticField B_prev;
 };
@@ -57,9 +57,9 @@ public:
           driver(cfg.driver_config),
           actuator(cfg.pwm_channels, cfg.gpio_pins) {}
 
-    void apply(const MagneticField &B_body, float t)
+    void apply(const MagneticField &B_body, au::QuantityU64<au::Milli<au::Seconds>> timestamp)
     {
-        DipoleMoment m_cmd = bdot.computeDipoleMoment(B_body, t);
+        DipoleMoment m_cmd = bdot.computeDipoleMoment(B_body, timestamp);
         PWMCommand pwm = driver.computePWM(m_cmd);
         actuator.apply(pwm);
     }

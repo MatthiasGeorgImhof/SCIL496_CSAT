@@ -104,3 +104,19 @@ struct MagneticFieldTag
 {
 };
 using MagneticField = NamedVector3f<MagneticFieldTag>;
+
+// struct PositionTag
+// {
+// };
+// using Position = NamedVector3f<PositionTag>;
+
+// struct VelocityTag
+// {
+// };
+// using Velocity = NamedVector3f<VelocityTag>;
+
+// struct AccelerationTag
+// {
+// };
+// using Acceleration = NamedVector3f<AccelerationTag>;
+

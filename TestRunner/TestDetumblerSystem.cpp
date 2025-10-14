@@ -33,8 +33,8 @@ public:
           driver(cfg.driver_config),
           actuator(mock) {}
 
-    void apply(const MagneticField& B_body, float t) {
-        DipoleMoment m_cmd = bdot.computeDipoleMoment(B_body, t);
+    void apply(const MagneticField& B_body, au::QuantityU64<au::Milli<au::Seconds>> timestamp) {
+        DipoleMoment m_cmd = bdot.computeDipoleMoment(B_body, timestamp);
         PWMCommand pwm = driver.computePWM(m_cmd);
         actuator.apply(pwm);
     }
@@ -68,8 +68,8 @@ TEST_CASE("DetumblerSystem: integration with mock actuator") {
 
     MagneticField B1(10e-6f, -5e-6f, 20e-6f);
     MagneticField B2(12e-6f, -4e-6f, 18e-6f);
-    float t0 = 0.1f;
-    float t1 = 0.2f;
+    auto t0 = au::make_quantity<au::Milli<au::Seconds>>(100ULL);
+    auto t1 = au::make_quantity<au::Milli<au::Seconds>>(200ULL);
 
     SUBCASE("First apply initializes and returns zero PWM") {
         system.apply(B1, t0);
