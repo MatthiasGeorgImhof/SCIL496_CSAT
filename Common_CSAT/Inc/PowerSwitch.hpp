@@ -1,86 +1,109 @@
 #ifndef _POWER_SWITCH_H_
 #define _POWER_SWITCH_H_
 
-#include "mock_hal.h"
-#include <array>
+#include "Transport.hpp"
 #include <cstdint>
+#include <array>
 
+// MCP23008 Register Definitions
+enum class MCP23008_REGISTERS : uint8_t
+{
+    MCP23008_IODIR = 0x00,
+    MCP23008_IPOL = 0x01,
+    MCP23008_GPINTEN  = 0x02,
+    MCP23008_DEFVAL = 0x03,
+    MCP23008_INTCON = 0x04,
+    MCP23008_IOCON = 0x05,
+    MCP23008_GPPU = 0x06,
+    MCP23008_INTF = 0x07,
+    MCP23008_INTCAP = 0x08,
+    MCP23008_GPIO = 0x09,
+    MCP23008_OLAT = 0x0A,
+};
+
+template <typename Transport>
+    requires RegisterModeTransport<Transport>
 class PowerSwitch
 {
 public:
     PowerSwitch() = delete;
-    PowerSwitch(I2C_HandleTypeDef *hi2c, uint8_t i2c_address) : hi2c_(hi2c), i2c_address_(i2c_address), register_value_(0)
+
+    explicit PowerSwitch(const Transport &transport)
+        : transport_(transport), register_value_(0)
     {
-    	uint8_t reset[] = {0,0,0,0,0,0,0,0,0,0,0};
-    	writeRegister(IODIR, reset, sizeof(reset));
+        uint8_t reset[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        writeRegister(MCP23008_REGISTERS::MCP23008_IODIR, reset, sizeof(reset));
     }
 
-    bool on(const uint8_t slot)
+    bool on(uint8_t slot)
     {
-        if (invalidslot(slot))
-        {
+        if (invalidSlot(slot))
             return false;
-        }
-
-        uint8_t mask = 1 << (2 * slot);
-        register_value_ |= mask;
-        return writeRegister(GPIO, &register_value_, 1);
+        register_value_ |= static_cast<uint8_t>(1 << slot);
+        return writeRegister(MCP23008_REGISTERS::MCP23008_OLAT, &register_value_, 1);
     }
 
-    bool off(const uint8_t slot)
+    bool off(uint8_t slot)
     {
-        if (invalidslot(slot))
-        {
+        if (invalidSlot(slot))
             return false;
-        }
-
-        uint8_t mask = static_cast<uint8_t>(~(1 << (2 * slot)));
-        register_value_ &= mask;
-        return writeRegister(GPIO, &register_value_, 1);
+        register_value_ &= static_cast<uint8_t>(~(1 << slot));
+        return writeRegister(MCP23008_REGISTERS::MCP23008_OLAT, &register_value_, 1);
     }
 
-    bool status(const uint8_t slot)
+    bool status(uint8_t slot) const
     {
-        if (invalidslot(slot))
-        {
+        if (invalidSlot(slot))
             return false;
-        }
-
-        uint8_t mask = 1 << (2 * slot);
-        return (register_value_ & mask) != 0;
+        return (register_value_ & (1 << slot)) != 0;
     }
 
-    bool  setState(const uint8_t mask)
+    bool setState(uint8_t mask)
     {
-    	register_value_ = mask;
-        return writeRegister(GPIO, &register_value_, 1);
+        register_value_ = mask;
+        return writeRegister(MCP23008_REGISTERS::MCP23008_OLAT, &register_value_, 1);
     }
 
     uint8_t getState()
     {
-    	return register_value_;
+        register_value_ = readRegister(MCP23008_REGISTERS::MCP23008_OLAT);
+        return register_value_;
     }
 
 private:
-    static constexpr uint8_t IODIR = 0x00;
-    static constexpr uint8_t GPIO = 0x09;
-    static constexpr uint8_t OLAT = 0x0A;
-
-private:
-    bool writeRegister(uint8_t reg, uint8_t *data, uint16_t size)
+    bool writeRegister(MCP23008_REGISTERS reg, uint8_t *data, uint16_t size)
     {
-        return (HAL_I2C_Mem_Write(hi2c_, i2c_address_<<1, reg, I2C_MEMADD_SIZE_8BIT, data, size, HAL_MAX_DELAY) == HAL_OK);
+        constexpr size_t MaxSize = 16;
+        static_assert(MaxSize >= 1, "MaxSize must accommodate register + data");
+
+        if (size > MaxSize - 1)
+        {
+            return false; // prevent overflow
+        }
+
+        std::array<uint8_t, MaxSize> tx{};
+        tx[0] = static_cast<uint8_t>(reg);
+        std::memcpy(&tx[1], data, size);
+
+        return transport_.write(tx.data(), size + 1);
     }
 
-    inline bool invalidslot(const uint8_t slot)
+    uint8_t readRegister(MCP23008_REGISTERS reg) const
     {
-        return (slot >= 4);
+    	uint8_t tx = static_cast<uint8_t>(reg);
+    	uint8_t rx;
+    	transport_.write_then_read(&tx, 1, &rx, 1);
+    	return rx;
+    }
+
+    static constexpr bool invalidSlot(uint8_t slot)
+    {
+        return slot >= 8;
     }
 
 private:
-    I2C_HandleTypeDef *hi2c_;
-    uint8_t i2c_address_;
+    const Transport &transport_;
     uint8_t register_value_;
 };
 
-#endif /*_POWER_SWITCH_H */
+#endif /* _POWER_SWITCH_H_ */
