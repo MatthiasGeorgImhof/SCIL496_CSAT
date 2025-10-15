@@ -102,9 +102,9 @@ std::shared_ptr<CyphalTransfer> createPositionSolutionTransfer(uint64_t timestam
     data.velocity_ecef.meter_per_second[2] = 0.0f;
 
     // Acceleration in body frame (m/s²)
-    data.acceleration_body.meter_per_second_per_second[0] = 0.0f;
-    data.acceleration_body.meter_per_second_per_second[1] = 0.0f;
-    data.acceleration_body.meter_per_second_per_second[2] = 9.81f;
+    data.acceleration_ecef.meter_per_second_per_second[0] = 0.0f;
+    data.acceleration_ecef.meter_per_second_per_second[1] = 0.0f;
+    data.acceleration_ecef.meter_per_second_per_second[2] = 9.81f;
 
     uint8_t payload[_4111spyglass_sat_solution_PositionSolution_0_1_SERIALIZATION_BUFFER_SIZE_BYTES_];
     size_t payload_size = sizeof(payload);

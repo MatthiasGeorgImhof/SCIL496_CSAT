@@ -533,7 +533,7 @@ $(BIN_DIR)/TestTaskSetRTC : $(BIN_DIR)/TestTaskSetRTC.o $(MOCK_HAL_OBJECTS) $(BI
 # Rule for TestTaskSGP4 with extra sources
 $(BIN_DIR)/TestTaskSGP4.o : TestTaskSGP4.cpp
 	@echo "Compiling $<"
-	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
 $(BIN_DIR)/SGP4.o : ../3rdParty/SGP4/SGP4.cpp
 	@echo "Compiling $<"
