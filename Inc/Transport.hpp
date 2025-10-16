@@ -35,6 +35,8 @@ struct uart_tag
 // I2C Transport (Register Mode)
 // ─────────────────────────────────────────────
 
+#ifdef I2C_HandleTypeDef
+
 template <I2C_HandleTypeDef &HandleRef, uint16_t Address, uint32_t Timeout = 100>
 struct I2C_Config
 {
@@ -69,9 +71,13 @@ public:
     }
 };
 
+#endif // I2C_HandleTypeDef
+
 // ─────────────────────────────────────────────
 // SPI Transport (Register Mode)
 // ─────────────────────────────────────────────
+
+#ifdef SPI_HandleTypeDef
 
 template <SPI_HandleTypeDef &HandleRef, uint16_t Pin,
           std::size_t MaxTransferSize, uint32_t Timeout = 100>
@@ -131,9 +137,12 @@ private:
     void deselect() const { HAL_GPIO_WritePin(config.csPort, Config::csPin, GPIO_PIN_SET); }
 };
 
+#endif // SPI_HandleTypeDef
 // ─────────────────────────────────────────────
 // UART Transport (Stream Mode)
 // ─────────────────────────────────────────────
+
+#ifdef UART_HandleTypeDef
 
 template <UART_HandleTypeDef &HandleRef, uint32_t Timeout = 100>
 struct UART_Config
@@ -165,6 +174,8 @@ public:
         return HAL_UART_Receive(&Config::handle(), buf, len, Config::timeout) == HAL_OK;
     }
 };
+
+#endif // UART_HandleTypeDef
 
 // ─────────────────────────────────────────────
 // Transport Concepts
@@ -210,22 +221,28 @@ enum class TransportKind
 template <typename T>
 struct TransportTraits;
 
+#ifdef I2C_HandleTypeDef
 template <typename Config>
 struct TransportTraits<I2CTransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::I2C;
 };
+#endif // I2C_HandleTypeDef
 
+#ifdef SPI_HandleTypeDef
 template <typename Config>
 struct TransportTraits<SPITransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::SPI;
 };
+#endif // SPI_HandleTypeDef
 
+#ifdef UART_HandleTypeDef
 template <typename Config>
 struct TransportTraits<UARTTransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::UART;
 };
+#endif // UART_HandleTypeDef
 
 #endif // __TRANSPORT_HPP__
