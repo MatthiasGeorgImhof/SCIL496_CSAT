@@ -8,6 +8,8 @@
 #include "mock_hal.h"
 #endif
 
+#include "transport_config.h"
+
 #include <cstdint>
 #include <cstddef>
 #include <type_traits>
@@ -31,11 +33,12 @@ struct uart_tag
 {
 };
 
+
 // ─────────────────────────────────────────────
 // I2C Transport (Register Mode)
 // ─────────────────────────────────────────────
 
-#ifdef I2C_HandleTypeDef
+#ifdef HAS_I2C_HANDLE_TYPEDEF
 
 template <I2C_HandleTypeDef &HandleRef, uint16_t Address, uint32_t Timeout = 100>
 struct I2C_Config
@@ -71,13 +74,13 @@ public:
     }
 };
 
-#endif // I2C_HandleTypeDef
+#endif // HAS_I2C_HANDLE_TYPEDEF
 
 // ─────────────────────────────────────────────
 // SPI Transport (Register Mode)
 // ─────────────────────────────────────────────
 
-#ifdef SPI_HandleTypeDef
+#ifdef HAS_SPI_HANDLE_TYPEDEF
 
 template <SPI_HandleTypeDef &HandleRef, uint16_t Pin,
           std::size_t MaxTransferSize, uint32_t Timeout = 100>
@@ -137,12 +140,12 @@ private:
     void deselect() const { HAL_GPIO_WritePin(config.csPort, Config::csPin, GPIO_PIN_SET); }
 };
 
-#endif // SPI_HandleTypeDef
+#endif // HAS_SPI_HANDLE_TYPEDEF
 // ─────────────────────────────────────────────
 // UART Transport (Stream Mode)
 // ─────────────────────────────────────────────
 
-#ifdef UART_HandleTypeDef
+#ifdef HAS_UART_HANDLE_TYPEDEF
 
 template <UART_HandleTypeDef &HandleRef, uint32_t Timeout = 100>
 struct UART_Config
@@ -175,7 +178,7 @@ public:
     }
 };
 
-#endif // UART_HandleTypeDef
+#endif // HAS_UART_HANDLE_TYPEDEF
 
 // ─────────────────────────────────────────────
 // Transport Concepts
@@ -221,28 +224,28 @@ enum class TransportKind
 template <typename T>
 struct TransportTraits;
 
-#ifdef I2C_HandleTypeDef
+#ifdef HAS_I2C_HANDLE_TYPEDEF
 template <typename Config>
 struct TransportTraits<I2CTransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::I2C;
 };
-#endif // I2C_HandleTypeDef
+#endif // HAS_I2C_HANDLE_TYPEDEF
 
-#ifdef SPI_HandleTypeDef
+#ifdef HAS_SPI_HANDLE_TYPEDEF
 template <typename Config>
 struct TransportTraits<SPITransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::SPI;
 };
-#endif // SPI_HandleTypeDef
+#endif // HAS_SPI_HANDLE_TYPEDEF
 
-#ifdef UART_HandleTypeDef
+#ifdef HAS_UART_HANDLE_TYPEDEF
 template <typename Config>
 struct TransportTraits<UARTTransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::UART;
 };
-#endif // UART_HandleTypeDef
+#endif // HAS_UART_HANDLE_TYPEDEF
 
 #endif // __TRANSPORT_HPP__
