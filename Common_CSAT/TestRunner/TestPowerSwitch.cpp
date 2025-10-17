@@ -7,6 +7,9 @@
 #include <iostream> // For debugging output (remove in production tests)
 #include <bitset>   // For visualizing bit patterns
 
+GPIO_TypeDef mock_gpio_port = {};
+constexpr uint16_t mock_gpio_pin = GPIO_PIN_0;
+
 TEST_CASE("PowerSwitch On/Off/Status")
 {
     static I2C_HandleTypeDef hi2c;
@@ -17,7 +20,7 @@ TEST_CASE("PowerSwitch On/Off/Status")
     using SwitchTransport = I2CTransport<SwitchConfig>;
     SwitchTransport transport;
 
-    PowerSwitch<SwitchTransport> pm(transport);
+    PowerSwitch<SwitchTransport> pm(transport, &mock_gpio_port, mock_gpio_pin);
 
     // Reset the I2C buffer before each test case
     clear_i2c_mem_data();
@@ -169,4 +172,25 @@ TEST_CASE("PowerSwitch On/Off/Status")
         auto state = pm.getState();
         CHECK(state == 0b11001100);
     }
+
+    SUBCASE("Reset pin is set high on releaseReset")
+    {
+        // Set pin low first to simulate prior state
+        set_gpio_pin_state(&mock_gpio_port, mock_gpio_pin, GPIO_PIN_RESET);
+        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_RESET);
+
+        pm.releaseReset();
+        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_SET);
+    }
+
+    SUBCASE("Reset pin is set low on holdReset")
+    {
+        // Set pin high first to simulate prior state
+        set_gpio_pin_state(&mock_gpio_port, mock_gpio_pin, GPIO_PIN_SET);
+        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_SET);
+
+        pm.holdReset();
+        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_RESET);
+    }
+
 }

@@ -28,11 +28,10 @@ class PowerSwitch
 public:
     PowerSwitch() = delete;
 
-    explicit PowerSwitch(const Transport &transport)
-        : transport_(transport), register_value_(0)
+    explicit PowerSwitch(const Transport &transport, GPIO_TypeDef *resetPort, uint16_t resetPin)
+        : transport_(transport), register_value_(0),  reset_port_(resetPort), reset_pin_(resetPin)
     {
-        uint8_t reset[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        writeRegister(MCP23008_REGISTERS::MCP23008_IODIR, reset, sizeof(reset));
+        releaseReset();
     }
 
     bool on(uint8_t slot)
@@ -70,6 +69,21 @@ public:
         return register_value_;
     }
 
+    void holdReset()
+    {
+        // Set *Reset pin low
+        HAL_GPIO_WritePin(reset_port_, reset_pin_, GPIO_PIN_RESET);
+    }
+
+    void releaseReset()
+    {
+        // Set *Reset pin high
+        HAL_GPIO_WritePin(reset_port_, reset_pin_, GPIO_PIN_SET);
+
+        uint8_t reset[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        writeRegister(MCP23008_REGISTERS::MCP23008_IODIR, reset, sizeof(reset));
+    }
+
 private:
     bool writeRegister(MCP23008_REGISTERS reg, uint8_t *data, uint16_t size)
     {
@@ -90,10 +104,10 @@ private:
 
     uint8_t readRegister(MCP23008_REGISTERS reg) const
     {
-    	uint8_t tx = static_cast<uint8_t>(reg);
-    	uint8_t rx;
-    	transport_.write_then_read(&tx, 1, &rx, 1);
-    	return rx;
+        uint8_t tx = static_cast<uint8_t>(reg);
+        uint8_t rx;
+        transport_.write_then_read(&tx, 1, &rx, 1);
+        return rx;
     }
 
     static constexpr bool invalidSlot(uint8_t slot)
@@ -104,6 +118,8 @@ private:
 private:
     const Transport &transport_;
     uint8_t register_value_;
+    GPIO_TypeDef *reset_port_;
+    uint16_t reset_pin_;
 };
 
 #endif /* _POWER_SWITCH_H_ */
