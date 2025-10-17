@@ -1,4 +1,5 @@
-#include "main.h"
+#include <cppmain.h>
+#include <cpphal.h>
 #include "usb_device.h"
 
 #include <memory>
@@ -40,15 +41,10 @@
 #include "PowerSwitch.hpp"
 #include "PowerMonitor.hpp"
 
-#include <cppmain.h>
-#include "Logger.hpp"
+#include "au.hh"
+#include "au.hpp"
 
-CAN_HandleTypeDef *hcan1_;
-CAN_HandleTypeDef *hcan2_;
-I2C_HandleTypeDef *hi2c1_;
-I2C_HandleTypeDef *hi2c2_;
-I2C_HandleTypeDef *hi2c4_;
-DCMI_HandleTypeDef *hdcmi_;
+#include "Logger.hpp"
 
 constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
@@ -99,19 +95,12 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
 int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
 
-void cppmain(HAL_Handles handles)
+void cppmain()
 {
-	hcan1_ = handles.hcan1;
-	hcan2_ = handles.hcan2;
-	hi2c1_ = handles.hi2c1;
-	hi2c2_ = handles.hi2c2;
-	hi2c4_ = handles.hi2c4;
-	hdcmi_ = handles.hdcmi;
-
-	if (HAL_CAN_Start(hcan1_) != HAL_OK) {
+	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
 		Error_Handler();
 	}
-	if (HAL_CAN_ActivateNotification(hcan1_, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
+	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -127,7 +116,7 @@ void cppmain(HAL_Handles handles)
 	filter.FilterScale = CAN_FILTERSCALE_16BIT;
 	filter.FilterActivation = ENABLE;
 	filter.SlaveStartFilterBank = 0;
-	HAL_CAN_ConfigFilter(hcan1_, &filter);
+	HAL_CAN_ConfigFilter(&hcan1, &filter);
 
 	o1heap = o1heapInit(o1heap_buffer, O1HEAP_SIZE);
 	O1HeapAllocator<CanardRxTransfer> alloc(o1heap);
@@ -223,7 +212,7 @@ void cppmain(HAL_Handles handles)
 				service_manager.getHandlers().capacity(), service_manager.getHandlers().size());
 		log(LOG_LEVEL_TRACE, "CanProcessRxQueue: (%d %d) \r\n",
 				can_rx_buffer.capacity(), can_rx_buffer.size());
-		loop_manager.CanProcessTxQueue(&canard_adapter, hcan1_);
+		loop_manager.CanProcessTxQueue(&canard_adapter, &hcan1);
 		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, empty_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();

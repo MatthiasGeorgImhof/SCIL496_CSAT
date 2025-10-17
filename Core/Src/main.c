@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "cppmain.h"
+#include "usbd_cdc_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -117,10 +118,7 @@ int main(void)
   MX_I2C2_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  struct HAL_Handles handles = {
-	  &hcan1, &hcan2, &hi2c4, &hi2c4, &hi2c4, &hdcmi
-  };
-  cppmain(handles);
+  cppmain();
 
   /* USER CODE END 2 */
 
