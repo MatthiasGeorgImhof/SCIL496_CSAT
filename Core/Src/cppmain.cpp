@@ -177,28 +177,18 @@ void cppmain()
     ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
 
-	constexpr uint8_t INA226 = 64 + 1;
-//	constexpr uint8_t INS226_CONFIG = 0x00;
-//	constexpr uint8_t INS226_SHUNT = 0x01;
-//	constexpr uint8_t INS226_BUS = 0x02;
-//	constexpr uint8_t INS226_POWER = 0x03;
-//	constexpr uint8_t INS226_CURRENT = 0x04;
-//	constexpr uint8_t INS226_CALIBRATION = 0x05;
-//	constexpr uint8_t INS226_MANUFACTURER_ID = 0xfe;
-//	constexpr uint8_t INS226_DIE_ID = 0xff;
+	constexpr uint8_t GPIO_EXPANDER = 32;
+    using PowerSwitchConfig = I2C_Config<hi2c4, GPIO_EXPANDER>;
+    using PowerSwitchTransport = I2CTransport<PowerSwitchConfig>;
+    PowerSwitchTransport ps_transport;
+	PowerSwitch<PowerSwitchTransport> power_switch(ps_transport, GPIOB, POWER_RST_Pin);
+	power_switch.on(CIRCUITS::CIRCUIT_2);
 
-//	constexpr uint8_t GPIO_EXPANDER = 32;
-//	constexpr uint8_t ENABLE3 = 0x01;
-//	constexpr uint8_t ENABLE2 = 0x04;
-//	constexpr uint8_t ENABLE1 = 0x10;
-//	constexpr uint8_t ENABLE0 = 0x40;
-
-//	HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin, GPIO_PIN_SET);
-//	HAL_Delay(1);
-//	PowerSwitch power_switch(hi2c4_, GPIO_EXPANDER);
-//	power_switch.on(2);
-//
-//	PowerMonitor power_monitor(hi2c4_, INA226);
+	constexpr uint8_t INA226 = 64;
+    using PowerMonitorConfig = I2C_Config<hi2c4, INA226>;
+    using PowerMonitorTransport = I2CTransport<PowerMonitorConfig>;
+    PowerMonitorTransport pm_transport;
+	PowerMonitor<PowerMonitorTransport> power_monitor(pm_transport);
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
