@@ -27,139 +27,135 @@ TEST_CASE("PowerSwitch On/Off/Status")
 
     SUBCASE("Turn on slot 0")
     {
-        pm.on(0);
+        pm.on(CIRCUITS::CIRCUIT_0);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00000001); // Bit 0 should be set
-        CHECK(pm.status(0) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == true);
     }
 
     SUBCASE("Turn off slot 0")
     {
         // First, turn it on
-        pm.on(0);
-        pm.off(0);
+        pm.on(CIRCUITS::CIRCUIT_0);
+        pm.off(CIRCUITS::CIRCUIT_0);
 
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00000000); // Bit 0 should be cleared
-        CHECK(pm.status(0) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == false);
     }
 
     SUBCASE("Turn on slot 1")
     {
-        pm.on(1);
+        pm.on(CIRCUITS::CIRCUIT_1);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00000010); // Bit 1 should be set
-        CHECK(pm.status(1) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_1) == true);
     }
 
     SUBCASE("Turn on slot 2")
     {
-        pm.on(2);
+        pm.on(CIRCUITS::CIRCUIT_2);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00000100); // Bit 2 should be set
-        CHECK(pm.status(2) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_2) == true);
     }
 
     SUBCASE("Turn on slot 3")
     {
-        pm.on(3);
+        pm.on(CIRCUITS::CIRCUIT_3);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00001000); // Bit 3 should be set
-        CHECK(pm.status(3) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_3) == true);
     }
 
     SUBCASE("Turn off slot 4")
     {
-        pm.on(4);
+        pm.on(CIRCUITS::CIRCUIT_4);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00010000); // Bit 4 should be cleared
-        CHECK(pm.status(4) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_4) == true);
     }
 
     SUBCASE("Turn on slot 5")
     {
-        pm.on(5);
+        pm.on(CIRCUITS::CIRCUIT_5);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00100000); // Bit 5 should be set
-        CHECK(pm.status(5) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_5) == true);
     }
 
     SUBCASE("Turn on slot 6")
     {
-        pm.on(6);
+        pm.on(CIRCUITS::CIRCUIT_6);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b01000000); // Bit 6 should be set
-        CHECK(pm.status(6) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_6) == true);
     }
 
     SUBCASE("Turn on slot 7")
     {
-        pm.on(7);
+        pm.on(CIRCUITS::CIRCUIT_7);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b10000000); // Bit 7 should be set
-        CHECK(pm.status(7) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_7) == true);
     }
     SUBCASE("Turn on and off multiple slots")
     {
-        pm.on(0);
-        pm.on(2);
+        pm.on(CIRCUITS::CIRCUIT_0);
+        pm.on(CIRCUITS::CIRCUIT_2);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer()[1] == 0b00000101);
-        CHECK(pm.status(0) == true);
-        CHECK(pm.status(2) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_2) == true);
 
-        pm.off(0);
+        pm.off(CIRCUITS::CIRCUIT_0);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[1] == 0b00000100);
-        CHECK(pm.status(0) == false);
-        CHECK(pm.status(2) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_2) == true);
 
-        pm.off(2);
+        pm.off(CIRCUITS::CIRCUIT_2);
         CHECK(get_i2c_buffer()[0] == ps_register);
         CHECK(get_i2c_buffer_count() == 2);
         CHECK(get_i2c_buffer()[1] == 0b00000000);
-        CHECK(pm.status(0) == false);
-        CHECK(pm.status(2) == false);
-    }
-
-    SUBCASE("Invalid slot check")
-    {
-        CHECK(get_i2c_buffer_count() == 0);       // I2C transactions cancelled
-        pm.on(8);                                 // Invalid slot
-        CHECK(get_i2c_buffer()[0] == 0b00000000); // register_value_ should still be 0
-        CHECK(pm.status(8) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_2) == false);
     }
 
     SUBCASE("Initial status is off")
     {
-        CHECK(pm.status(0) == false);
-        CHECK(pm.status(1) == false);
-        CHECK(pm.status(2) == false);
-        CHECK(pm.status(3) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_1) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_2) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_3) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_4) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_5) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_6) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_7) == false);
     }
 
     SUBCASE("Set state with bitmask")
     {
         pm.setState(0b10101010);
-        CHECK(pm.status(0) == false);
-        CHECK(pm.status(1) == true);
-        CHECK(pm.status(2) == false);
-        CHECK(pm.status(3) == true);
-        CHECK(pm.status(4) == false);
-        CHECK(pm.status(5) == true);
-        CHECK(pm.status(6) == false);
-        CHECK(pm.status(7) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_0) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_1) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_2) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_3) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_4) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_5) == true);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_6) == false);
+        CHECK(pm.status(CIRCUITS::CIRCUIT_7) == true);
     }
 
     SUBCASE("Get state reads from OLAT")
