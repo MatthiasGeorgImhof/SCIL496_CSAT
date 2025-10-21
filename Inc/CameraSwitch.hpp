@@ -1,35 +1,77 @@
-#ifndef _CAMERA_SWITCH_H_
-#define _CAMERA_SWITCH_H_
+#ifndef _CAMERA_SWITCH_HPP_
+#define _CAMERA_SWITCH_HPP_
 
-#include "mock_hal.h"
+#include "I2CSwitch.hpp"
+#include "Transport.hpp"
+#include <array>
 
-enum class CameraSwitchState : uint8_t {
-    OFF = 0,
-    A = 1,
-    B = 2,
-    C = 3,
-};
-
-class CameraSwitch {
+template <typename Transport>
+    requires RegisterWriteTransport<Transport>
+class CameraSwitch : public I2CSwitch<Transport>
+{
 public:
-    CameraSwitch(GPIO_TypeDef* gpio1, uint16_t pin1, GPIO_TypeDef* gpio0, uint16_t pin0) : 
-        gpio1_{gpio1}, gpio0_{gpio0}, pin1_{pin1}, pin0_{pin0}, state_{CameraSwitchState::OFF}
+    CameraSwitch() = delete;
+
+    CameraSwitch(const Transport& transport,
+                   GPIO_TypeDef* resetPort, uint16_t resetPin,
+                   GPIO_TypeDef* channelPort,
+                   std::array<uint16_t, 4> channelPins)
+        : I2CSwitch<Transport>(transport, resetPort, resetPin),
+          channel_port_(channelPort),
+          channel_pins_(channelPins)
     {
-        setState(state_);
+        disableAllChannels(); // ensure clean startup
     }
 
-    void setState(CameraSwitchState state)
+    bool select(I2CSwitchChannel channel)
     {
-        GPIO_PinState pin1_state = (state == CameraSwitchState::B || state == CameraSwitchState::C) ? GPIO_PIN_SET : GPIO_PIN_RESET;
-        GPIO_PinState pin0_state = (state == CameraSwitchState::B || state == CameraSwitchState::A) ? GPIO_PIN_SET : GPIO_PIN_RESET;
-        HAL_GPIO_WritePin(const_cast<GPIO_TypeDef*>(gpio1_), pin1_, pin1_state);
-        HAL_GPIO_WritePin(const_cast<GPIO_TypeDef*>(gpio0_), pin0_, pin0_state);
+        if (!I2CSwitch<Transport>::select(channel))
+            return false;
+
+        pullUpChannelPin(channel);
+        return true;
+    }
+
+    bool disableAll()
+    {
+        disableAllChannels();
+        return I2CSwitch<Transport>::disableAll();
     }
 
 private:
-const GPIO_TypeDef *gpio1_, *gpio0_;    
-const uint16_t pin1_, pin0_;    
-CameraSwitchState state_;
+    GPIO_TypeDef* channel_port_;
+    std::array<uint16_t, 4> channel_pins_;
+
+    void pullUpChannelPin(I2CSwitchChannel channel)
+    {
+        disableAllChannels(); // clear previous state
+
+        switch (channel)
+        {
+        case I2CSwitchChannel::Channel0:
+            HAL_GPIO_WritePin(channel_port_, channel_pins_[0], GPIO_PIN_SET);
+            break;
+        case I2CSwitchChannel::Channel1:
+            HAL_GPIO_WritePin(channel_port_, channel_pins_[1], GPIO_PIN_SET);
+            break;
+        case I2CSwitchChannel::Channel2:
+            HAL_GPIO_WritePin(channel_port_, channel_pins_[2], GPIO_PIN_SET);
+            break;
+        case I2CSwitchChannel::Channel3:
+            HAL_GPIO_WritePin(channel_port_, channel_pins_[3], GPIO_PIN_SET);
+            break;
+        default:
+            break;
+        }
+    }
+
+    void disableAllChannels()
+    {
+        for (auto pin : channel_pins_)
+        {
+            HAL_GPIO_WritePin(channel_port_, pin, GPIO_PIN_RESET);
+        }
+    }
 };
 
-#endif /* _CAMERA_SWITCH_H_ */
+#endif // _CAMERA_SWITCH_HPP_

@@ -59,6 +59,8 @@ GPIO_PinState get_gpio_pin_state(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
 void set_gpio_pin_state(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState);
 void reset_gpio_port_state(GPIO_TypeDef *GPIOx);
 
+void clear_gpio_pin_states();
+
 #ifdef __cplusplus
 }
 #endif
