@@ -182,7 +182,7 @@ void cppmain()
     using PowerSwitchTransport = I2CTransport<PowerSwitchConfig>;
     PowerSwitchTransport ps_transport;
 	PowerSwitch<PowerSwitchTransport> power_switch(ps_transport, GPIOB, POWER_RST_Pin);
-	power_switch.on(CIRCUITS::CIRCUIT_2);
+	power_switch.on(CIRCUITS::CIRCUIT_0);
 
 	constexpr uint8_t INA226 = 64;
     using PowerMonitorConfig = I2C_Config<hi2c4, INA226>;
@@ -190,8 +190,12 @@ void cppmain()
     PowerMonitorTransport pm_transport;
 	PowerMonitor<PowerMonitorTransport> power_monitor(pm_transport);
 
+	HAL_GPIO_WritePin(ENABLE_1V5_GPIO_Port, ENABLE_1V5_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(ENABLE_2V8_GPIO_Port, ENABLE_2V8_Pin, GPIO_PIN_SET);
+
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
+
 	while(1)
 	{
 		log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
@@ -207,12 +211,32 @@ void cppmain()
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 
-//		PowerMonitorData data;
-//		power_monitor(data);
-//		char buffer[256];
-//		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d\r\n",
-//			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+
+		uint16_t adc_value = 0;
+
+		// Start ADC conversion
+		if (HAL_ADC_Start(&hadc1) != HAL_OK)
+		{
+		    Error_Handler(); // Handle start error
+		}
+
+		// Wait for conversion to complete
+		if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK)
+		{
+		    // Read the converted value
+		    adc_value = HAL_ADC_GetValue(&hadc1);
+		}
+
+		// Stop ADC (optional but good practice)
+		HAL_ADC_Stop(&hadc1);
+
+		PowerMonitorData data;
+		power_monitor(data);
+		char buffer[256];
+		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d (%6u %6u)\r\n",
+			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA, adc_value&0xfff, adc_value&0xfff);
+		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
 		HAL_Delay(100);

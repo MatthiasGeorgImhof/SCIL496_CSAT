@@ -25,4 +25,7 @@ extern GPIO_TypeDef GPIOC_object;
 extern GPIO_TypeDef GPIOD_object;
 extern GPIO_TypeDef GPIOE_object;
 
+extern ADC_HandleTypeDef hadc1;
+extern DMA_HandleTypeDef hdma_adc1;
+
 #endif /* INC_CPPHAL_H_ */
