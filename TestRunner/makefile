@@ -62,6 +62,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationService.cpp \
 			 TestOrientationTracker.cpp \
+			 TestOV5640.cpp \
 			 TestPositionTracker9D.cpp \
 			 TestPowerMonitor.cpp \
 			 TestPowerSwitch.cpp \
