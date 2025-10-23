@@ -7,21 +7,31 @@
 #include <cstdint>
 #include <cstring>
 
-struct DummyConfig {
+struct GpioStub
+{
+    void high() {}
+    void low() {}
+};
+
+struct DummyConfig
+{
     using mode_tag = register_mode_tag;
 };
 
 // Mock transport that captures write and write_then_read calls
-class MockTransport {
+class MockTransport
+{
 public:
     using config_type = DummyConfig;
 
-    bool write(const uint8_t* data, size_t size) {
+    bool write(const uint8_t *data, size_t size)
+    {
         last_write.assign(data, data + size);
         return true;
     }
 
-    bool write_then_read(const uint8_t* tx, size_t tx_size, uint8_t* rx, size_t rx_size) {
+    bool write_then_read(const uint8_t *tx, size_t tx_size, uint8_t *rx, size_t rx_size)
+    {
         last_write.assign(tx, tx + tx_size);
         last_read.resize(rx_size);
         for (size_t i = 0; i < rx_size; ++i)
@@ -30,7 +40,8 @@ public:
         return true;
     }
 
-    void setMockResponse(std::initializer_list<uint8_t> bytes) {
+    void setMockResponse(std::initializer_list<uint8_t> bytes)
+    {
         mock_response.assign(bytes.begin(), bytes.end());
     }
 
@@ -39,26 +50,32 @@ public:
     std::vector<uint8_t> mock_response;
 };
 
-TEST_CASE("writeRegister: single byte") {
+TEST_CASE("writeRegister: single byte")
+{
     MockTransport transport;
-    OV5640<MockTransport> cam(transport);
+    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
 
     cam.writeRegister(OV5640_Register::CHIP_ID, 0xAB);
     CHECK(transport.last_write == std::vector<uint8_t>({0x30, 0x0a, 0xAB}));
 }
 
-TEST_CASE("writeRegister: multi-byte little-endian payload") {
+TEST_CASE("writeRegister: multi-byte little-endian payload")
+{
     MockTransport transport;
-    OV5640<MockTransport> cam(transport);
+    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
 
     uint16_t value = 0x1234;
-    cam.writeRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&value), 2);
+    cam.writeRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t *>(&value), 2);
     CHECK(transport.last_write == std::vector<uint8_t>({0x30, 0x0a, 0x12, 0x34}));
 }
 
-TEST_CASE("readRegister: single byte") {
+TEST_CASE("readRegister: single byte")
+{
     MockTransport transport;
-    OV5640<MockTransport> cam(transport);
+    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
 
     transport.setMockResponse({0xAB});
     uint8_t result = cam.readRegister(OV5640_Register::CHIP_ID);
@@ -66,28 +83,34 @@ TEST_CASE("readRegister: single byte") {
     CHECK(transport.last_write == std::vector<uint8_t>({0x30, 0x0a}));
 }
 
-TEST_CASE("readRegister: multi-byte big-endian to little-endian") {
+TEST_CASE("readRegister: multi-byte big-endian to little-endian")
+{
     MockTransport transport;
-    OV5640<MockTransport> cam(transport);
+    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
 
     transport.setMockResponse({0x30, 0x0a});
     uint16_t result = 0;
-    cam.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&result), 2);
+    cam.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t *>(&result), 2);
     CHECK(result == 0x300a);
 }
 
-TEST_CASE("writeRegister: reject odd-sized payload") {
+TEST_CASE("writeRegister: reject odd-sized payload")
+{
     MockTransport transport;
-    OV5640<MockTransport> cam(transport);
+    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
 
     uint8_t data[3] = {0x01, 0x02, 0x03};
     bool ok = cam.writeRegister(OV5640_Register::CHIP_ID, data, 3);
     CHECK_FALSE(ok);
 }
 
-TEST_CASE("readRegister: reject odd-sized buffer") {
+TEST_CASE("readRegister: reject odd-sized buffer")
+{
     MockTransport transport;
-    OV5640<MockTransport> cam(transport);
+    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
 
     transport.setMockResponse({0x30, 0x0a});
     uint8_t buffer[3];

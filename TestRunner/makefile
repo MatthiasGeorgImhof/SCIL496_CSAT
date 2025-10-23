@@ -36,6 +36,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
+			 TestGpioPin.cpp \
 			 TestHalUtil.cpp \
 			 TestHSClockSwitch.cpp \
 			 TestI2CSwitch.cpp \
@@ -255,6 +256,15 @@ $(BIN_DIR)/TestMR25H10.o : TestMR25H10.cpp
 $(BIN_DIR)/TestMR25H10 : $(BIN_DIR)/TestMR25H10.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMR25H10.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestGpioPin with extra sources
+$(BIN_DIR)/TestGpioPin.o : TestGpioPin.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestGpioPin : $(BIN_DIR)/TestGpioPin.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestGpioPin.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestCameraSwitch with extra sources
 $(BIN_DIR)/TestCameraSwitch.o : TestCameraSwitch.cpp

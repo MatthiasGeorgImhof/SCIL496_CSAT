@@ -3,19 +3,37 @@
 
 #include "Transport.hpp"
 #include "OV5640_Registers.hpp"
+#include "GpioPin.hpp"
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <concepts>
 #include <type_traits>
 
-template <typename Transport>
-    requires RegisterModeTransport<Transport>
+template <typename Gpio>
+concept GpioOutput = requires(Gpio gpio) {
+    { gpio.low() } -> std::same_as<void>;
+    { gpio.high() } -> std::same_as<void>;
+};
+
+template <typename Transport, typename ClockOE, typename PowerDn, typename Reset> 
+    requires RegisterModeTransport<Transport> && GpioOutput<ClockOE> && GpioOutput<PowerDn> && GpioOutput<Reset>
 class OV5640
 {
 public:
-    explicit OV5640(Transport& transport)
-        : transport_(transport)
+    OV5640(Transport& transport, ClockOE& clk, PowerDn& pwdn, Reset& rst)
+        : transport_(transport), clockOE_(clk), powerDn_(pwdn), reset_(rst)
     {}
+
+    void powerUp()
+    {
+        clockOE_.high();     // Enable oscillator
+        powerDn_.low();      // Exit power-down (active low)
+        reset_.low();        // Hold reset
+        HAL_Delay(1);        // Wait 1 ms
+        reset_.high();       // Release reset
+        HAL_Delay(20);       // Wait 20 ms before SCCB access
+    }
 
     // Write a single byte (no endian conversion needed)
     bool writeRegister(OV5640_Register reg, uint8_t value)
@@ -75,6 +93,9 @@ public:
 
 private:
     Transport& transport_;
+    ClockOE& clockOE_;
+    PowerDn& powerDn_;
+    Reset& reset_;
 
     static constexpr uint8_t highByte(OV5640_Register reg)
     {
