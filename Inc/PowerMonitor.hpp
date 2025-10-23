@@ -7,7 +7,9 @@
 
 #include "Transport.hpp"
 
+#ifdef __linux__
 #include "mock_hal.h"
+#endif
 
 // INA226 I2C Address Options
 enum class INA226_REGISTERS : uint8_t
