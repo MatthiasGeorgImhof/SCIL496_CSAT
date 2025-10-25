@@ -27,9 +27,10 @@ public:
 
     void powerUp()
     {
+        reset_.low();        // Hold reset
+        HAL_Delay(5);        // Wait 5 ms
         clockOE_.high();     // Enable oscillator
         powerDn_.low();      // Exit power-down (active low)
-        reset_.low();        // Hold reset
         HAL_Delay(1);        // Wait 1 ms
         reset_.high();       // Release reset
         HAL_Delay(20);       // Wait 20 ms before SCCB access

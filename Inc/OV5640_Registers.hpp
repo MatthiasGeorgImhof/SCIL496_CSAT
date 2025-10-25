@@ -12,6 +12,8 @@ enum class OV5640_Register : uint16_t
     SYS_CLOCK_ENABLE02       = 0x3006,
     SYS_CTRL0                = 0x3008,
     CHIP_ID                  = 0x300A,
+    CHIP_ID_H                = 0x300A,
+    CHIP_ID_L                = 0x300B,
     IO_MIPI_CTRL00           = 0x300E,
     PAD_OUTPUT_ENABLE01      = 0x3017,
     PAD_OUTPUT_ENABLE02      = 0x3018,
