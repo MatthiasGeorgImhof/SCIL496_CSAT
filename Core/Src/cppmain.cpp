@@ -40,6 +40,10 @@
 #include "TaskRequestGetInfo.hpp"
 #include "PowerSwitch.hpp"
 #include "PowerMonitor.hpp"
+#include "Transport.hpp"
+#include "I2CSwitch.hpp"
+#include "CameraSwitch.hpp"
+#include "OV5640.hpp"
 
 #include "au.hh"
 #include "au.hpp"
@@ -192,9 +196,32 @@ void cppmain()
 
 	HAL_GPIO_WritePin(ENABLE_1V5_GPIO_Port, ENABLE_1V5_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_2V8_GPIO_Port, ENABLE_2V8_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_SET);
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
+
+//	constexpr uint8_t CAMERA_SWITCH = 0x70;
+//    using CameraSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
+//    using CameraSwitchTransport = I2CTransport<CameraSwitchConfig>;
+//    CameraSwitchTransport cam_sw_transport;
+//	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
+//	camera_switch.select(I2CSwitchChannel::Channel2);
+//
+//	constexpr uint8_t CAMERA = OV5640_ID;
+//    using CameraConfig = I2C_Config<hi2c1, CAMERA>;
+//    using CameraTransport = I2CTransport<CameraConfig>;
+//    CameraTransport cam_transport;
+//    using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
+//    CameraClockOE cam_clock;
+//    using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
+//    CameraPowerDn cam_powrdn;
+//    using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
+//    CameraReset cam_reset;
+//    OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
+//    camera.powerUp();
 
 	while(1)
 	{
@@ -211,32 +238,43 @@ void cppmain()
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 
+//		uint16_t camera_id{0};
+//		camera.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&camera_id), sizeof(camera_id));
+//		char buffer[256];
+//		sprintf(buffer, "OV5640: %04x\r\n", camera_id);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+//		uint8_t camera_id_h = camera.readRegister(OV5640_Register::CHIP_ID_H);
+//		uint8_t camera_id_l = camera.readRegister(OV5640_Register::CHIP_ID_L);
+//		char buffer[256];
+//		sprintf(buffer, "OV5640: %02x %02x\r\n", camera_id_h, camera_id_l);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
-		uint16_t adc_value = 0;
-
-		// Start ADC conversion
-		if (HAL_ADC_Start(&hadc1) != HAL_OK)
-		{
-		    Error_Handler(); // Handle start error
-		}
-
-		// Wait for conversion to complete
-		if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK)
-		{
-		    // Read the converted value
-		    adc_value = HAL_ADC_GetValue(&hadc1);
-		}
-
-		// Stop ADC (optional but good practice)
-		HAL_ADC_Stop(&hadc1);
-
-		PowerMonitorData data;
-		power_monitor(data);
-		char buffer[256];
-		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d (%6u %6u)\r\n",
-			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA, adc_value&0xfff, adc_value&0xfff);
-		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+//		uint16_t adc_value = 0;
+//
+//		// Start ADC conversion
+//		if (HAL_ADC_Start(&hadc1) != HAL_OK)
+//		{
+//		    Error_Handler(); // Handle start error
+//		}
+//
+//		// Wait for conversion to complete
+//		if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK)
+//		{
+//		    // Read the converted value
+//		    adc_value = HAL_ADC_GetValue(&hadc1);
+//		}
+//
+//		// Stop ADC (optional but good practice)
+//		HAL_ADC_Stop(&hadc1);
+//
+//		PowerMonitorData data;
+//		power_monitor(data);
+//		char buffer[256];
+//		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d (%6u %6u)\r\n",
+//			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA, adc_value&0xfff, adc_value&0xfff);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
 		HAL_Delay(100);
