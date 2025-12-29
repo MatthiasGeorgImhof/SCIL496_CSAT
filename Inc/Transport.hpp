@@ -73,6 +73,12 @@ public:
         return HAL_I2C_Master_Transmit(&Config::handle(), Config::address, const_cast<uint8_t *>(tx_buf), tx_len, Config::timeout) == HAL_OK &&
                HAL_I2C_Master_Receive(&Config::handle(), Config::address, rx_buf, rx_len, Config::timeout) == HAL_OK;
     }
+
+    bool read(uint8_t *rx_buf, uint16_t rx_len) const
+    {
+        return HAL_I2C_Master_Receive(&Config::handle(), Config::address, rx_buf, rx_len, Config::timeout) == HAL_OK;
+    }
+
 };
 
 #endif // HAS_I2C_HANDLE_TYPEDEF
@@ -205,6 +211,11 @@ template <typename T>
 concept StreamTransport = requires(T t, uint8_t *buf, uint16_t len) {
     { t.send(buf, len) } -> std::same_as<bool>;
     { t.receive(buf, len) } -> std::same_as<bool>;
+};
+
+template <typename T>
+concept RawReadTransport = requires(T t, uint8_t *rx, uint16_t len) {
+    { t.read(rx, len) } -> std::same_as<bool>;
 };
 
 template <typename T>

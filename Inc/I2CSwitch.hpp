@@ -49,6 +49,13 @@ public:
         HAL_GPIO_WritePin(reset_port_, reset_pin_, GPIO_PIN_SET);
     }
 
+    uint8_t status()
+    {
+    	uint8_t reg = 0;
+    	transport_.read(&reg, 1);
+    	return reg;
+    }
+
 private:
     const Transport& transport_;
     GPIO_TypeDef* reset_port_;
