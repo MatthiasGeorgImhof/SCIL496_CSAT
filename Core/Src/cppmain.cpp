@@ -187,6 +187,9 @@ void cppmain()
     PowerSwitchTransport ps_transport;
 	PowerSwitch<PowerSwitchTransport> power_switch(ps_transport, GPIOB, POWER_RST_Pin);
 	power_switch.on(CIRCUITS::CIRCUIT_0);
+	power_switch.on(CIRCUITS::CIRCUIT_1);
+	power_switch.on(CIRCUITS::CIRCUIT_2);
+	power_switch.on(CIRCUITS::CIRCUIT_3);
 
 	constexpr uint8_t INA226 = 64;
     using PowerMonitorConfig = I2C_Config<hi2c4, INA226>;
@@ -196,32 +199,41 @@ void cppmain()
 
 	HAL_GPIO_WritePin(ENABLE_1V5_GPIO_Port, ENABLE_1V5_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_2V8_GPIO_Port, ENABLE_2V8_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(I2C1_RST_GPIO_Port, I2C1_RST_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_RESET);
+
+//	constexpr uint8_t CAMERA_SWITCH = 0x70;
+//	using I2CSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
+//	using I2CSwitchTransport = I2CTransport<I2CSwitchConfig>;
+//	I2CSwitchTransport cam_sw_transport;
+//	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
+//	camera_switch.select(I2CSwitchChannel::Channel2);
+
 
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
 
-//	constexpr uint8_t CAMERA_SWITCH = 0x70;
-//    using CameraSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
-//    using CameraSwitchTransport = I2CTransport<CameraSwitchConfig>;
-//    CameraSwitchTransport cam_sw_transport;
-//	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
-//	camera_switch.select(I2CSwitchChannel::Channel2);
-//
-//	constexpr uint8_t CAMERA = OV5640_ID;
-//    using CameraConfig = I2C_Config<hi2c1, CAMERA>;
-//    using CameraTransport = I2CTransport<CameraConfig>;
-//    CameraTransport cam_transport;
-//    using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
-//    CameraClockOE cam_clock;
-//    using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
-//    CameraPowerDn cam_powrdn;
-//    using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
-//    CameraReset cam_reset;
-//    OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
-//    camera.powerUp();
+	constexpr uint8_t CAMERA_SWITCH = 0x70;
+    using CameraSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
+    using CameraSwitchTransport = I2CTransport<CameraSwitchConfig>;
+    CameraSwitchTransport cam_sw_transport;
+	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
+	camera_switch.select(I2CSwitchChannel::Channel0);
+
+	constexpr uint8_t CAMERA = OV5640_ID;
+    using CameraConfig = I2C_Config<hi2c1, CAMERA>;
+    using CameraTransport = I2CTransport<CameraConfig>;
+    CameraTransport cam_transport;
+    using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
+    CameraClockOE cam_clock;
+    using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
+    CameraPowerDn cam_powrdn;
+    using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
+    CameraReset cam_reset;
+    OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
+    camera.powerUp();
 
 	while(1)
 	{
@@ -238,11 +250,29 @@ void cppmain()
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 
-//		uint16_t camera_id{0};
-//		camera.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&camera_id), sizeof(camera_id));
-//		char buffer[256];
-//		sprintf(buffer, "OV5640: %04x\r\n", camera_id);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+		uint8_t channel = 0xaa;
+		HAL_I2C_StateTypeDef state1 = HAL_I2C_GetState(&hi2c1);
+		HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
+		HAL_StatusTypeDef code1 = HAL_I2C_Master_Transmit(&hi2c1, 0x70 << 1, &channel, 1, 100);
+		uint32_t error1 = HAL_I2C_GetError(&hi2c1);
+
+		uint8_t data = 0;
+		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c1);
+		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c1);
+		HAL_StatusTypeDef code2 = HAL_I2C_Master_Receive(&hi2c1, 0x70 << 1, &data, 1, 100);
+		uint32_t error2 = HAL_I2C_GetError(&hi2c1);
+
+
+//		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
+//		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
+//		HAL_StatusTypeDef code2 = HAL_I2C_Master_Transmit(&hi2c2, 0x70 << 1, &channel, 1, 100);
+//		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
+
+		uint16_t camera_id{0};
+		camera.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&camera_id), sizeof(camera_id));
+		char buffer[256];
+		sprintf(buffer, "OV5640: %04x\r\n", camera_id);
+		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 //		uint8_t camera_id_h = camera.readRegister(OV5640_Register::CHIP_ID_H);
 //		uint8_t camera_id_l = camera.readRegister(OV5640_Register::CHIP_ID_L);
@@ -251,32 +281,62 @@ void cppmain()
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
-//		uint16_t adc_value = 0;
-//
-//		// Start ADC conversion
-//		if (HAL_ADC_Start(&hadc1) != HAL_OK)
-//		{
-//		    Error_Handler(); // Handle start error
-//		}
-//
-//		// Wait for conversion to complete
-//		if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK)
-//		{
-//		    // Read the converted value
-//		    adc_value = HAL_ADC_GetValue(&hadc1);
-//		}
-//
-//		// Stop ADC (optional but good practice)
-//		HAL_ADC_Stop(&hadc1);
-//
-//		PowerMonitorData data;
-//		power_monitor(data);
+		uint16_t adc_value1 = 0;
+		uint16_t adc_value2 = 0;
+
+		ADC_ChannelConfTypeDef sConfig = {0};
+
+		/* --- 1. READ PC2 (ADC_CHANNEL_3) --- */
+		sConfig.Channel = ADC_CHANNEL_3;
+		sConfig.Rank = ADC_REGULAR_RANK_1;
+		sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5; // Keep the same timing as your Init
+		sConfig.SingleDiff = ADC_SINGLE_ENDED;
+		sConfig.OffsetNumber = ADC_OFFSET_NONE;
+		sConfig.Offset = 0;
+
+		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+		    Error_Handler();
+		}
+
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+		    adc_value1 = HAL_ADC_GetValue(&hadc1);
+		}
+		HAL_ADC_Stop(&hadc1);
+
+
+		/* --- 2. READ PC3 (ADC_CHANNEL_4) --- */
+		sConfig.Channel = ADC_CHANNEL_4; // Switch to the other channel
+		// (Rank and SamplingTime stay the same, so we don't strictly need to redefine them,
+		// but it's safe to keep them in the sConfig struct)
+
+		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+		    Error_Handler();
+		}
+
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+		    adc_value2 = HAL_ADC_GetValue(&hadc1);
+		}
+		HAL_ADC_Stop(&hadc1);
+
+
 //		char buffer[256];
-//		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d (%6u %6u)\r\n",
-//			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA, adc_value&0xfff, adc_value&0xfff);
+//		sprintf(buffer, "step %ld: (%x %x %x %lx: %x) (%x %x %x %lx: %x) %3x %3x\r\n", HAL_GetTick(), state1, mode1, code1, error1, channel, state2, mode2, code2, error2, data, adc_value1, adc_value2);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
-		HAL_Delay(100);
+//		PowerMonitorData data;
+//		power_monitor(data);
+//		char buffer[256];
+//		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d\r\n",
+//			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+//				char buffer[256];
+//				sprintf(buffer, "time: %ld\r\n", HAL_GetTick());
+//				CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+		HAL_Delay(1);
 	}
 }
