@@ -9,6 +9,14 @@ template <RegisterModeTransport Transport>
 class MLX90640
 {
 public:
+    constexpr static std::size_t EEPROM_WORDS = 832;
+    constexpr static std::size_t EEPROM_SIZE = EEPROM_WORDS * sizeof(uint16_t);
+    constexpr static std::size_t SUBPAGE_WORDS = 834;
+    constexpr static std::size_t SUBPAGE_SIZE = SUBPAGE_WORDS * sizeof(uint16_t);
+    constexpr static std::size_t FRAME_WORDS = 2 * SUBPAGE_WORDS;
+    constexpr static std::size_t FRAME_SIZE = FRAME_WORDS * sizeof(uint16_t);
+
+public:
     explicit MLX90640(const Transport &t) : transport(t) {}
 
     // ─────────────────────────────────────────────
@@ -17,7 +25,7 @@ public:
     bool readEEPROM(uint16_t *eeprom)
     {
         // EEPROM is 832 words starting at 0x2400
-        return readBlock(0x2400, reinterpret_cast<uint8_t *>(eeprom), 832u * 2u);
+        return readBlock(0x2400, reinterpret_cast<uint8_t *>(eeprom), EEPROM_SIZE);
     }
 
     // ─────────────────────────────────────────────
@@ -54,8 +62,7 @@ public:
 
         // Directly read the RAM block (834 words = 1668 bytes)
         if (!readBlock(0x0400,
-                       reinterpret_cast<uint8_t *>(frameData),
-                       834u * sizeof(uint16_t)))
+                       reinterpret_cast<uint8_t *>(frameData), SUBPAGE_SIZE))
         {
             return false;
         }
@@ -89,9 +96,9 @@ public:
             return;
 
         // First subpage
-        std::memcpy(fullFrame, sub0, 834u * sizeof(uint16_t));
+        std::memcpy(fullFrame, sub0, SUBPAGE_SIZE);
         // Second subpage immediately after
-        std::memcpy(fullFrame + 834u, sub1, 834u * sizeof(uint16_t));
+        std::memcpy(fullFrame + SUBPAGE_WORDS, sub1, SUBPAGE_SIZE);
     }
 
     // ─────────────────────────────────────────────
