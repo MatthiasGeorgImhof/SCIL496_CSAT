@@ -9,8 +9,9 @@
 
 struct GpioStub
 {
-    void high() {}
-    void low() {}
+    std::vector<std::string> calls;
+    void high() { calls.push_back("high"); }
+    void low()  { calls.push_back("low"); }
 };
 
 struct DummyConfig
@@ -116,4 +117,37 @@ TEST_CASE("readRegister: reject odd-sized buffer")
     uint8_t buffer[3];
     bool ok = cam.readRegister(OV5640_Register::CHIP_ID, buffer, 3);
     CHECK_FALSE(ok);
+}
+
+// ─────────────────────────────────────────────
+// Additional Tests
+// ─────────────────────────────────────────────
+
+TEST_CASE("powerUp() performs correct GPIO sequencing")
+{
+    MockTransport transport;
+    GpioStub clk, pwdn, rst;
+
+    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+
+    cam.powerUp();
+
+    CHECK(rst.calls[0] == "low");   // reset_.low()
+    CHECK(clk.calls[0] == "high");  // clockOE_.high()
+    CHECK(pwdn.calls[0] == "low");  // powerDn_.low()
+    CHECK(rst.calls[1] == "high");  // reset_.high()
+
+    CHECK(rst.calls.size() == 2);
+    CHECK(clk.calls.size() == 1);
+    CHECK(pwdn.calls.size() == 1);
+}
+
+TEST_CASE("GpioOutput concept is satisfied by GpioStub")
+{
+    static_assert(GpioOutput<GpioStub>);
+}
+
+TEST_CASE("MockTransport satisfies RegisterModeTransport")
+{
+    static_assert(RegisterModeTransport<MockTransport>);
 }

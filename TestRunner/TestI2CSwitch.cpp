@@ -19,6 +19,25 @@ TEST_CASE("I2CSwitch channel selection and disable")
 
     clear_i2c_mem_data();
 
+    SUBCASE("Constructor sets reset pin high")
+    {
+        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_SET);
+    }
+
+    SUBCASE("Status readback returns last read value")
+    {
+        clear_i2c_rx_data();
+
+        uint8_t expected = 0xAB;
+
+        // HAL_I2C_Master_Receive uses the 8-bit shifted address
+        inject_i2c_rx_data(address << 1, &expected, 1);
+
+        uint8_t result = switcher.status();
+
+        CHECK(result == expected);
+    }
+
     SUBCASE("Select Channel 0")
     {
         CHECK(switcher.select(I2CSwitchChannel::Channel0) == true);
