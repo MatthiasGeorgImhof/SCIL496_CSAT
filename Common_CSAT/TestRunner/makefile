@@ -57,6 +57,9 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMagnetorquerSystem.cpp \
 			 TestMainLoop.cpp \
 			 TestMMC5983.cpp \
+			 TestMLX90640.cpp \
+			 TestMLX90640AgainstMelexis.cpp \
+			 TestMLX90640ImageProcessor.cpp \
 			 TestMockHal.cpp \
 			 TestMR25H10.cpp \
 			 TestNamedVector3f.cpp \
@@ -132,7 +135,8 @@ SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/TaskBlinkLED.cpp \
 			../Src/TaskCheckMemory.cpp \
 			../Src/TimeUtils.cpp \
-			../3rdParty/SGP4/SGP4.cpp
+			../3rdParty/SGP4/SGP4.cpp \
+			3rdParty/MLX90640_API.c
 
 # Mock HAL source files
 MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
@@ -256,6 +260,50 @@ $(BIN_DIR)/TestMR25H10.o : TestMR25H10.cpp
 $(BIN_DIR)/TestMR25H10 : $(BIN_DIR)/TestMR25H10.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMR25H10.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestMLX90640 with extra sources
+$(BIN_DIR)/TestMLX90640.o : TestMLX90640.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMLX90640 : $(BIN_DIR)/TestMLX90640.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMLX90640.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestMLX90640AgainstMelexis with extra sources
+$(BIN_DIR)/TestMLX90640AgainstMelexis.o : TestMLX90640AgainstMelexis.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -I3rdParty -o $@
+
+$(BIN_DIR)/MLX90640_API.o : 3rdParty/MLX90640_API.c
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE_PATHS) -I3rdParty -o $@
+
+$(BIN_DIR)/TestMLX90640AgainstMelexis : $(BIN_DIR)/TestMLX90640AgainstMelexis.o $(BIN_DIR)/MLX90640_API.o
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMLX90640AgainstMelexis.o $(BIN_DIR)/MLX90640_API.o $(LIBS)
+
+# Rule for TestMLX90640ImageProcessor with extra sources
+$(BIN_DIR)/TestMLX90640ImageProcessor.o : TestMLX90640ImageProcessor.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/MLX90640ImageProcessor.o : ../Src/MLX90640ImageProcessor.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMLX90640ImageProcessor : $(BIN_DIR)/TestMLX90640ImageProcessor.o $(BIN_DIR)/MLX90640ImageProcessor.o
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMLX90640ImageProcessor.o $(BIN_DIR)/MLX90640ImageProcessor.o $(LIBS)
+
+# Rule for TestOV5640 with extra sources
+$(BIN_DIR)/TestOV5640.o : TestOV5640.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestOV5640 : $(BIN_DIR)/TestOV5640.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestOV5640.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestGpioPin with extra sources
 $(BIN_DIR)/TestGpioPin.o : TestGpioPin.cpp

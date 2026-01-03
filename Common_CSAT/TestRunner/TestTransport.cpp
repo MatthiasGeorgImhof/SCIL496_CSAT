@@ -42,6 +42,32 @@ TEST_CASE("I2CTransport write_then_read() performs atomic transaction")
     CHECK(rx[1] == 0xBB);
 }
 
+TEST_CASE("I2CTransport write() uses shifted 7-bit address as DevAddress")
+{
+    clear_i2c_mem_data();
+
+    TestI2CTransport transport;
+    uint8_t tx[] = {0x12};
+    CHECK(transport.write(tx, sizeof(tx)) == true);
+
+    CHECK(get_i2c_mem_buffer_dev_address() == (0x42 << 1));
+}
+
+TEST_CASE("I2CTransport read() uses same shifted DevAddress")
+{
+    clear_i2c_rx_data();
+
+    uint8_t injected = 0xAB;
+    inject_i2c_rx_data(0x42 << 1, &injected, 1);
+
+    TestI2CTransport transport;
+    uint8_t rx = 0;
+    CHECK(transport.read(&rx, 1) == true);
+
+    CHECK(rx == 0xAB);
+    CHECK(get_i2c_mem_buffer_dev_address() == (0x42 << 1));
+}
+
 // ─────────────────────────────────────────────
 // SPI Tests (Register Mode)
 // ─────────────────────────────────────────────
@@ -122,4 +148,51 @@ TEST_CASE("UARTTransport receive() receives injected data")
 
     CHECK(buf[0] == 'A');
     CHECK(buf[2] == 'C');
+}
+
+// ─────────────────────────────────────────────
+// Additional Transport Tests
+// ─────────────────────────────────────────────
+
+TEST_CASE("Transport concepts are satisfied")
+{
+    // I2C
+    static_assert(RegisterWriteTransport<TestI2CTransport>);
+    static_assert(RegisterReadTransport<TestI2CTransport>);
+    static_assert(RawReadTransport<TestI2CTransport>);
+    static_assert(RegisterModeTransport<TestI2CTransport>);
+
+    // SPI
+    static_assert(RegisterWriteTransport<TestSPITransport>);
+    static_assert(RegisterReadTransport<TestSPITransport>);
+    static_assert(RegisterModeTransport<TestSPITransport>);
+
+    // UART
+    static_assert(StreamTransport<TestUARTTransport>);
+    static_assert(StreamModeTransport<TestUARTTransport>);
+}
+
+TEST_CASE("TransportTraits report correct transport kind")
+{
+#ifdef HAS_I2C_HANDLE_TYPEDEF
+    CHECK(TransportTraits<TestI2CTransport>::kind == TransportKind::I2C);
+#endif
+
+#ifdef HAS_SPI_HANDLE_TYPEDEF
+    CHECK(TransportTraits<TestSPITransport>::kind == TransportKind::SPI);
+#endif
+
+#ifdef HAS_UART_HANDLE_TYPEDEF
+    CHECK(TransportTraits<TestUARTTransport>::kind == TransportKind::UART);
+#endif
+}
+
+TEST_CASE("Mode tags are correctly assigned")
+{
+    // I2C and SPI are register-mode transports
+    CHECK(std::is_same_v<TestI2CTransport::config_type::mode_tag, register_mode_tag>);
+    CHECK(std::is_same_v<TestSPITransport::config_type::mode_tag, register_mode_tag>);
+
+    // UART is stream-mode
+    CHECK(std::is_same_v<TestUARTTransport::config_type::mode_tag, stream_mode_tag>);
 }
