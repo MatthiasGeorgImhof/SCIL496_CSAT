@@ -5,17 +5,17 @@
 #include <cstring>
 #include "Transport.hpp"
 
+constexpr static uint8_t MLX90640_ID = 0x33;
+constexpr static std::size_t MLX90640_EEPROM_WORDS = 832;
+constexpr static std::size_t MLX90640_EEPROM_SIZE = MLX90640_EEPROM_WORDS * sizeof(uint16_t);
+constexpr static std::size_t MLX90640_SUBPAGE_WORDS = 834;
+constexpr static std::size_t MLX90640_SUBPAGE_SIZE = MLX90640_SUBPAGE_WORDS * sizeof(uint16_t);
+constexpr static std::size_t MLX90640_FRAME_WORDS = 2 * MLX90640_SUBPAGE_WORDS;
+constexpr static std::size_t MLX90640_FRAME_SIZE = MLX90640_FRAME_WORDS * sizeof(uint16_t);
+
 template <RegisterModeTransport Transport>
 class MLX90640
 {
-public:
-    constexpr static std::size_t EEPROM_WORDS = 832;
-    constexpr static std::size_t EEPROM_SIZE = EEPROM_WORDS * sizeof(uint16_t);
-    constexpr static std::size_t SUBPAGE_WORDS = 834;
-    constexpr static std::size_t SUBPAGE_SIZE = SUBPAGE_WORDS * sizeof(uint16_t);
-    constexpr static std::size_t FRAME_WORDS = 2 * SUBPAGE_WORDS;
-    constexpr static std::size_t FRAME_SIZE = FRAME_WORDS * sizeof(uint16_t);
-
 public:
     explicit MLX90640(const Transport &t) : transport(t) {}
 
@@ -25,7 +25,7 @@ public:
     bool readEEPROM(uint16_t *eeprom)
     {
         // EEPROM is 832 words starting at 0x2400
-        return readBlock(0x2400, reinterpret_cast<uint8_t *>(eeprom), EEPROM_SIZE);
+        return readBlock(0x2400, reinterpret_cast<uint8_t *>(eeprom), MLX90640_EEPROM_SIZE);
     }
 
     // ─────────────────────────────────────────────
@@ -50,19 +50,19 @@ public:
     }
 
     // ─────────────────────────────────────────────
-    // Read a single subpage (blocking)
-    // frameData must point to an array of 834 uint16_t
+    // Read a single MLX90640_SUBPAGE (blocking)
+    // MLX90640_FRAMEData must point to an array of 834 uint16_t
     // ─────────────────────────────────────────────
-    bool readSubpage(uint16_t *frameData)
+    bool readSubpage(uint16_t *MLX90640_FRAMEData)
     {
-        if (frameData == nullptr)
+        if (MLX90640_FRAMEData == nullptr)
         {
             return false;
         }
 
         // Directly read the RAM block (834 words = 1668 bytes)
         if (!readBlock(0x0400,
-                       reinterpret_cast<uint8_t *>(frameData), SUBPAGE_SIZE))
+                       reinterpret_cast<uint8_t *>(MLX90640_FRAMEData), MLX90640_SUBPAGE_SIZE))
         {
             return false;
         }
@@ -77,56 +77,56 @@ public:
     }
 
     // ─────────────────────────────────────────────
-    // Merge two subpages into a "frame" buffer
+    // Merge two MLX90640_SUBPAGEs into a "MLX90640_FRAME" buffer
     //
     // NOTE:
     // - We do NOT interleave pixels here.
-    // - We simply store subpages back-to-back:
-    //   fullFrame[0..833]   = first subpage
-    //   fullFrame[834..1667]= second subpage
+    // - We simply store MLX90640_SUBPAGEs back-to-back:
+    //   fullMLX90640_FRAME[0..833]   = first MLX90640_SUBPAGE
+    //   fullMLX90640_FRAME[834..1667]= second MLX90640_SUBPAGE
     //
-    // Caller must ensure fullFrame has space for 2*834 uint16_t.
+    // Caller must ensure fullMLX90640_FRAME has space for 2*834 uint16_t.
     // Ground side will interpret them using EEPROM + pixel pattern.
     // ─────────────────────────────────────────────
     void createFrame(const uint16_t *sub0,
                      const uint16_t *sub1,
-                     uint16_t *fullFrame)
+                     uint16_t *fullMLX90640_FRAME)
     {
-        if (!sub0 || !sub1 || !fullFrame)
+        if (!sub0 || !sub1 || !fullMLX90640_FRAME)
             return;
 
-        // First subpage
-        std::memcpy(fullFrame, sub0, SUBPAGE_SIZE);
-        // Second subpage immediately after
-        std::memcpy(fullFrame + SUBPAGE_WORDS, sub1, SUBPAGE_SIZE);
+        // First MLX90640_SUBPAGE
+        std::memcpy(fullMLX90640_FRAME, sub0, MLX90640_SUBPAGE_SIZE);
+        // Second MLX90640_SUBPAGE immediately after
+        std::memcpy(fullMLX90640_FRAME + MLX90640_SUBPAGE_WORDS, sub1, MLX90640_SUBPAGE_SIZE);
     }
 
     // ─────────────────────────────────────────────
-    // Read a full "frame" = two subpages back-to-back
+    // Read a full "MLX90640_FRAME" = two MLX90640_SUBPAGEs back-to-back
     //
-    // frameData must point to an array of 2*834 uint16_t.
+    // MLX90640_FRAMEData must point to an array of 2*834 uint16_t.
     // Layout on return:
-    //   frameData[0..833]      = first subpage (as read)
-    //   frameData[834..1667]   = second subpage (as read)
+    //   MLX90640_FRAMEData[0..833]      = first MLX90640_SUBPAGE (as read)
+    //   MLX90640_FRAMEData[834..1667]   = second MLX90640_SUBPAGE (as read)
     //
-    // We enforce that the two subpages are different (0 and 1).
+    // We enforce that the two MLX90640_SUBPAGEs are different (0 and 1).
     // ─────────────────────────────────────────────
-    bool readFrame(uint16_t *frameData)
+    bool readFrame(uint16_t *MLX90640_FRAMEData)
     {
-        if (frameData == nullptr)
+        if (MLX90640_FRAMEData == nullptr)
             return false;
 
         uint16_t subA[834];
         uint16_t subB[834];
 
-        // ---- First subpage ----
+        // ---- First MLX90640_SUBPAGE ----
         if (!waitUntilReady())
             return false;
         if (!readSubpage(subA))
             return false;
         int spA = int(subA[833] & 0x0001u);
 
-        // ---- Second subpage ----
+        // ---- Second MLX90640_SUBPAGE ----
         if (!waitUntilReady())
             return false;
         if (!readSubpage(subB))
@@ -136,7 +136,7 @@ public:
         if (spA == spB)
             return false;
 
-        createFrame(subA, subB, frameData);
+        createFrame(subA, subB, MLX90640_FRAMEData);
         return true;
     }
 
