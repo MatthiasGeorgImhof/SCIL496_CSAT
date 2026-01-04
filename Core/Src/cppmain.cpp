@@ -99,6 +99,115 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
 int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
 
+#include <cstdint>
+#include <cstdio>
+
+bool toHexAscii(const uint8_t* data,
+                size_t dataSize,
+                char* out,
+                size_t outSize,
+                size_t bytesPerLine = 16)
+{
+    if (!data || !out || outSize == 0)
+        return false;
+
+    size_t pos = 0;
+
+    for (size_t i = 0; i < dataSize; ++i)
+    {
+        // Format for one byte: "0xNN" + space or newline
+        int written = std::snprintf(
+            out + pos,
+            (pos < outSize ? outSize - pos : 0),
+            "0x%02X",
+            data[i]
+        );
+
+        if (written < 0 || pos + written >= outSize)
+            return false; // buffer too small
+
+        pos += written;
+
+        // Add separator
+        bool endOfLine = ((i + 1) % bytesPerLine == 0);
+        bool lastByte  = (i + 1 == dataSize);
+
+        if (!lastByte)
+        {
+            const char* sep = endOfLine ? "\n" : " ";
+            size_t sepLen = endOfLine ? 1 : 1;
+
+            if (pos + sepLen >= outSize)
+                return false;
+
+            out[pos++] = sep[0];
+        }
+    }
+
+    // Null‑terminate
+    if (pos >= outSize-3)
+        return false;
+
+    out[pos+0] = '\n';
+    out[pos+1] = '\n';
+    out[pos+2] = '\0';
+    return true;
+}
+
+bool toHexAsciiWords(const uint8_t* data,
+                     size_t dataSize,
+                     char* out,
+                     size_t outSize,
+                     size_t wordsPerLine = 8)
+{
+    if (!data || !out || outSize == 0 || (dataSize % 2) != 0)
+        return false;
+
+    size_t pos = 0;
+    size_t wordCount = dataSize / 2;
+
+    for (size_t w = 0; w < wordCount; w++)
+    {
+        uint16_t be = (uint16_t(data[2*w]) << 8) | data[2*w + 1];
+
+        int written = std::snprintf(
+            out + pos,
+            (pos < outSize ? outSize - pos : 0),
+            "0x%04X", be
+        );
+
+        if (written < 0 || pos + written >= outSize)
+            return false;
+
+        pos += written;
+
+        bool lastWord = (w + 1 == wordCount);
+        bool endOfLine = ((w + 1) % wordsPerLine == 0);
+
+        if (!lastWord)
+        {
+            const char* sep = endOfLine ? ",\n" : ", ";
+            size_t sepLen = endOfLine ? 2 : 2;
+
+            if (pos + sepLen >= outSize)
+                return false;
+
+            out[pos++] = sep[0];
+            out[pos++] = sep[1];
+        }
+    }
+
+    if (pos + 3 >= outSize)
+        return false;
+
+    out[pos++] = '\n';
+    out[pos++] = '\n';
+    out[pos]   = '\0';
+
+    return true;
+}
+
+
 void cppmain()
 {
 	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
@@ -211,16 +320,8 @@ void cppmain()
 //	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
 //	camera_switch.select(I2CSwitchChannel::Channel2);
 
-
 	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
 	LoopManager loop_manager(allocator);
-
-	constexpr uint8_t CAMERA_SWITCH = 0x70;
-    using CameraSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
-    using CameraSwitchTransport = I2CTransport<CameraSwitchConfig>;
-    CameraSwitchTransport cam_sw_transport;
-	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
-	camera_switch.select(I2CSwitchChannel::Channel0);
 
 	constexpr uint8_t CAMERA = OV5640_ID;
     using CameraConfig = I2C_Config<hi2c1, CAMERA>;
@@ -235,6 +336,25 @@ void cppmain()
     OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
     camera.powerUp();
 
+	constexpr uint8_t CAMERA_SWITCH = 0x70;
+    using CameraSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
+    using CameraSwitchTransport = I2CTransport<CameraSwitchConfig>;
+    CameraSwitchTransport cam_sw_transport;
+	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
+	camera_switch.select(I2CSwitchChannel::Channel2);
+//    	using I2CSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
+//    	using I2CSwitchTransport = I2CTransport<I2CSwitchConfig>;
+//    	I2CSwitchTransport cam_sw_transport;
+//    	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
+//    	camera_switch.select(I2CSwitchChannel::Channel2);
+
+//	uint8_t channel = static_cast<uint8_t>(I2CSwitchChannel::Channel2);
+//	HAL_I2C_StateTypeDef state1 = HAL_I2C_GetState(&hi2c1);
+//	HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
+//	HAL_StatusTypeDef code1 = HAL_I2C_Master_Transmit(&hi2c1, CAMERA_SWITCH << 1, &channel, 1, 100);
+//	uint32_t error1 = HAL_I2C_GetError(&hi2c1);
+
+	uint counter = 0;
 	while(1)
 	{
 		log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
@@ -250,77 +370,89 @@ void cppmain()
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 
-		uint8_t channel = 0xaa;
-		HAL_I2C_StateTypeDef state1 = HAL_I2C_GetState(&hi2c1);
-		HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
-		HAL_StatusTypeDef code1 = HAL_I2C_Master_Transmit(&hi2c1, 0x70 << 1, &channel, 1, 100);
-		uint32_t error1 = HAL_I2C_GetError(&hi2c1);
+//		uint8_t data1 = 0;
+//		HAL_I2C_StateTypeDef state1 = HAL_I2C_GetState(&hi2c1);
+//		HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
+//		HAL_StatusTypeDef code1 = HAL_I2C_Master_Receive(&hi2c1, CAMERA_SWITCH << 1, &data1, 1, 100);
+//		uint32_t error1 = HAL_I2C_GetError(&hi2c1);
 
-		uint8_t data = 0;
-		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c1);
-		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c1);
-		HAL_StatusTypeDef code2 = HAL_I2C_Master_Receive(&hi2c1, 0x70 << 1, &data, 1, 100);
-		uint32_t error2 = HAL_I2C_GetError(&hi2c1);
-
-
+//		constexpr uint8_t THERMO_I2C_ADR = 0x33;
+//		uint8_t data2[3] = {0,0,0};
 //		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
 //		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
-//		HAL_StatusTypeDef code2 = HAL_I2C_Master_Transmit(&hi2c2, 0x70 << 1, &channel, 1, 100);
+////		HAL_StatusTypeDef code2 = HAL_I2C_Master_Receive(&hi2c2, THERMO_I2C_ADR << 1, &data2, 1, 100);
+//		HAL_StatusTypeDef code2 = HAL_I2C_Mem_Read(&hi2c2, THERMO_I2C_ADR << 1, 0x2407, I2C_MEMADD_SIZE_16BIT, data2, 3, HAL_MAX_DELAY);
 //		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
+//
+//		char buffer[256];
+//		sprintf(buffer, "step %ld: (%x %x) (%x %x %x %x)\r\n", HAL_GetTick(), code1, code2, code2, data2[0], data2[1], data2[2]);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+		constexpr uint8_t THERMO_I2C_ADR = 0x33;
+		constexpr size_t EEPROM_SIZE = 0x340 * 2;
+		uint8_t data2[EEPROM_SIZE];
+		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
+		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
+		HAL_StatusTypeDef code2 = HAL_I2C_Mem_Read(&hi2c2, THERMO_I2C_ADR << 1, 0x2400, I2C_MEMADD_SIZE_16BIT, data2, EEPROM_SIZE, HAL_MAX_DELAY);
+		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
+
+		char buffer[8*EEPROM_SIZE];
+		toHexAsciiWords(data2, EEPROM_SIZE, buffer, sizeof(buffer), 16);
+		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 		uint16_t camera_id{0};
 		camera.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&camera_id), sizeof(camera_id));
-		char buffer[256];
-		sprintf(buffer, "OV5640: %04x\r\n", camera_id);
-		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-//		uint8_t camera_id_h = camera.readRegister(OV5640_Register::CHIP_ID_H);
-//		uint8_t camera_id_l = camera.readRegister(OV5640_Register::CHIP_ID_L);
 //		char buffer[256];
-//		sprintf(buffer, "OV5640: %02x %02x\r\n", camera_id_h, camera_id_l);
+//		sprintf(buffer, "OV5640: %04x\r\n", camera_id);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+		uint8_t camera_id_h = camera.readRegister(OV5640_Register::CHIP_ID_H);
+		uint8_t camera_id_l = camera.readRegister(OV5640_Register::CHIP_ID_L);
+//		char buffer[256];
+//		sprintf(buffer, "Channel: %02x OV5640: %04x %02x %02x\r\n", code2, camera_id, camera_id_h, camera_id_l);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
-		uint16_t adc_value1 = 0;
-		uint16_t adc_value2 = 0;
-
-		ADC_ChannelConfTypeDef sConfig = {0};
-
-		/* --- 1. READ PC2 (ADC_CHANNEL_3) --- */
-		sConfig.Channel = ADC_CHANNEL_3;
-		sConfig.Rank = ADC_REGULAR_RANK_1;
-		sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5; // Keep the same timing as your Init
-		sConfig.SingleDiff = ADC_SINGLE_ENDED;
-		sConfig.OffsetNumber = ADC_OFFSET_NONE;
-		sConfig.Offset = 0;
-
-		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-		    Error_Handler();
-		}
-
-		HAL_ADC_Start(&hadc1);
-		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-		    adc_value1 = HAL_ADC_GetValue(&hadc1);
-		}
-		HAL_ADC_Stop(&hadc1);
-
-
-		/* --- 2. READ PC3 (ADC_CHANNEL_4) --- */
-		sConfig.Channel = ADC_CHANNEL_4; // Switch to the other channel
-		// (Rank and SamplingTime stay the same, so we don't strictly need to redefine them,
-		// but it's safe to keep them in the sConfig struct)
-
-		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-		    Error_Handler();
-		}
-
-		HAL_ADC_Start(&hadc1);
-		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-		    adc_value2 = HAL_ADC_GetValue(&hadc1);
-		}
-		HAL_ADC_Stop(&hadc1);
-
-
+//		uint16_t adc_value1 = 0;
+//		uint16_t adc_value2 = 0;
+//
+//		ADC_ChannelConfTypeDef sConfig = {0};
+//
+//		/* --- 1. READ PC2 (ADC_CHANNEL_3) --- */
+//		sConfig.Channel = ADC_CHANNEL_3;
+//		sConfig.Rank = ADC_REGULAR_RANK_1;
+//		sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5; // Keep the same timing as your Init
+//		sConfig.SingleDiff = ADC_SINGLE_ENDED;
+//		sConfig.OffsetNumber = ADC_OFFSET_NONE;
+//		sConfig.Offset = 0;
+//
+//		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+//		    Error_Handler();
+//		}
+//
+//		HAL_ADC_Start(&hadc1);
+//		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+//		    adc_value1 = HAL_ADC_GetValue(&hadc1);
+//		}
+//		HAL_ADC_Stop(&hadc1);
+//
+//
+//		/* --- 2. READ PC3 (ADC_CHANNEL_4) --- */
+//		sConfig.Channel = ADC_CHANNEL_4; // Switch to the other channel
+//		// (Rank and SamplingTime stay the same, so we don't strictly need to redefine them,
+//		// but it's safe to keep them in the sConfig struct)
+//
+//		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+//		    Error_Handler();
+//		}
+//
+//		HAL_ADC_Start(&hadc1);
+//		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+//		    adc_value2 = HAL_ADC_GetValue(&hadc1);
+//		}
+//		HAL_ADC_Stop(&hadc1);
+//
+//
 //		char buffer[256];
 //		sprintf(buffer, "step %ld: (%x %x %x %lx: %x) (%x %x %x %lx: %x) %3x %3x\r\n", HAL_GetTick(), state1, mode1, code1, error1, channel, state2, mode2, code2, error2, data, adc_value1, adc_value2);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
@@ -332,11 +464,12 @@ void cppmain()
 //		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d\r\n",
 //			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
+//
 //				char buffer[256];
 //				sprintf(buffer, "time: %ld\r\n", HAL_GetTick());
 //				CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
-		HAL_Delay(1);
+		HAL_Delay(1000);
+		++counter;
 	}
 }

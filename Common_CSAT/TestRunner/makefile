@@ -58,6 +58,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMainLoop.cpp \
 			 TestMMC5983.cpp \
 			 TestMLX90640.cpp \
+			 TestMLX90640EEPROM.cpp \
 			 TestMLX90640AgainstMelexis.cpp \
 			 TestMLX90640ImageProcessor.cpp \
 			 TestMockHal.cpp \
