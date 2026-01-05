@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <concepts>
 #include <type_traits>
 
