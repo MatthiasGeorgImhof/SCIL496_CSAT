@@ -3,6 +3,8 @@
 #include <cstring>
 #include "Transport.hpp"
 
+#include "Logger.hpp"
+
 // ─────────────────────────────────────────────
 // MLX90640 Constants
 // ─────────────────────────────────────────────
@@ -24,6 +26,9 @@ enum class MLX90640_REGISTERS : uint16_t
     RAM_START     = 0x0400,   // Start of RAM subpage data
     EEPROM_START  = 0x2400    // Start of EEPROM
 };
+
+// log() prototype (as provided by you)
+// void log(uint8_t level, const char *format, ...);
 
 // ─────────────────────────────────────────────
 // MLX90640 Driver
@@ -49,23 +54,45 @@ public:
 
         // Read current control register
         if (!readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), ctrl))
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::wakeUp: read CONTROL1 failed\r\n");
             return false;
+        }
 
-        // Build new control register value in one expression:
-        //
-        // Bit 0   = 1      → wake device
-        // Bit 12  = 1      → chess mode
-        // Bits 7:5 = 0b011 → refresh rate = 4 Hz
-        //
+        // Clear the bits we control, keep others
+        ctrl &= ~uint16_t((1u<<0) | (1u<<3) | (1u<<4) | (0x7u<<5) | (1u<<12));
+
+        // Set our bits:
+        // bit 0  = 1 → wake
+        // bit 3  = 0 → auto subpage
+        // 7:5    = 0b011 → 4 Hz
+        // bit 12 = 1 → chess mode
         uint16_t newCtrl =
-              (ctrl | 0x0001)      // wake device
-            | 0x1000               // chess mode
-            | (0x03 << 5);         // refresh rate = 4 Hz
+              ctrl
+            | (1u << 0)     // wake
+            | (3u << 5)     // 4 Hz
+            | (1u << 12);   // chess
 
         if (!writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), newCtrl))
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::wakeUp: write CONTROL1 failed\r\n");
             return false;
+        }
 
-        return clearStatus();
+        log(LOG_LEVEL_DEBUG, "MLX90640::wakeUp: CONTROL1=0x%04X\r\n", newCtrl);
+
+        uint16_t verify;
+        readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), verify);
+        log(LOG_LEVEL_DEBUG, "CONTROL1 after wakeUp = 0x%04X\r\n", verify);
+
+
+//        if (!clearStatus())
+//        {
+//            log(LOG_LEVEL_ERROR, "MLX90640::wakeUp: clearStatus failed\r\n");
+//            return false;
+//        }
+
+        return true;
     }
 
     // ─────────────────────────────────────────────
@@ -89,8 +116,14 @@ public:
     // ─────────────────────────────────────────────
     bool reset()
     {
-        if (!writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::STATUS),   0x0000)) return false;
-        if (!writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), 0x0000)) return false;
+        // Clear NEW_DATA and other status bits
+        if (!clearStatus())
+            return false;
+
+        // Put CONTROL1 into default (sleep) state
+        if (!writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), 0x0000))
+            return false;
+
         return true;
     }
 
@@ -115,36 +148,75 @@ public:
         if (!readStatus(status))
             return false;
 
-        return (status & 0x0008u) != 0u; // NEW_DATA bit
+        bool ready = (status & 0x0008u) != 0u; // NEW_DATA bit
+        log(LOG_LEVEL_TRACE, "MLX90640::isReady: STATUS=0x%04X, NEW_DATA=%u\r\n",
+            status, ready ? 1u : 0u);
+        return ready;
     }
 
-    bool waitUntilReady(unsigned maxAttempts = 100)
+    bool waitUntilReady(unsigned maxAttempts = 512)
     {
         for (unsigned i = 0; i < maxAttempts; ++i)
         {
             if (isReady())
                 return true;
+            HAL_Delay(1);
         }
+        log(LOG_LEVEL_WARNING, "MLX90640::waitUntilReady: timed out\r\n");
         return false;
     }
 
     // ─────────────────────────────────────────────
     // Read a single MLX90640_SUBPAGE (834 words)
     // ─────────────────────────────────────────────
-    bool readSubpage(uint16_t* MLX90640_FRAMEData)
+    //
+    // Correct sequence:
+    //  1. Assume caller has waited for NEW_DATA.
+    //  2. Read STATUS → get subpage ID and confirm NEW_DATA.
+    //  3. Read RAM snapshot.
+    //  4. Clear NEW_DATA.
+    //
+    bool readSubpage(uint16_t* buf, int& subpage)
     {
-        if (!MLX90640_FRAMEData)
+        if (!buf)
             return false;
 
-        if (!readBlock(
-                static_cast<uint16_t>(MLX90640_REGISTERS::RAM_START),
-                reinterpret_cast<uint8_t*>(MLX90640_FRAMEData),
-                MLX90640_SUBPAGE_SIZE))
+        // 1. Read STATUS first
+        uint16_t status = 0;
+        if (!readStatus(status))
         {
+            log(LOG_LEVEL_ERROR, "MLX90640::readSubpage: read STATUS failed\r\n");
             return false;
         }
 
-        return clearStatus();
+        if ((status & 0x0008u) == 0u)
+        {
+            // NEW_DATA not set → caller should have waited, but be defensive
+            log(LOG_LEVEL_WARNING, "MLX90640::readSubpage: NEW_DATA not set (STATUS=0x%04X)\r\n", status);
+            return false;
+        }
+
+        subpage = static_cast<int>(status & 0x0001u);   // bit 0 = subpage ID
+        log(LOG_LEVEL_TRACE, "MLX90640::readSubpage: STATUS=0x%04X, subpage=%d\r\n", status, subpage);
+
+        // 2. Read RAM snapshot
+        if (!readBlock(
+                static_cast<uint16_t>(MLX90640_REGISTERS::RAM_START),
+                reinterpret_cast<uint8_t*>(buf),
+                MLX90640_SUBPAGE_SIZE))
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::readSubpage: read RAM failed\r\n");
+            return false;
+        }
+
+        // 3. Clear NEW_DATA (write‑1‑to‑clear)
+        if (!clearStatus())
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::readSubpage: clearStatus failed\r\n");
+            return false;
+        }
+
+        return true;
     }
 
     // ─────────────────────────────────────────────
@@ -169,21 +241,48 @@ public:
         if (!frame)
             return false;
 
-        uint16_t subA[MLX90640_SUBPAGE_WORDS];
-        uint16_t subB[MLX90640_SUBPAGE_WORDS];
+        uint16_t sub0[MLX90640_SUBPAGE_WORDS];
+        uint16_t sub1[MLX90640_SUBPAGE_WORDS];
+        int spA = -1;
+        int spB = -1;
 
-        if (!waitUntilReady()) return false;
-        if (!readSubpage(subA)) return false;
-        int spA = int(subA[833] & 0x0001u);
+        // First subpage
+        if (!waitUntilReady())
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::readFrame: waitUntilReady A failed\r\n");
+            return false;
+        }
+        if (!readSubpage(sub0, spA))
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::readFrame: readSubpage A failed\r\n");
+            return false;
+        }
 
-        if (!waitUntilReady()) return false;
-        if (!readSubpage(subB)) return false;
-        int spB = int(subB[833] & 0x0001u);
+        // Second subpage
+        if (!waitUntilReady())
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::readFrame: waitUntilReady B failed\r\n");
+            return false;
+        }
+        if (!readSubpage(sub1, spB))
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::readFrame: readSubpage B failed\r\n");
+            return false;
+        }
+
+        log(LOG_LEVEL_DEBUG, "MLX90640::readFrame: spA=%d, spB=%d\r\n", spA, spB);
 
         if (spA == spB)
+        {
+            log(LOG_LEVEL_WARNING, "MLX90640::readFrame: spA == spB (%d) → frame rejected\r\n", spA);
             return false;
+        }
 
-        createFrame(subA, subB, frame);
+        if (spA == 0)
+            createFrame(sub0, sub1, frame);
+        else
+            createFrame(sub1, sub0, frame);
+
         return true;
     }
 
@@ -195,10 +294,39 @@ public:
         return readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::STATUS), status);
     }
 
+    // MLX90640 STATUS is write‑1‑to‑clear.
+    // NEW_DATA is bit 3 → we write 0x0008 to clear it.
     bool clearStatus()
     {
-        uint16_t zero = 0;
-        return writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::STATUS), zero);
+        constexpr uint16_t CLEAR_NEW_DATA = 0x0008;
+        bool ok = writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::STATUS),
+                             CLEAR_NEW_DATA);
+        if (!ok)
+        {
+            log(LOG_LEVEL_ERROR, "MLX90640::clearStatus: write STATUS failed\r\n");
+        }
+        return ok;
+    }
+
+    bool readStatusBlock(uint16_t out[16])
+    {
+        if (!out)
+            return false;
+
+        // 0x8000 through 0x800F → 16 consecutive 16‑bit registers
+        constexpr uint16_t START = static_cast<uint16_t>(MLX90640_REGISTERS::STATUS);
+        constexpr size_t COUNT = 16;
+
+        for (size_t i = 0; i < COUNT; ++i)
+        {
+            uint16_t value;
+            if (!readReg16(static_cast<uint16_t>(START + i), value))
+                return false;
+
+            out[i] = value;
+        }
+
+        return true;
     }
 
 private:
@@ -231,6 +359,37 @@ private:
         if (!dest || bytes == 0)
             return false;
 
-        return transport.read_reg(startReg, dest, uint16_t(bytes));
+        // Many I2C stacks (or devices) struggle with very large transfers.
+        // Use a conservative chunk size; 64 bytes is usually safe.
+        constexpr std::size_t MAX_CHUNK = 256;
+
+        uint16_t reg = startReg;
+        std::size_t remaining = bytes;
+        std::size_t offset = 0;
+
+        while (remaining > 0)
+        {
+            std::size_t chunk = (remaining > MAX_CHUNK) ? MAX_CHUNK : remaining;
+
+            bool ok = transport.read_reg(reg,
+                                         dest + offset,
+                                         static_cast<uint16_t>(chunk));
+            if (!ok)
+            {
+                log(LOG_LEVEL_ERROR,
+                    "MLX90640::readBlock: read_reg(0x%04X, len=%u) FAILED\r\n",
+                    reg,
+                    static_cast<unsigned>(chunk));
+                return false;
+            }
+
+            // MLX90640 uses 16‑bit word addressing for RAM/EEPROM.
+            // Each register address advances by 1 word (2 bytes).
+            reg    = static_cast<uint16_t>(reg + (chunk / 2));
+            offset += chunk;
+            remaining -= chunk;
+        }
+
+        return true;
     }
 };

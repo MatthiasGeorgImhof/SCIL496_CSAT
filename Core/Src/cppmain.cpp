@@ -44,6 +44,7 @@
 #include "I2CSwitch.hpp"
 #include "CameraSwitch.hpp"
 #include "OV5640.hpp"
+#include "MLX90640.hpp"
 
 #include "au.hh"
 #include "au.hpp"
@@ -170,13 +171,8 @@ bool toHexAsciiWords(const uint8_t* data,
     {
         uint16_t be = (uint16_t(data[2*w]) << 8) | data[2*w + 1];
 
-        int written = std::snprintf(
-            out + pos,
-            (pos < outSize ? outSize - pos : 0),
-            "0x%04X", be
-        );
-
-        if (written < 0 || pos + written >= outSize)
+        int written = std::snprintf(out + pos, outSize - pos, "0x%04X", be);
+        if (written <= 0 || pos + written >= outSize)
             return false;
 
         pos += written;
@@ -186,21 +182,21 @@ bool toHexAsciiWords(const uint8_t* data,
 
         if (!lastWord)
         {
-            const char* sep = endOfLine ? ",\n" : ", ";
-            size_t sepLen = endOfLine ? 2 : 2;
+            const char* sep = endOfLine ? ",\r\n" : ", ";
+            size_t sepLen = std::strlen(sep);
 
             if (pos + sepLen >= outSize)
                 return false;
 
-            out[pos++] = sep[0];
-            out[pos++] = sep[1];
+            std::memcpy(out + pos, sep, sepLen);
+            pos += sepLen;
         }
     }
 
     if (pos + 3 >= outSize)
         return false;
 
-    out[pos++] = '\n';
+    out[pos++] = '\r';
     out[pos++] = '\n';
     out[pos]   = '\0';
 
@@ -291,8 +287,8 @@ void cppmain()
 	service_manager.initializeServices(HAL_GetTick());
 
 	constexpr uint8_t GPIO_EXPANDER = 32;
-    using PowerSwitchConfig = I2C_Config<hi2c4, GPIO_EXPANDER>;
-    using PowerSwitchTransport = I2CTransport<PowerSwitchConfig>;
+    using PowerSwitchConfig = I2C_Register_Config<hi2c4, GPIO_EXPANDER>;
+    using PowerSwitchTransport = I2CRegisterTransport<PowerSwitchConfig>;
     PowerSwitchTransport ps_transport;
 	PowerSwitch<PowerSwitchTransport> power_switch(ps_transport, GPIOB, POWER_RST_Pin);
 	power_switch.on(CIRCUITS::CIRCUIT_0);
@@ -301,8 +297,8 @@ void cppmain()
 	power_switch.on(CIRCUITS::CIRCUIT_3);
 
 	constexpr uint8_t INA226 = 64;
-    using PowerMonitorConfig = I2C_Config<hi2c4, INA226>;
-    using PowerMonitorTransport = I2CTransport<PowerMonitorConfig>;
+    using PowerMonitorConfig = I2C_Register_Config<hi2c4, INA226>;
+    using PowerMonitorTransport = I2CRegisterTransport<PowerMonitorConfig>;
     PowerMonitorTransport pm_transport;
 	PowerMonitor<PowerMonitorTransport> power_monitor(pm_transport);
 
@@ -314,8 +310,8 @@ void cppmain()
 	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_RESET);
 
 //	constexpr uint8_t CAMERA_SWITCH = 0x70;
-//	using I2CSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
-//	using I2CSwitchTransport = I2CTransport<I2CSwitchConfig>;
+//	using I2CSwitchConfig = I2C_Register_Config<hi2c1, CAMERA_SWITCH>;
+//	using I2CSwitchTransport = I2CRegisterTransport<I2CSwitchConfig>;
 //	I2CSwitchTransport cam_sw_transport;
 //	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
 //	camera_switch.select(I2CSwitchChannel::Channel2);
@@ -324,8 +320,8 @@ void cppmain()
 	LoopManager loop_manager(allocator);
 
 	constexpr uint8_t CAMERA = OV5640_ID;
-    using CameraConfig = I2C_Config<hi2c1, CAMERA>;
-    using CameraTransport = I2CTransport<CameraConfig>;
+    using CameraConfig = I2C_Register_Config<hi2c1, CAMERA>;
+    using CameraTransport = I2CRegisterTransport<CameraConfig>;
     CameraTransport cam_transport;
     using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
     CameraClockOE cam_clock;
@@ -337,13 +333,13 @@ void cppmain()
     camera.powerUp();
 
 	constexpr uint8_t CAMERA_SWITCH = 0x70;
-    using CameraSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
-    using CameraSwitchTransport = I2CTransport<CameraSwitchConfig>;
+    using CameraSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
+    using CameraSwitchTransport = I2CStreamTransport<CameraSwitchConfig>;
     CameraSwitchTransport cam_sw_transport;
 	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
 	camera_switch.select(I2CSwitchChannel::Channel2);
-//    	using I2CSwitchConfig = I2C_Config<hi2c1, CAMERA_SWITCH>;
-//    	using I2CSwitchTransport = I2CTransport<I2CSwitchConfig>;
+//    	using I2CSwitchConfig = I2C_Register_Config<hi2c1, CAMERA_SWITCH>;
+//    	using I2CSwitchTransport = I2CRegisterTransport<I2CSwitchConfig>;
 //    	I2CSwitchTransport cam_sw_transport;
 //    	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
 //    	camera_switch.select(I2CSwitchChannel::Channel2);
@@ -353,6 +349,15 @@ void cppmain()
 //	HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
 //	HAL_StatusTypeDef code1 = HAL_I2C_Master_Transmit(&hi2c1, CAMERA_SWITCH << 1, &channel, 1, 100);
 //	uint32_t error1 = HAL_I2C_GetError(&hi2c1);
+
+	constexpr uint8_t THERMO_I2C_ADR = 0x33;
+    using MLX90640Config = I2C_Register_Config<hi2c2, THERMO_I2C_ADR, I2CAddressWidth::Bits16>;
+    using MLX90640Transport = I2CRegisterTransport<MLX90640Config>;
+    MLX90640Transport mlx90640_transport;
+	MLX90640<MLX90640Transport> mlx90640(mlx90640_transport);
+
+	HAL_Delay(3000);
+	mlx90640.wakeUp();
 
 	uint counter = 0;
 	while(1)
@@ -388,17 +393,63 @@ void cppmain()
 //		sprintf(buffer, "step %ld: (%x %x) (%x %x %x %x)\r\n", HAL_GetTick(), code1, code2, code2, data2[0], data2[1], data2[2]);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
-		constexpr uint8_t THERMO_I2C_ADR = 0x33;
-		constexpr size_t EEPROM_SIZE = 0x340 * 2;
-		uint8_t data2[EEPROM_SIZE];
-		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
-		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
-		HAL_StatusTypeDef code2 = HAL_I2C_Mem_Read(&hi2c2, THERMO_I2C_ADR << 1, 0x2400, I2C_MEMADD_SIZE_16BIT, data2, EEPROM_SIZE, HAL_MAX_DELAY);
-		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
+//		constexpr uint8_t THERMO_I2C_ADR = 0x33;
+//		constexpr size_t EEPROM_SIZE = 0x340 * 2;
+//		uint8_t data2[EEPROM_SIZE];
+//		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
+//		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
+//		HAL_StatusTypeDef code2 = HAL_I2C_Mem_Read(&hi2c2, THERMO_I2C_ADR << 1, 0x2400, I2C_MEMADD_SIZE_16BIT, data2, EEPROM_SIZE, HAL_MAX_DELAY);
+//		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
+//
+//		char buffer[8*EEPROM_SIZE];
+//		toHexAsciiWords(data2, EEPROM_SIZE, buffer, sizeof(buffer), 16);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
-		char buffer[8*EEPROM_SIZE];
-		toHexAsciiWords(data2, EEPROM_SIZE, buffer, sizeof(buffer), 16);
-		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+//		constexpr size_t EEPROM_SIZE = 0x340 * sizeof(uint16_t);
+//		uint16_t data[EEPROM_SIZE/2];
+//		if (! mlx90640.readEEPROM(data))
+//		{
+//			std::memset(data, EEPROM_SIZE, 0);
+//		}
+//
+//		char buffer[8*EEPROM_SIZE];
+//		toHexAsciiWords(reinterpret_cast<uint8_t*>(data), EEPROM_SIZE, buffer, sizeof(buffer), 16);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+//		constexpr size_t FRAME_SIZE = 1668 * sizeof(uint16_t);
+//		uint16_t data[FRAME_SIZE/2];
+//		if (! mlx90640.readFrame(data))
+//		{
+//			std::memset(data, FRAME_SIZE, 0);
+//		}
+//
+//		char buffer[8*FRAME_SIZE];
+//		toHexAsciiWords(reinterpret_cast<uint8_t*>(data), FRAME_SIZE, buffer, sizeof(buffer), 16);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+		log(LOG_LEVEL_NOTICE, "poll Mmlx90640\r\n");
+		uint16_t data[MLX90640_SUBPAGE_WORDS];
+		if (! mlx90640.readFrame(data))
+		{
+			log(LOG_LEVEL_ERROR, "Mmlx90640.readFrame(data) failed\r\n");
+		}
+		else
+		{
+			char buffer[10*MLX90640_SUBPAGE_SIZE];
+			toHexAsciiWords(reinterpret_cast<uint8_t*>(data), sizeof(data), buffer, sizeof(buffer), 32);
+			CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+		}
+//		uint16_t status[16];
+//		if (!mlx90640.readStatusBlock(status))
+//		{
+//		    memset(status, 0, sizeof(status));
+//		}
+//
+//		char buffer[256];   // plenty of space
+//		toHexAsciiWords(reinterpret_cast<uint8_t*>(status), sizeof(status), buffer, sizeof(buffer), 16);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+
+
 
 		uint16_t camera_id{0};
 		camera.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&camera_id), sizeof(camera_id));
@@ -469,7 +520,7 @@ void cppmain()
 //				sprintf(buffer, "time: %ld\r\n", HAL_GetTick());
 //				CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
-		HAL_Delay(1000);
+		HAL_Delay(250);
 		++counter;
 	}
 }
