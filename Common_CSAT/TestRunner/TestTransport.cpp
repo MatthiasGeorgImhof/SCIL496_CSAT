@@ -99,9 +99,9 @@ TEST_CASE("I2CRegisterTransport correctly byte-swaps 16-bit register addresses")
 
     CHECK(transport.write_reg(reg, payload, sizeof(payload)) == true);
 
-    // HAL expects big-endian register address: MSB first
-    // encode_reg() swaps to 0x3412 so HAL sends 0x34 then 0x12
-    CHECK(get_i2c_mem_address() == 0x3412);
+    // HAL will byteswap the reg internally, no need for us to replicate at this time
+    // if necessary, flip in mock_hal and change this test 
+    CHECK(get_i2c_mem_address() == reg);
 }
 
 // ─────────────────────────────────────────────
