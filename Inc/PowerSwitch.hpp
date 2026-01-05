@@ -3,6 +3,7 @@
 
 #include "Transport.hpp"
 #include <cstdint>
+#include <cstring>
 #include <array>
 
 // MCP23008 Register Definitions
@@ -10,7 +11,7 @@ enum class MCP23008_REGISTERS : uint8_t
 {
     MCP23008_IODIR = 0x00,
     MCP23008_IPOL = 0x01,
-    MCP23008_GPINTEN  = 0x02,
+    MCP23008_GPINTEN = 0x02,
     MCP23008_DEFVAL = 0x03,
     MCP23008_INTCON = 0x04,
     MCP23008_IOCON = 0x05,
@@ -41,7 +42,7 @@ public:
     PowerSwitch() = delete;
 
     explicit PowerSwitch(const Transport &transport, GPIO_TypeDef *resetPort, uint16_t resetPin)
-        : transport_(transport), register_value_(0),  reset_port_(resetPort), reset_pin_(resetPin)
+        : transport_(transport), register_value_(0), reset_port_(resetPort), reset_pin_(resetPin)
     {
         releaseReset();
     }
@@ -54,7 +55,7 @@ public:
 
     bool off(CIRCUITS circuit)
     {
-    register_value_ &= ~static_cast<uint8_t>(circuit);
+        register_value_ &= ~static_cast<uint8_t>(circuit);
         return writeRegister(MCP23008_REGISTERS::MCP23008_OLAT, &register_value_, 1);
     }
 
@@ -91,28 +92,15 @@ public:
     }
 
 private:
-    bool writeRegister(MCP23008_REGISTERS reg, uint8_t *data, uint16_t size)
+    bool writeRegister(MCP23008_REGISTERS reg, const uint8_t *data, uint16_t size)
     {
-        constexpr size_t MaxSize = 16;
-        static_assert(MaxSize >= 1, "MaxSize must accommodate register + data");
-
-        if (size > MaxSize - 1)
-        {
-            return false; // prevent overflow
-        }
-
-        std::array<uint8_t, MaxSize> tx{};
-        tx[0] = static_cast<uint8_t>(reg);
-        std::memcpy(&tx[1], data, size);
-
-        return transport_.write(tx.data(), size + 1);
+        return transport_.write_reg(static_cast<uint16_t>(reg), data, size);
     }
 
     uint8_t readRegister(MCP23008_REGISTERS reg) const
     {
-        uint8_t tx = static_cast<uint8_t>(reg);
-        uint8_t rx;
-        transport_.write_then_read(&tx, 1, &rx, 1);
+        uint8_t rx{};
+        transport_.read_reg(static_cast<uint16_t>(reg), &rx, 1);
         return rx;
     }
 

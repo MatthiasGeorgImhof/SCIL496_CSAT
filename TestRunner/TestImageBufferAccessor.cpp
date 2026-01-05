@@ -75,6 +75,7 @@ TEST_CASE("LinuxMockI2CFlashAccessor")
         std::vector<uint8_t> read_data(size); // Use std::vector
         auto result = hal.write(address, data, size);
         REQUIRE(result == AccessorError::NO_ERROR);
+        inject_i2c_rx_data(0x50, data, sizeof(data));
         result = hal.read(address, read_data.data(), size);
         REQUIRE(result == AccessorError::NO_ERROR);
         bool result_bool = compareMemory(data, read_data.data(), size);
