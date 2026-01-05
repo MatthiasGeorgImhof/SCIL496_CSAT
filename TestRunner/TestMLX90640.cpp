@@ -208,9 +208,40 @@ TEST_CASE("MLX90640 createFrame concatenates subpages")
     mlx.createFrame(sub0, sub1, full);
 
     CHECK(full[0] == sub0[0]);
+    CHECK(full[10] == sub0[10]);
     CHECK(full[MLX90640_SUBPAGE_WORDS - 1] == sub0[MLX90640_SUBPAGE_WORDS - 1]);
+
     CHECK(full[MLX90640_SUBPAGE_WORDS] == sub1[0]);
+    CHECK(full[MLX90640_SUBPAGE_WORDS + 5] == sub1[5]);
     CHECK(full[MLX90640_FRAME_WORDS - 1] == sub1[MLX90640_SUBPAGE_WORDS - 1]);
+}
+
+TEST_CASE("MLX90640 readFrame attempts subpage reads (mock‑compatible)")
+{
+    clear_i2c_rx_data();
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
+
+    // Inject one subpage (mock cannot simulate two)
+    uint8_t fake_subpage[MLX90640_SUBPAGE_SIZE];
+    memset(fake_subpage, 0xAA, sizeof(fake_subpage));
+    inject_i2c_rx_data(MLX_I2C_Config::address, fake_subpage, sizeof(fake_subpage));
+
+    uint16_t frame[MLX90640_FRAME_WORDS] = {};
+    bool ok = mlx.readFrame(frame);
+
+    // Expected: mock cannot support two RX operations → readFrame() fails
+    CHECK(ok == false);
+
+    // Inspect the last transmit buffer
+    uint8_t *tx = get_i2c_tx_buffer();
+    int count = get_i2c_tx_buffer_count();
+
+    // The last write should be clearStatus() → writeReg16(0x8000, 0)
+    CHECK(count == 2);
+    CHECK(tx[0] == 0x00); // MSB of value
+    CHECK(tx[1] == 0x00); // LSB of value
+    CHECK(get_i2c_mem_address() == static_cast<uint16_t>(MLX90640_REGISTERS::STATUS));
 }
 
 // ─────────────────────────────────────────────
