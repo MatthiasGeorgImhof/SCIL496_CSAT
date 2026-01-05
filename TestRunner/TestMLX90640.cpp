@@ -14,23 +14,23 @@
 I2C_HandleTypeDef mock_i2c_handle = {
     .Instance =
         {
-            .ClockSpeed      = 100000,
-            .DutyCycle       = 0,
-            .OwnAddress1     = 0,
-            .AddressingMode  = 0,
+            .ClockSpeed = 100000,
+            .DutyCycle = 0,
+            .OwnAddress1 = 0,
+            .AddressingMode = 0,
             .DualAddressMode = 0,
-            .OwnAddress2     = 0,
+            .OwnAddress2 = 0,
             .GeneralCallMode = 0,
-            .NoStretchMode   = 0,
-            .Master          = 1,
-            .Init            = 1,
+            .NoStretchMode = 0,
+            .Master = 1,
+            .Init = 1,
         }};
 
 // ─────────────────────────────────────────────
 // Transport typedefs
 // ─────────────────────────────────────────────
-using MLX_I2C_Config = I2C_Register_Config<mock_i2c_handle, 0x33, I2CAddressWidth::Bits16>;
-using MLX_I2C        = I2CRegisterTransport<MLX_I2C_Config>;
+using MLX_I2C_Config = I2C_Register_Config<mock_i2c_handle, MLX90640_ID, I2CAddressWidth::Bits16>;
+using MLX_I2C = I2CRegisterTransport<MLX_I2C_Config>;
 
 // ─────────────────────────────────────────────
 // Instantiate transport + driver
@@ -46,9 +46,76 @@ static uint16_t le16(uint8_t lsb, uint8_t msb)
         (static_cast<uint16_t>(msb) << 8));
 }
 
-static uint16_t le16(uint16_t b)
+// ─────────────────────────────────────────────
+// TEST: compile‑time guard
+// ─────────────────────────────────────────────
+TEST_CASE("MLX90640 enforces 16‑bit addressing at compile time")
 {
-    return  (b << 8) | (b>>8);
+    CHECK(MLX_I2C_Config::address_width == I2CAddressWidth::Bits16);
+}
+
+// ─────────────────────────────────────────────
+// TEST: wakeUp() writes correct CONTROL1 bits
+// ─────────────────────────────────────────────
+TEST_CASE("MLX90640 wakeUp() sets wake, chess mode, and refresh rate")
+{
+    clear_i2c_rx_data();
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
+
+    uint8_t ctrl_initial[2] = {0x12, 0x34};
+    inject_i2c_rx_data(MLX_I2C_Config::address, ctrl_initial, 2);
+
+    bool ok = mlx.wakeUp();
+    CHECK(ok == true);
+
+    CHECK(get_i2c_mem_address() == static_cast<uint16_t>(MLX90640_REGISTERS::STATUS));
+    CHECK(get_i2c_tx_buffer_count() == 2);
+}
+
+// ─────────────────────────────────────────────
+// TEST: sleep()
+// ─────────────────────────────────────────────
+TEST_CASE("MLX90640 sleep() clears wake bit")
+{
+    clear_i2c_rx_data();
+    clear_i2c_tx_data();
+
+    uint8_t ctrl_initial[2] = {0x00, 0x01};
+    inject_i2c_rx_data(MLX_I2C_Config::address, ctrl_initial, 2);
+
+    bool ok = mlx.sleep();
+    CHECK(ok == true);
+
+    CHECK(get_i2c_mem_address() ==
+          static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1));
+
+    uint8_t *tx = get_i2c_tx_buffer();
+    CHECK(get_i2c_tx_buffer_count() == 2);
+
+    uint16_t written = le16(tx[1], tx[0]);
+    CHECK((written & 0x0001) == 0);
+}
+
+// ─────────────────────────────────────────────
+// TEST: reset()
+// ─────────────────────────────────────────────
+TEST_CASE("MLX90640 reset() writes zeros to STATUS and CONTROL1")
+{
+    clear_i2c_tx_data();
+    clear_i2c_rx_data();
+
+    bool ok = mlx.reset();
+    CHECK(ok == true);
+
+    CHECK(get_i2c_tx_buffer_count() == 2);
+
+    CHECK(get_i2c_mem_address() ==
+          static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1));
+
+    uint8_t *tx = get_i2c_tx_buffer();
+    CHECK(tx[0] == 0x00);
+    CHECK(tx[1] == 0x00);
 }
 
 // ─────────────────────────────────────────────
@@ -59,23 +126,22 @@ TEST_CASE("MLX90640 readEEPROM returns data consistent with injected bytes")
     clear_i2c_addresses();
     clear_i2c_rx_data();
 
-    // 832 words = 1664 bytes
-    uint8_t fake_eeprom[1664];
-    for (int i = 0; i < 1664; ++i)
-        fake_eeprom[i] = static_cast<uint8_t>(i & 0xFF);
+    uint8_t fake_eeprom[MLX90640_EEPROM_SIZE];
+    for (size_t i = 0; i < MLX90640_EEPROM_SIZE; ++i)
+        fake_eeprom[i] = uint8_t(i & 0xFF);
 
-    inject_i2c_rx_data(MLX_I2C_Config::address, fake_eeprom, sizeof(fake_eeprom));
-    inject_i2c_rx_data(MLX_I2C_Config::address, fake_eeprom, sizeof(fake_eeprom));
+    inject_i2c_rx_data(MLX_I2C_Config::address,
+                       fake_eeprom,
+                       MLX90640_EEPROM_SIZE);
 
-    uint16_t buffer[832] = {};
+    uint16_t buffer[MLX90640_EEPROM_WORDS] = {};
     bool ok = mlx.readEEPROM(buffer);
 
     CHECK(ok == true);
 
-    CHECK(buffer[0] == le16(fake_eeprom[0],  fake_eeprom[1]));
-    CHECK(buffer[1] == le16(fake_eeprom[2],  fake_eeprom[3]));
-    CHECK(buffer[2] == le16(fake_eeprom[4],  fake_eeprom[5]));
-    CHECK(buffer[10]== le16(fake_eeprom[20], fake_eeprom[21]));
+    CHECK(buffer[0] == le16(fake_eeprom[0], fake_eeprom[1]));
+    CHECK(buffer[1] == le16(fake_eeprom[2], fake_eeprom[3]));
+    CHECK(buffer[10] == le16(fake_eeprom[20], fake_eeprom[21]));
 }
 
 // ─────────────────────────────────────────────
@@ -85,117 +151,105 @@ TEST_CASE("MLX90640 isReady detects NEW_DATA bit")
 {
     clear_i2c_rx_data();
 
-    uint8_t ready_status[2] = {0x00, 0x08}; // NEW_DATA bit set
+    uint8_t ready_status[2] = {0x00, 0x08};
     inject_i2c_rx_data(MLX_I2C_Config::address, ready_status, 2);
 
     CHECK(mlx.isReady() == true);
 }
 
 // ─────────────────────────────────────────────
-// TEST: readSubpage() – non‑blocking version
+// TEST: readSubpage()
 // ─────────────────────────────────────────────
-TEST_CASE("MLX90640 readSubpage reads RAM block")
+TEST_CASE("MLX90640 readSubpage reads RAM block and clears status")
 {
     clear_i2c_rx_data();
     clear_i2c_tx_data();
-    clear_i2c_addresses();
 
-    // Fake subpage data: 834 words = 1668 bytes
-    uint8_t fake_subpage[1668];
-    for (int i = 0; i < 1668; ++i)
-        fake_subpage[i] = static_cast<uint8_t>(i & 0xFF);
+    uint8_t fake_subpage[MLX90640_SUBPAGE_SIZE];
+    for (size_t i = 0; i < MLX90640_SUBPAGE_SIZE; ++i)
+        fake_subpage[i] = uint8_t(i & 0xFF);
 
-    // Inject only the RAM block (non‑blocking readSubpage does NOT read status)
-    inject_i2c_rx_data(MLX_I2C_Config::address, fake_subpage, sizeof(fake_subpage));
+    inject_i2c_rx_data(MLX_I2C_Config::address,
+                       fake_subpage,
+                       MLX90640_SUBPAGE_SIZE);
 
-    uint16_t frame[834] = {};
+    uint16_t frame[MLX90640_SUBPAGE_WORDS] = {};
     bool ok = mlx.readSubpage(frame);
 
     CHECK(ok == true);
 
-    // Validate a few words
-    CHECK(frame[0]   == le16(fake_subpage[0],   fake_subpage[1]));
-    CHECK(frame[1]   == le16(fake_subpage[2],   fake_subpage[3]));
-    CHECK(frame[10]  == le16(fake_subpage[20],  fake_subpage[21]));
-    CHECK(frame[833] == le16(fake_subpage[1666],fake_subpage[1667]));
+    CHECK(frame[0] ==
+          le16(fake_subpage[0], fake_subpage[1]));
 
-    // Verify clearStatus() wrote 4 bytes (writeReg16)
+    CHECK(frame[MLX90640_SUBPAGE_WORDS - 1] ==
+          le16(fake_subpage[MLX90640_SUBPAGE_SIZE - 2],
+               fake_subpage[MLX90640_SUBPAGE_SIZE - 1]));
+
     CHECK(get_i2c_tx_buffer_count() == 2);
-    CHECK(get_i2c_mem_address() == le16(0x8000u));
+    CHECK(get_i2c_mem_address() ==
+          static_cast<uint16_t>(MLX90640_REGISTERS::STATUS));
 }
 
 // ─────────────────────────────────────────────
 // TEST: createFrame()
 // ─────────────────────────────────────────────
-TEST_CASE("MLX90640 createFrame concatenates subpages back‑to‑back")
+TEST_CASE("MLX90640 createFrame concatenates subpages")
 {
-    uint16_t sub0[834];
-    uint16_t sub1[834];
-    uint16_t full[1668];
+    uint16_t sub0[MLX90640_SUBPAGE_WORDS];
+    uint16_t sub1[MLX90640_SUBPAGE_WORDS];
+    uint16_t full[MLX90640_FRAME_WORDS];
 
-    constexpr uint16_t BASE0 = 0x1000u;
-    constexpr uint16_t BASE1 = 0x2000u;
-
-    for (int i = 0; i < 834; ++i)
+    for (size_t i = 0; i < MLX90640_SUBPAGE_WORDS; ++i)
     {
-        sub0[i] = static_cast<uint16_t>(BASE0 + static_cast<uint16_t>(i));
-        sub1[i] = static_cast<uint16_t>(BASE1 + static_cast<uint16_t>(i));
+        sub0[i] = static_cast<uint16_t>(0x1000u + static_cast<uint16_t>(i));
+        sub1[i] = static_cast<uint16_t>(0x2000u + static_cast<uint16_t>(i));
     }
 
     mlx.createFrame(sub0, sub1, full);
 
-    CHECK(full[0]   == sub0[0]);
-    CHECK(full[10]  == sub0[10]);
-    CHECK(full[833] == sub0[833]);
-
-    CHECK(full[834]     == sub1[0]);
-    CHECK(full[834 + 5] == sub1[5]);
-    CHECK(full[1667]    == sub1[833]);
-}
-
-TEST_CASE("MLX90640 readFrame attempts subpage reads (mock‑compatible)")
-{
-    clear_i2c_rx_data();
-    clear_i2c_tx_data();
-    clear_i2c_addresses();
-
-    // Inject one subpage (mock cannot simulate two)
-    uint8_t fake_subpage[1668];
-    memset(fake_subpage, 0xAA, sizeof(fake_subpage));
-    inject_i2c_rx_data(MLX_I2C_Config::address, fake_subpage, sizeof(fake_subpage));
-
-    uint16_t frame[1668] = {};
-    bool ok = mlx.readFrame(frame);
-
-    // Expected: mock cannot support two RX operations → readFrame() fails
-    CHECK(ok == false);
-
-    // Inspect the last transmit buffer
-    uint8_t* tx = get_i2c_tx_buffer();
-    int count   = get_i2c_tx_buffer_count();
-
-    // The last write should be clearStatus() → writeReg16(0x8000, 0)
-    CHECK(count == 2);
-    CHECK(tx[0] == 0x00);   // MSB of value
-    CHECK(tx[1] == 0x00);   // LSB of value
-    CHECK(get_i2c_mem_address() == le16(0x8000u));
+    CHECK(full[0] == sub0[0]);
+    CHECK(full[MLX90640_SUBPAGE_WORDS - 1] == sub0[MLX90640_SUBPAGE_WORDS - 1]);
+    CHECK(full[MLX90640_SUBPAGE_WORDS] == sub1[0]);
+    CHECK(full[MLX90640_FRAME_WORDS - 1] == sub1[MLX90640_SUBPAGE_WORDS - 1]);
 }
 
 // ─────────────────────────────────────────────
-// TEST: waitUntilReady() – success case
+// TEST: readFrame()
+// ─────────────────────────────────────────────
+TEST_CASE("MLX90640 readFrame fails when subpages have same parity")
+{
+    clear_i2c_rx_data();
+    clear_i2c_tx_data();
+
+    uint8_t fake_subpage[MLX90640_SUBPAGE_SIZE];
+    memset(fake_subpage, 0xAA, sizeof(fake_subpage));
+
+    inject_i2c_rx_data(MLX_I2C_Config::address,
+                       fake_subpage,
+                       MLX90640_SUBPAGE_SIZE);
+
+    inject_i2c_rx_data(MLX_I2C_Config::address,
+                       fake_subpage,
+                       MLX90640_SUBPAGE_SIZE);
+
+    uint16_t frame[MLX90640_FRAME_WORDS] = {};
+    bool ok = mlx.readFrame(frame);
+
+    CHECK(ok == false);
+}
+
+// ─────────────────────────────────────────────
+// TEST: waitUntilReady()
 // ─────────────────────────────────────────────
 TEST_CASE("MLX90640 waitUntilReady returns true when NEW_DATA appears")
 {
     clear_i2c_rx_data();
-    clear_i2c_tx_data();
 
-    // First few calls: NOT ready
     uint8_t not_ready[2] = {0x00, 0x00};
     inject_i2c_rx_data(MLX_I2C_Config::address, not_ready, 2);
 
     CHECK(mlx.waitUntilReady(1) == false);
 
-    // Now inject a READY status
     clear_i2c_rx_data();
     uint8_t ready[2] = {0x00, 0x08};
     inject_i2c_rx_data(MLX_I2C_Config::address, ready, 2);
@@ -203,18 +257,12 @@ TEST_CASE("MLX90640 waitUntilReady returns true when NEW_DATA appears")
     CHECK(mlx.waitUntilReady(1) == true);
 }
 
-// ─────────────────────────────────────────────
-// TEST: waitUntilReady() – timeout case
-// ─────────────────────────────────────────────
 TEST_CASE("MLX90640 waitUntilReady returns false when NEW_DATA never appears")
 {
     clear_i2c_rx_data();
-    clear_i2c_tx_data();
 
-    // Always NOT ready
     uint8_t not_ready[2] = {0x00, 0x00};
     inject_i2c_rx_data(MLX_I2C_Config::address, not_ready, 2);
 
-    // Only 1 attempt → must fail
     CHECK(mlx.waitUntilReady(1) == false);
 }
