@@ -15,7 +15,7 @@ enum class I2CSwitchChannel : uint8_t
 };
 
 template <typename Transport>
-    requires RegisterWriteTransport<Transport>
+    requires StreamAccessTransport<Transport>
 class I2CSwitch
 {
 public:

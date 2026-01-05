@@ -6,7 +6,7 @@
 #include <array>
 
 template <typename Transport>
-    requires RegisterWriteTransport<Transport>
+    requires StreamAccessTransport<Transport>
 class CameraSwitch : public I2CSwitch<Transport>
 {
 public:

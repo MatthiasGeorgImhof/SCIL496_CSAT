@@ -396,6 +396,7 @@ TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccessor")
     REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
 
     ImageMetadata retrieved_metadata;
+    inject_i2c_rx_data(0x50, reinterpret_cast<uint8_t*>(&metadata), sizeof(metadata));
     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
     REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);

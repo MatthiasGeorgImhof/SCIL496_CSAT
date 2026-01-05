@@ -163,12 +163,8 @@ private:
     // ─────────────────────────────────────────────
     bool readReg16(uint16_t reg, uint16_t &out)
     {
-        uint8_t addr[2] = {
-            static_cast<uint8_t>(reg >> 8),
-            static_cast<uint8_t>(reg & 0xFF)};
         uint8_t buf[2] = {0, 0};
-
-        if (!transport.write_then_read(addr, 2u, buf, 2u))
+        if (!transport.read_reg(reg, buf, sizeof(buf)))
             return false;
 
         out = static_cast<uint16_t>((buf[0] << 8) | buf[1]);
@@ -177,12 +173,10 @@ private:
 
     bool writeReg16(uint16_t reg, uint16_t value)
     {
-        uint8_t buf[4] = {
-            static_cast<uint8_t>(reg >> 8),
-            static_cast<uint8_t>(reg & 0xFF),
+        uint8_t buf[2] = {
             static_cast<uint8_t>(value >> 8),
             static_cast<uint8_t>(value & 0xFF)};
-        return transport.write(buf, 4u);
+        return transport.write_reg(reg, buf, sizeof(buf));
     }
 
     bool readBlock(uint16_t startReg, uint8_t *dest, std::size_t bytes)
@@ -190,9 +184,6 @@ private:
         if (dest == nullptr || bytes == 0)
             return false;
 
-        uint8_t addr[2] = {
-            static_cast<uint8_t>(startReg >> 8),
-            static_cast<uint8_t>(startReg & 0xFF)};
-        return transport.write_then_read(addr, 2u, dest, static_cast<uint16_t>(bytes));
+        return transport.read_reg(startReg, dest, static_cast<uint16_t>(bytes));
     }
 };

@@ -9,63 +9,140 @@
 // ─────────────────────────────────────────────
 
 I2C_HandleTypeDef mock_i2c;
-using TestI2CConfig = I2C_Config<mock_i2c, 0x42>;
-using TestI2CTransport = I2CTransport<TestI2CConfig>;
 
-TEST_CASE("I2CTransport write() sends correct register and payload")
+// Use 8-bit register addressing for these tests
+using TestI2CConfig =
+    I2C_Register_Config<mock_i2c, 0x42, I2CAddressWidth::Bits8>;
+using TestI2CTransport = I2CRegisterTransport<TestI2CConfig>;
+
+
+// ------------------------------------------------------------
+// write_reg()
+// ------------------------------------------------------------
+TEST_CASE("I2CRegisterTransport write_reg() writes correct DevAddress, register, and payload")
 {
-    clear_i2c_mem_data();
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
 
     TestI2CTransport transport;
-    uint8_t tx[] = {0x05, 0xAA, 0xBB}; // e.g. register + 2-byte payload
-    CHECK(transport.write(tx, sizeof(tx)) == true);
 
-    CHECK(get_i2c_buffer_count() == sizeof(tx));
-    CHECK(get_i2c_buffer()[0] == 0x05); // register
-    CHECK(get_i2c_buffer()[1] == 0xAA);
-    CHECK(get_i2c_buffer()[2] == 0xBB);
+    uint16_t reg = 0x05;
+    uint8_t payload[] = {0xAA, 0xBB};
+
+    CHECK(transport.write_reg(reg, payload, sizeof(payload)) == true);
+
+    CHECK(get_i2c_dev_address() == (0x42 << 1));
+    CHECK(get_i2c_mem_address() == reg);  // 8-bit register, no swap
+    CHECK(get_i2c_tx_buffer_count() == sizeof(payload));
+    CHECK(memcmp(get_i2c_tx_buffer(), payload, sizeof(payload)) == 0);
 }
 
-TEST_CASE("I2CTransport write_then_read() performs atomic transaction")
-{
-    clear_i2c_rx_data(); // optional, for test hygiene
 
-    uint8_t tx[] = {0x10}; // e.g. register address
-    uint8_t injected[] = {0xAA, 0xBB};
-    inject_i2c_rx_data(0x42, injected, sizeof(injected)); // ← use rx buffer
+// ------------------------------------------------------------
+// read_reg()
+// ------------------------------------------------------------
+TEST_CASE("I2CRegisterTransport read_reg() reads correct data from RX buffer")
+{
+    clear_i2c_rx_data();
+    clear_i2c_addresses();
 
     TestI2CTransport transport;
+
+    uint16_t reg = 0x10;
+    uint8_t injected[] = {0xAA, 0xBB};
+    inject_i2c_rx_data(0x42 << 1, injected, sizeof(injected));
+
     uint8_t rx[2] = {};
-    CHECK(transport.write_then_read(tx, sizeof(tx), rx, sizeof(rx)) == true);
+    CHECK(transport.read_reg(reg, rx, sizeof(rx)) == true);
 
     CHECK(rx[0] == 0xAA);
     CHECK(rx[1] == 0xBB);
+
+    CHECK(get_i2c_dev_address() == (0x42 << 1));
+    CHECK(get_i2c_mem_address() == reg);
 }
 
-TEST_CASE("I2CTransport write() uses shifted 7-bit address as DevAddress")
+
+// ------------------------------------------------------------
+// Address shifting
+// ------------------------------------------------------------
+TEST_CASE("I2CRegisterTransport uses shifted 7-bit address for DevAddress")
 {
-    clear_i2c_mem_data();
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
 
     TestI2CTransport transport;
-    uint8_t tx[] = {0x12};
+
+    uint8_t payload[] = {0x12};
+    CHECK(transport.write_reg(0x01, payload, sizeof(payload)) == true);
+
+    CHECK(get_i2c_dev_address() == (0x42 << 1));
+}
+
+
+// ------------------------------------------------------------
+// 16-bit register addressing (byte swap)
+// ------------------------------------------------------------
+TEST_CASE("I2CRegisterTransport correctly byte-swaps 16-bit register addresses")
+{
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
+
+    using Config16 =
+        I2C_Register_Config<mock_i2c, 0x42, I2CAddressWidth::Bits16>;
+    using Transport16 = I2CRegisterTransport<Config16>;
+
+    Transport16 transport;
+
+    uint16_t reg = 0x1234;  // LSB=0x34, MSB=0x12
+    uint8_t payload[] = {0xDE};
+
+    CHECK(transport.write_reg(reg, payload, sizeof(payload)) == true);
+
+    // HAL expects big-endian register address: MSB first
+    // encode_reg() swaps to 0x3412 so HAL sends 0x34 then 0x12
+    CHECK(get_i2c_mem_address() == 0x3412);
+}
+
+// ─────────────────────────────────────────────
+// I2C Tests (Stream Mode)
+// ─────────────────────────────────────────────
+
+using TestI2CStreamConfig =
+    I2C_Stream_Config<mock_i2c, 0x42>;
+using TestI2CStreamTransport =
+    I2CStreamTransport<TestI2CStreamConfig>;
+
+TEST_CASE("I2CStreamTransport write() sends raw payload with correct DevAddress")
+{
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
+
+    TestI2CStreamTransport transport;
+
+    uint8_t tx[] = {0x11, 0x22, 0x33};
     CHECK(transport.write(tx, sizeof(tx)) == true);
 
-    CHECK(get_i2c_mem_buffer_dev_address() == (0x42 << 1));
+    CHECK(get_i2c_dev_address() == (0x42 << 1));
+    CHECK(get_i2c_tx_buffer_count() == sizeof(tx));
+    CHECK(memcmp(get_i2c_tx_buffer(), tx, sizeof(tx)) == 0);
 }
 
-TEST_CASE("I2CTransport read() uses same shifted DevAddress")
+TEST_CASE("I2CStreamTransport read() reads raw bytes from RX buffer")
 {
     clear_i2c_rx_data();
+    clear_i2c_addresses();
 
-    uint8_t injected = 0xAB;
-    inject_i2c_rx_data(0x42 << 1, &injected, 1);
+    uint8_t injected[] = {0xAA, 0xBB, 0xCC};
+    inject_i2c_rx_data(0x42 << 1, injected, sizeof(injected));
 
-    TestI2CTransport transport;
-    uint8_t rx = 0;
-    CHECK(transport.read(&rx, 1) == true);
+    TestI2CStreamTransport transport;
 
-    CHECK(rx == 0xAB);
-    CHECK(get_i2c_mem_buffer_dev_address() == (0x42 << 1));
+    uint8_t rx[3] = {};
+    CHECK(transport.read(rx, sizeof(rx)) == true);
+
+    CHECK(memcmp(rx, injected, sizeof(injected)) == 0);
+    CHECK(get_i2c_dev_address() == (0x42 << 1));
 }
 
 // ─────────────────────────────────────────────
@@ -74,44 +151,135 @@ TEST_CASE("I2CTransport read() uses same shifted DevAddress")
 
 SPI_HandleTypeDef mock_spi;
 GPIO_TypeDef GPIOA;
-using TestSPIConfig = SPI_Config<mock_spi, GPIO_PIN_5, 128>;
-using TestSPITransport = SPITransport<TestSPIConfig>;
 
-TEST_CASE("SPITransport write() transmits payload with CS toggled")
+using TestSPIConfig =
+    SPI_Register_Config<mock_spi, GPIO_PIN_5, 128>;
+using TestSPITransport =
+    SPIRegisterTransport<TestSPIConfig>;
+
+
+// ------------------------------------------------------------
+// write_reg()
+// ------------------------------------------------------------
+TEST_CASE("SPIRegisterTransport write_reg() transmits register and payload with CS toggled")
 {
     clear_spi_tx_buffer();
 
-    TestSPIConfig config(&GPIOA);  // Pass mock GPIO port
+    TestSPIConfig config(&GPIOA);
     TestSPITransport transport(config);
-    uint8_t tx[] = {0x7E, 0x01}; // e.g. command + argument
-    CHECK(transport.write(tx, sizeof(tx)) == true);
 
-    CHECK(get_spi_tx_buffer_count() == sizeof(tx));
-    CHECK(get_spi_tx_buffer()[0] == 0x7E);
+    uint8_t reg = 0x7E;
+    uint8_t payload[] = {0x01, 0x02};
+
+    CHECK(transport.write_reg(reg, payload, sizeof(payload)) == true);
+
+    // TX buffer should contain: [reg][payload...]
+    CHECK(get_spi_tx_buffer_count() == 1 + sizeof(payload));
+    CHECK(get_spi_tx_buffer()[0] == reg);
     CHECK(get_spi_tx_buffer()[1] == 0x01);
+    CHECK(get_spi_tx_buffer()[2] == 0x02);
 }
 
-TEST_CASE("SPITransport write_then_read() performs atomic transaction with CS held low")
+
+// ------------------------------------------------------------
+// read_reg()
+// ------------------------------------------------------------
+TEST_CASE("SPIRegisterTransport read_reg() sends register then reads response with CS held low")
 {
     clear_spi_tx_buffer();
     clear_spi_rx_buffer();
 
-    uint8_t tx[] = {0x0F}; // e.g. command byte
+    uint8_t reg = 0x0F;
     uint8_t injected[] = {0x55, 0x66};
     inject_spi_rx_data(injected, sizeof(injected));
 
-    TestSPIConfig config(&GPIOA);  // Pass mock GPIO port
+    TestSPIConfig config(&GPIOA);
     TestSPITransport transport(config);
+
     uint8_t rx[2] = {};
-    CHECK(transport.write_then_read(tx, sizeof(tx), rx, sizeof(rx)) == true);
+    CHECK(transport.read_reg(reg, rx, sizeof(rx)) == true);
 
-    CHECK(get_spi_tx_buffer()[0] == 0x0F);  // command
-    CHECK(get_spi_tx_buffer()[1] == 0x00);  // dummy
-    CHECK(get_spi_tx_buffer()[2] == 0x00);  // dummy
-    CHECK(get_spi_tx_buffer_count() == 1+2);
+    // TX buffer should contain:
+    //   [reg] + len dummy bytes
+    CHECK(get_spi_tx_buffer_count() == 1 + sizeof(rx));
+    CHECK(get_spi_tx_buffer()[0] == reg);
+    CHECK(get_spi_tx_buffer()[1] == 0x00); // dummy
+    CHECK(get_spi_tx_buffer()[2] == 0x00); // dummy
 
+    // RX buffer should contain injected data
     CHECK(rx[0] == 0x55);
     CHECK(rx[1] == 0x66);
+}
+
+// ─────────────────────────────────────────────
+// SPI Tests (Stream Mode)
+// ─────────────────────────────────────────────
+
+using TestSPIStreamConfig =
+    SPI_Stream_Config<mock_spi, GPIO_PIN_5, 128>;
+using TestSPIStreamTransport =
+    SPIStreamTransport<TestSPIStreamConfig>;
+
+TEST_CASE("SPIStreamTransport write() transmits raw payload with CS toggled")
+{
+    clear_spi_tx_buffer();
+
+    TestSPIStreamConfig config(&GPIOA);
+    TestSPIStreamTransport transport(config);
+
+    uint8_t tx[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    CHECK(transport.write(tx, sizeof(tx)) == true);
+
+    CHECK(get_spi_tx_buffer_count() == sizeof(tx));
+    CHECK(memcmp(get_spi_tx_buffer(), tx, sizeof(tx)) == 0);
+}
+
+TEST_CASE("SPIStreamTransport read() clocks dummy bytes and receives data")
+{
+    clear_spi_tx_buffer();
+    clear_spi_rx_buffer();
+
+    uint8_t injected[] = {0x11, 0x22, 0x33};
+    inject_spi_rx_data(injected, sizeof(injected));
+
+    TestSPIStreamConfig config(&GPIOA);
+    TestSPIStreamTransport transport(config);
+
+    uint8_t rx[3] = {};
+    CHECK(transport.read(rx, sizeof(rx)) == true);
+
+    // TX buffer should contain dummy bytes
+    CHECK(get_spi_tx_buffer_count() == sizeof(rx));
+    CHECK(get_spi_tx_buffer()[0] == 0x00);
+    CHECK(get_spi_tx_buffer()[1] == 0x00);
+    CHECK(get_spi_tx_buffer()[2] == 0x00);
+
+    // RX buffer should contain injected data
+    CHECK(memcmp(rx, injected, sizeof(injected)) == 0);
+}
+
+TEST_CASE("SPIStreamTransport transfer() performs full-duplex exchange")
+{
+    clear_spi_tx_buffer();
+    clear_spi_rx_buffer();
+
+    uint8_t injected[] = {0xAA, 0xBB, 0xCC};
+    inject_spi_rx_data(injected, sizeof(injected));
+
+    TestSPIStreamConfig config(&GPIOA);
+    TestSPIStreamTransport transport(config);
+
+    uint8_t tx[] = {0x01, 0x02, 0x03};
+    uint8_t rx[3] = {};
+
+    CHECK(transport.transfer(tx, rx, sizeof(tx)) == true);
+
+    // TX buffer should contain the tx bytes
+    CHECK(get_spi_tx_buffer_count() == sizeof(tx));
+    CHECK(memcmp(get_spi_tx_buffer(), tx, sizeof(tx)) == 0);
+
+    // RX buffer should contain injected data
+    CHECK(memcmp(rx, injected, sizeof(injected)) == 0);
 }
 
 // ─────────────────────────────────────────────
@@ -122,20 +290,29 @@ UART_HandleTypeDef mock_uart;
 using TestUARTConfig = UART_Config<mock_uart>;
 using TestUARTTransport = UARTTransport<TestUARTConfig>;
 
-TEST_CASE("UARTTransport send() transmits correct data")
+
+// ------------------------------------------------------------
+// write()
+// ------------------------------------------------------------
+TEST_CASE("UARTTransport write() transmits correct data")
 {
     clear_uart_tx_buffer();
 
     TestUARTTransport transport;
     uint8_t msg[] = "Hello";
-    CHECK(transport.send(msg, sizeof(msg)) == true);
+
+    CHECK(transport.write(msg, sizeof(msg)) == true);
 
     CHECK(get_uart_tx_buffer_count() == sizeof(msg));
     CHECK(get_uart_tx_buffer()[0] == 'H');
     CHECK(get_uart_tx_buffer()[4] == 'o');
 }
 
-TEST_CASE("UARTTransport receive() receives injected data")
+
+// ------------------------------------------------------------
+// read()
+// ------------------------------------------------------------
+TEST_CASE("UARTTransport read() receives injected data")
 {
     clear_uart_rx_buffer();
 
@@ -144,7 +321,8 @@ TEST_CASE("UARTTransport receive() receives injected data")
 
     TestUARTTransport transport;
     uint8_t buf[3] = {};
-    CHECK(transport.receive(buf, sizeof(buf)) == true);
+
+    CHECK(transport.read(buf, sizeof(buf)) == true);
 
     CHECK(buf[0] == 'A');
     CHECK(buf[2] == 'C');
@@ -154,24 +332,45 @@ TEST_CASE("UARTTransport receive() receives injected data")
 // Additional Transport Tests
 // ─────────────────────────────────────────────
 
+// I2C register‑mode transport
+using TestI2CConfig =
+    I2C_Register_Config<mock_i2c, 0x42, I2CAddressWidth::Bits8>;
+using TestI2CTransport =
+    I2CRegisterTransport<TestI2CConfig>;
+
+// SPI register‑mode transport
+using TestSPIConfig =
+    SPI_Register_Config<mock_spi, GPIO_PIN_5, 128>;
+using TestSPITransport =
+    SPIRegisterTransport<TestSPIConfig>;
+
+// UART stream‑mode transport
+using TestUARTConfig = UART_Config<mock_uart>;
+using TestUARTTransport = UARTTransport<TestUARTConfig>;
+
+
+// ------------------------------------------------------------
+// Concept satisfaction
+// ------------------------------------------------------------
 TEST_CASE("Transport concepts are satisfied")
 {
-    // I2C
-    static_assert(RegisterWriteTransport<TestI2CTransport>);
-    static_assert(RegisterReadTransport<TestI2CTransport>);
-    static_assert(RawReadTransport<TestI2CTransport>);
+    // I2C register‑mode
     static_assert(RegisterModeTransport<TestI2CTransport>);
+    static_assert(RegisterAccessTransport<TestI2CTransport>);
 
-    // SPI
-    static_assert(RegisterWriteTransport<TestSPITransport>);
-    static_assert(RegisterReadTransport<TestSPITransport>);
+    // SPI register‑mode
     static_assert(RegisterModeTransport<TestSPITransport>);
+    static_assert(RegisterAccessTransport<TestSPITransport>);
 
-    // UART
-    static_assert(StreamTransport<TestUARTTransport>);
+    // UART stream‑mode
     static_assert(StreamModeTransport<TestUARTTransport>);
+    static_assert(StreamAccessTransport<TestUARTTransport>);
 }
 
+
+// ------------------------------------------------------------
+// TransportTraits correctness
+// ------------------------------------------------------------
 TEST_CASE("TransportTraits report correct transport kind")
 {
 #ifdef HAS_I2C_HANDLE_TYPEDEF
@@ -187,12 +386,16 @@ TEST_CASE("TransportTraits report correct transport kind")
 #endif
 }
 
+
+// ------------------------------------------------------------
+// Mode tag correctness
+// ------------------------------------------------------------
 TEST_CASE("Mode tags are correctly assigned")
 {
-    // I2C and SPI are register-mode transports
+    // I2C and SPI are register‑mode transports
     CHECK(std::is_same_v<TestI2CTransport::config_type::mode_tag, register_mode_tag>);
     CHECK(std::is_same_v<TestSPITransport::config_type::mode_tag, register_mode_tag>);
 
-    // UART is stream-mode
+    // UART is stream‑mode
     CHECK(std::is_same_v<TestUARTTransport::config_type::mode_tag, stream_mode_tag>);
 }

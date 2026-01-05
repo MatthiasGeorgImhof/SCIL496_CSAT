@@ -12,13 +12,15 @@ TEST_CASE("I2CSwitch channel selection and disable")
     GPIO_TypeDef mock_gpio_port = {};
     constexpr uint16_t mock_gpio_pin = GPIO_PIN_0;
 
-    using SwitchConfig = I2C_Config<hi2c, address>;
-    using SwitchTransport = I2CTransport<SwitchConfig>;
+    using SwitchConfig = I2C_Stream_Config<hi2c, address>;
+    using SwitchTransport = I2CStreamTransport<SwitchConfig>;
     SwitchTransport transport;
     I2CSwitch<SwitchTransport> switcher(transport, &mock_gpio_port, mock_gpio_pin);
 
-    clear_i2c_mem_data();
-
+    clear_i2c_rx_data();
+    clear_i2c_tx_data();
+    clear_i2c_addresses();
+    
     SUBCASE("Constructor sets reset pin high")
     {
         CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_SET);
@@ -41,43 +43,43 @@ TEST_CASE("I2CSwitch channel selection and disable")
     SUBCASE("Select Channel 0")
     {
         CHECK(switcher.select(I2CSwitchChannel::Channel0) == true);
-        CHECK(get_i2c_buffer_count() == 1);
-        CHECK(get_i2c_buffer()[0] == 0x01);
+        CHECK(get_i2c_tx_buffer_count() == 1);
+        CHECK(get_i2c_tx_buffer()[0] == 0x01);
     }
 
     SUBCASE("Select Channel 1")
     {
         CHECK(switcher.select(I2CSwitchChannel::Channel1) == true);
-        CHECK(get_i2c_buffer_count() == 1);
-        CHECK(get_i2c_buffer()[0] == 0x02);
+        CHECK(get_i2c_tx_buffer_count() == 1);
+        CHECK(get_i2c_tx_buffer()[0] == 0x02);
     }
 
     SUBCASE("Select Channel 2")
     {
         CHECK(switcher.select(I2CSwitchChannel::Channel2) == true);
-        CHECK(get_i2c_buffer_count() == 1);
-        CHECK(get_i2c_buffer()[0] == 0x04);
+        CHECK(get_i2c_tx_buffer_count() == 1);
+        CHECK(get_i2c_tx_buffer()[0] == 0x04);
     }
 
     SUBCASE("Select Channel 3")
     {
         CHECK(switcher.select(I2CSwitchChannel::Channel3) == true);
-        CHECK(get_i2c_buffer_count() == 1);
-        CHECK(get_i2c_buffer()[0] == 0x08);
+        CHECK(get_i2c_tx_buffer_count() == 1);
+        CHECK(get_i2c_tx_buffer()[0] == 0x08);
     }
 
     SUBCASE("Disable all channels")
     {
         CHECK(switcher.disableAll() == true);
-        CHECK(get_i2c_buffer_count() == 1);
-        CHECK(get_i2c_buffer()[0] == 0x00);
+        CHECK(get_i2c_tx_buffer_count() == 1);
+        CHECK(get_i2c_tx_buffer()[0] == 0x00);
     }
 
     SUBCASE("Select None explicitly")
     {
         CHECK(switcher.select(I2CSwitchChannel::None) == true);
-        CHECK(get_i2c_buffer_count() == 1);
-        CHECK(get_i2c_buffer()[0] == 0x00);
+        CHECK(get_i2c_tx_buffer_count() == 1);
+        CHECK(get_i2c_tx_buffer()[0] == 0x00);
     }
 
     SUBCASE("Reset pin is set high on releaseReset")
