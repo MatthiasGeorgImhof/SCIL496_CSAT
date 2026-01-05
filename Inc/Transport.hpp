@@ -78,15 +78,8 @@ public:
 private:
     static constexpr uint16_t encode_reg(uint16_t reg)
     {
-        if constexpr (Config::address_width == I2CAddressWidth::Bits8)
-        {
-            return reg;
-        }
-        else
-        {
-            // Convert little-endian register to big-endian for HAL
-            return static_cast<uint16_t>((reg >> 8) | (reg << 8));
-        }
+        // HAL will flip reg when necessary
+        return reg;
     }
 
 public:

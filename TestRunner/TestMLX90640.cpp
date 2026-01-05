@@ -46,10 +46,10 @@ static uint16_t le16(uint8_t lsb, uint8_t msb)
         (static_cast<uint16_t>(msb) << 8));
 }
 
-static uint16_t le16(uint16_t b)
-{
-    return  (b << 8) | (b>>8);
-}
+// static uint16_t le16(uint16_t b)
+// {
+//     return  (b << 8) | (b>>8);
+// }
 
 // ─────────────────────────────────────────────
 // TEST: readEEPROM()
@@ -121,7 +121,7 @@ TEST_CASE("MLX90640 readSubpage reads RAM block")
 
     // Verify clearStatus() wrote 4 bytes (writeReg16)
     CHECK(get_i2c_tx_buffer_count() == 2);
-    CHECK(get_i2c_mem_address() == le16(0x8000u));
+    CHECK(get_i2c_mem_address() == 0x8000u);
 }
 
 // ─────────────────────────────────────────────
@@ -178,7 +178,7 @@ TEST_CASE("MLX90640 readFrame attempts subpage reads (mock‑compatible)")
     CHECK(count == 2);
     CHECK(tx[0] == 0x00);   // MSB of value
     CHECK(tx[1] == 0x00);   // LSB of value
-    CHECK(get_i2c_mem_address() == le16(0x8000u));
+    CHECK(get_i2c_mem_address() == 0x8000u);
 }
 
 // ─────────────────────────────────────────────

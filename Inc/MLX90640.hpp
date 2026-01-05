@@ -16,6 +16,10 @@ constexpr static std::size_t MLX90640_FRAME_SIZE = MLX90640_FRAME_WORDS * sizeof
 template <RegisterModeTransport Transport>
 class MLX90640
 {
+ // Enforce 16‑bit register addressing for MLX90640 
+ static_assert( Transport::config_type::address_width == I2CAddressWidth::Bits16, 
+    "MLX90640 requires I2CAddressWidth::Bits16 (16‑bit register addressing)." );
+
 public:
     explicit MLX90640(const Transport &t) : transport(t) {}
 
