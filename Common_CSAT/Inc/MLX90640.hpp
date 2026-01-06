@@ -60,7 +60,8 @@ public:
         }
 
         // Clear the bits we control, keep others
-        ctrl &= ~uint16_t((1u<<0) | (1u<<3) | (1u<<4) | (0x7u<<5) | (1u<<12));
+        constexpr uint16_t CLEAR_MASK = (1u<<0) | (1u<<3) | (1u<<4) | (0x7u<<5) | (1u<<12);
+        ctrl &= static_cast<uint16_t>(~CLEAR_MASK);
 
         // Set our bits:
         // bit 0  = 1 → wake
@@ -84,13 +85,6 @@ public:
         uint16_t verify;
         readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), verify);
         log(LOG_LEVEL_DEBUG, "CONTROL1 after wakeUp = 0x%04X\r\n", verify);
-
-
-//        if (!clearStatus())
-//        {
-//            log(LOG_LEVEL_ERROR, "MLX90640::wakeUp: clearStatus failed\r\n");
-//            return false;
-//        }
 
         return true;
     }
