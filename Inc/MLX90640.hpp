@@ -8,27 +8,40 @@
 // ─────────────────────────────────────────────
 // MLX90640 Constants
 // ─────────────────────────────────────────────
-constexpr static uint8_t  MLX90640_ID = 0x33;
+constexpr static uint8_t MLX90640_ID = 0x33;
 constexpr static std::size_t MLX90640_EEPROM_WORDS = 832;
-constexpr static std::size_t MLX90640_EEPROM_SIZE  = MLX90640_EEPROM_WORDS * sizeof(uint16_t);
+constexpr static std::size_t MLX90640_EEPROM_SIZE = MLX90640_EEPROM_WORDS * sizeof(uint16_t);
 constexpr static std::size_t MLX90640_SUBPAGE_WORDS = 834;
-constexpr static std::size_t MLX90640_SUBPAGE_SIZE  = MLX90640_SUBPAGE_WORDS * sizeof(uint16_t);
-constexpr static std::size_t MLX90640_FRAME_WORDS   = 2 * MLX90640_SUBPAGE_WORDS;
-constexpr static std::size_t MLX90640_FRAME_SIZE    = MLX90640_FRAME_WORDS * sizeof(uint16_t);
+constexpr static std::size_t MLX90640_SUBPAGE_SIZE = MLX90640_SUBPAGE_WORDS * sizeof(uint16_t);
+constexpr static std::size_t MLX90640_FRAME_WORDS = 2 * MLX90640_SUBPAGE_WORDS;
+constexpr static std::size_t MLX90640_FRAME_SIZE = MLX90640_FRAME_WORDS * sizeof(uint16_t);
+
+// ─────────────────────────────────────────────
+// MLX90640 Refresh Rates
+// ─────────────────────────────────────────────
+
+enum class MLX90640_RefreshRate : uint16_t
+{
+    Hz0_5 = 0b000 << 5, // 0.5 Hz
+    Hz1 = 0b001 << 5,   // 1 Hz
+    Hz2 = 0b010 << 5,   // 2 Hz
+    Hz4 = 0b011 << 5,   // 4 Hz
+    Hz8 = 0b100 << 5,   // 8 Hz
+    Hz16 = 0b101 << 5,  // 16 Hz
+    Hz32 = 0b110 << 5,  // 32 Hz
+    Hz64 = 0b111 << 5   // 64 Hz
+};
 
 // ─────────────────────────────────────────────
 // MLX90640 Register Map
 // ─────────────────────────────────────────────
 enum class MLX90640_REGISTERS : uint16_t
 {
-    STATUS        = 0x8000,   // Status register (NEW_DATA, flags)
-    CONTROL1      = 0x800D,   // Control register 1 (mode, refresh rate, power)
-    RAM_START     = 0x0400,   // Start of RAM subpage data
-    EEPROM_START  = 0x2400    // Start of EEPROM
+    STATUS = 0x8000,      // Status register (NEW_DATA, flags)
+    CONTROL1 = 0x800D,    // Control register 1 (mode, refresh rate, power)
+    RAM_START = 0x0400,   // Start of RAM subpage data
+    EEPROM_START = 0x2400 // Start of EEPROM
 };
-
-// log() prototype (as provided by you)
-// void log(uint8_t level, const char *format, ...);
 
 // ─────────────────────────────────────────────
 // MLX90640 Driver
@@ -39,54 +52,50 @@ class MLX90640
     // Enforce 16‑bit register addressing for MLX90640
     static_assert(
         Transport::config_type::address_width == I2CAddressWidth::Bits16,
-        "MLX90640 requires I2CAddressWidth::Bits16 (16‑bit register addressing)."
-    );
+        "MLX90640 requires I2CAddressWidth::Bits16 (16‑bit register addressing).");
 
 public:
-    explicit MLX90640(const Transport& t) : transport(t) {}
+    explicit MLX90640(const Transport &t) : transport(t) {}
 
     // ─────────────────────────────────────────────
     // Initialization: wake device, chess mode, refresh rate
     // ─────────────────────────────────────────────
-    bool wakeUp()
+    bool wakeUp(MLX90640_RefreshRate rate = MLX90640_RefreshRate::Hz4)
     {
         uint16_t ctrl;
 
-        // Read current control register
         if (!readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), ctrl))
-        {
-            log(LOG_LEVEL_ERROR, "MLX90640::wakeUp: read CONTROL1 failed\r\n");
             return false;
-        }
 
-        // Clear the bits we control, keep others
-        constexpr uint16_t CLEAR_MASK = (1u<<0) | (1u<<3) | (1u<<4) | (0x7u<<5) | (1u<<12);
+        constexpr uint16_t CLEAR_MASK =
+            (1u << 0) | // sleep/wake
+            (1u << 3) | // subpage mode
+            (1u << 12); // chess/TV mode
+
         ctrl &= static_cast<uint16_t>(~CLEAR_MASK);
 
-        // Set our bits:
-        // bit 0  = 1 → wake
-        // bit 3  = 0 → auto subpage
-        // 7:5    = 0b011 → 4 Hz
-        // bit 12 = 1 → chess mode
-        uint16_t newCtrl =
-              ctrl
-            | (1u << 0)     // wake
-            | (3u << 5)     // 4 Hz
-            | (1u << 12);   // chess
+        uint16_t newCtrl = ctrl;
+        newCtrl |= uint16_t(1u << 0);                         // wake
+        newCtrl |= uint16_t(1u << 12);                        // chess mode
+        newCtrl &= static_cast<uint16_t>(~uint16_t(1u << 3)); // auto subpage
 
         if (!writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), newCtrl))
-        {
-            log(LOG_LEVEL_ERROR, "MLX90640::wakeUp: write CONTROL1 failed\r\n");
             return false;
-        }
 
-        log(LOG_LEVEL_DEBUG, "MLX90640::wakeUp: CONTROL1=0x%04X\r\n", newCtrl);
+        return setRefreshRate(rate);
+    }
 
-        uint16_t verify;
-        readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), verify);
-        log(LOG_LEVEL_DEBUG, "CONTROL1 after wakeUp = 0x%04X\r\n", verify);
+    bool setRefreshRate(MLX90640_RefreshRate rate)
+    {
+        uint16_t ctrlReg;
 
-        return true;
+        if (!readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), ctrlReg))
+            return false;
+
+        ctrlReg &= static_cast<uint16_t>(~uint16_t(0b111u << 5));
+        ctrlReg |= static_cast<uint16_t>(rate);
+
+        return writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), ctrlReg);
     }
 
     // ─────────────────────────────────────────────
@@ -124,13 +133,12 @@ public:
     // ─────────────────────────────────────────────
     // Read EEPROM (832 words)
     // ─────────────────────────────────────────────
-    bool readEEPROM(uint16_t* eeprom)
+    bool readEEPROM(uint16_t *eeprom)
     {
         return readBlock(
             static_cast<uint16_t>(MLX90640_REGISTERS::EEPROM_START),
-            reinterpret_cast<uint8_t*>(eeprom),
-            MLX90640_EEPROM_SIZE
-        );
+            reinterpret_cast<uint8_t *>(eeprom),
+            MLX90640_EEPROM_SIZE);
     }
 
     // ─────────────────────────────────────────────
@@ -170,7 +178,7 @@ public:
     //  3. Read RAM snapshot.
     //  4. Clear NEW_DATA.
     //
-    bool readSubpage(uint16_t* buf, int& subpage)
+    bool readSubpage(uint16_t *buf, int &subpage)
     {
         if (!buf)
             return false;
@@ -190,13 +198,13 @@ public:
             return false;
         }
 
-        subpage = static_cast<int>(status & 0x0001u);   // bit 0 = subpage ID
+        subpage = static_cast<int>(status & 0x0001u); // bit 0 = subpage ID
         log(LOG_LEVEL_TRACE, "MLX90640::readSubpage: STATUS=0x%04X, subpage=%d\r\n", status, subpage);
 
         // 2. Read RAM snapshot
         if (!readBlock(
                 static_cast<uint16_t>(MLX90640_REGISTERS::RAM_START),
-                reinterpret_cast<uint8_t*>(buf),
+                reinterpret_cast<uint8_t *>(buf),
                 MLX90640_SUBPAGE_SIZE))
         {
             log(LOG_LEVEL_ERROR, "MLX90640::readSubpage: read RAM failed\r\n");
@@ -216,9 +224,9 @@ public:
     // ─────────────────────────────────────────────
     // Merge two subpages into a full frame
     // ─────────────────────────────────────────────
-    void createFrame(const uint16_t* sub0,
-                     const uint16_t* sub1,
-                     uint16_t* fullFrame)
+    void createFrame(const uint16_t *sub0,
+                     const uint16_t *sub1,
+                     uint16_t *fullFrame)
     {
         if (!sub0 || !sub1 || !fullFrame)
             return;
@@ -230,7 +238,7 @@ public:
     // ─────────────────────────────────────────────
     // Read a full frame (two subpages)
     // ─────────────────────────────────────────────
-    bool readFrame(uint16_t* frame)
+    bool readFrame(uint16_t *frame)
     {
         if (!frame)
             return false;
@@ -283,7 +291,7 @@ public:
     // ─────────────────────────────────────────────
     // Status helpers
     // ─────────────────────────────────────────────
-    bool readStatus(uint16_t& status)
+    bool readStatus(uint16_t &status)
     {
         return readReg16(static_cast<uint16_t>(MLX90640_REGISTERS::STATUS), status);
     }
@@ -324,12 +332,12 @@ public:
     }
 
 private:
-    const Transport& transport;
+    const Transport &transport;
 
     // ─────────────────────────────────────────────
     // Low-level register access
     // ─────────────────────────────────────────────
-    bool readReg16(uint16_t reg, uint16_t& out)
+    bool readReg16(uint16_t reg, uint16_t &out)
     {
         uint8_t buf[2] = {0, 0};
         if (!transport.read_reg(reg, buf, sizeof(buf)))
@@ -343,12 +351,11 @@ private:
     {
         uint8_t buf[2] = {
             uint8_t(value >> 8),
-            uint8_t(value & 0xFF)
-        };
+            uint8_t(value & 0xFF)};
         return transport.write_reg(reg, buf, sizeof(buf));
     }
 
-    bool readBlock(uint16_t startReg, uint8_t* dest, std::size_t bytes)
+    bool readBlock(uint16_t startReg, uint8_t *dest, std::size_t bytes)
     {
         if (!dest || bytes == 0)
             return false;
@@ -379,7 +386,7 @@ private:
 
             // MLX90640 uses 16‑bit word addressing for RAM/EEPROM.
             // Each register address advances by 1 word (2 bytes).
-            reg    = static_cast<uint16_t>(reg + (chunk / 2));
+            reg = static_cast<uint16_t>(reg + (chunk / 2));
             offset += chunk;
             remaining -= chunk;
         }

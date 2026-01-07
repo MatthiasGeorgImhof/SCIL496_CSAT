@@ -85,6 +85,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskCheckMemory.cpp \
 			 TestTaskDetumbler.cpp \
 			 TestTaskMagnetorquer.cpp \
+			 TestTaskMLX90640.cpp \
 			 TestTaskOrientationService.cpp \
 			 TestTaskPositionService.cpp \
 			 TestTaskProcessHeartBeat.cpp \
@@ -296,6 +297,15 @@ $(BIN_DIR)/MLX90640ImageProcessor.o : ../Src/MLX90640ImageProcessor.cpp
 $(BIN_DIR)/TestMLX90640ImageProcessor : $(BIN_DIR)/TestMLX90640ImageProcessor.o $(BIN_DIR)/MLX90640ImageProcessor.o
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMLX90640ImageProcessor.o $(BIN_DIR)/MLX90640ImageProcessor.o $(LIBS)
+
+# Rule for TestMLX90640 with extra sources
+$(BIN_DIR)/TestTaskMLX90640.o : TestTaskMLX90640.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTaskMLX90640 : $(BIN_DIR)/TestTaskMLX90640.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskMLX90640.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestOV5640 with extra sources
 $(BIN_DIR)/TestOV5640.o : TestOV5640.cpp
