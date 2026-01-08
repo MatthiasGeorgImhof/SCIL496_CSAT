@@ -186,8 +186,7 @@ public:
             return false;
 
         bool ready = (status & 0x0008u) != 0u; // NEW_DATA bit
-        log(LOG_LEVEL_TRACE, "MLX90640::isReady: STATUS=0x%04X, NEW_DATA=%u\r\n",
-            status, ready ? 1u : 0u);
+        log(LOG_LEVEL_DEBUG, "MLX90640::isReady: STATUS=0x%04X, NEW_DATA=%u\r\n", status, ready ? 1u : 0u);
         return ready;
     }
 
@@ -234,7 +233,7 @@ public:
         // }
 
         subpage = static_cast<int>(status & 0x0001u); // bit 0 = subpage ID
-        log(LOG_LEVEL_TRACE, "MLX90640::readSubpage: STATUS=0x%04X, subpage=%d\r\n", status, subpage);
+        log(LOG_LEVEL_DEBUG, "MLX90640::readSubpage: STATUS=0x%04X, subpage=%d\r\n", status, subpage);
 
         // 2. Read RAM snapshot
         if (!readBlock(
