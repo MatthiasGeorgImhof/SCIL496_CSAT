@@ -45,6 +45,7 @@
 #include "CameraSwitch.hpp"
 #include "OV5640.hpp"
 #include "MLX90640.hpp"
+#include "TaskMLX90640.hpp"
 
 #include "au.hh"
 #include "au.hpp"
@@ -159,7 +160,7 @@ bool toHexAsciiWords(const uint8_t* data,
                      size_t dataSize,
                      char* out,
                      size_t outSize,
-                     size_t wordsPerLine = 8)
+                     size_t wordsPerLine)
 {
     if (!data || !out || outSize == 0 || (dataSize % 2) != 0)
         return false;
@@ -244,57 +245,20 @@ void cppmain()
 	std::tuple<Cyphal<CanardAdapter>> canard_adapters = { canard_cyphal };
 	std::tuple<> empty_adapters = {} ;
 
-	RegistrationManager registration_manager;
-	SubscriptionManager subscription_manager;
-	registration_manager.subscribe(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
-	registration_manager.subscribe(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
-	registration_manager.subscribe(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
-	registration_manager.publish(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
-	registration_manager.publish(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
-	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
-
-	O1HeapAllocator<TaskSendHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 2000, 100, 0, canard_adapters));
-
-	O1HeapAllocator<TaskProcessHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskProcessHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskProcessHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskProcessHeartBeat, 2000, 100, canard_adapters));
-
-	O1HeapAllocator<TaskSendNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSendNodePortList(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000, 100, 0, canard_adapters));
-
-	O1HeapAllocator<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSubscribeNodePortList(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSubscribeNodePortList, &subscription_manager, 10000, 100, canard_adapters));
-
-	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
-	constexpr char node_name[50] = "SCIL496_CSAT";
-	O1HeapAllocator<TaskRespondGetInfo<Cyphal<CanardAdapter>>> alloc_TaskRespondGetInfo(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskRespondGetInfo<Cyphal<CanardAdapter>>>(alloc_TaskRespondGetInfo, uuid, node_name, 10000, 100, canard_adapters));
-
-	O1HeapAllocator<TaskRequestGetInfo<Cyphal<CanardAdapter>>> alloc_TaskRequestGetInfo(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskRequestGetInfo<Cyphal<CanardAdapter>>>(alloc_TaskRequestGetInfo, 10000, 100, 13, 0, canard_adapters));
-
-	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
-
-	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
-
-    subscription_manager.subscribe<SubscriptionManager::MessageTag>(registration_manager.getSubscriptions(), canard_adapters);
-    subscription_manager.subscribe<SubscriptionManager::ResponseTag>(registration_manager.getServers(), canard_adapters);
-    subscription_manager.subscribe<SubscriptionManager::RequestTag>(registration_manager.getClients(), canard_adapters);
-
-    ServiceManager service_manager(registration_manager.getHandlers());
-	service_manager.initializeServices(HAL_GetTick());
+	constexpr auto CAMERA_POWER = CIRCUITS::CIRCUIT_0;
+	constexpr auto IMAGER_POWER = CIRCUITS::CIRCUIT_1;
+	constexpr auto CAMERA_FLASH = CIRCUITS::CIRCUIT_2;
+	constexpr auto IMAGER_MRAM = CIRCUITS::CIRCUIT_3;
 
 	constexpr uint8_t GPIO_EXPANDER = 32;
     using PowerSwitchConfig = I2C_Register_Config<hi2c4, GPIO_EXPANDER>;
     using PowerSwitchTransport = I2CRegisterTransport<PowerSwitchConfig>;
     PowerSwitchTransport ps_transport;
 	PowerSwitch<PowerSwitchTransport> power_switch(ps_transport, GPIOB, POWER_RST_Pin);
-	power_switch.on(CIRCUITS::CIRCUIT_0);
-	power_switch.on(CIRCUITS::CIRCUIT_1);
-	power_switch.on(CIRCUITS::CIRCUIT_2);
-	power_switch.on(CIRCUITS::CIRCUIT_3);
+	power_switch.on(CAMERA_POWER);
+	power_switch.on(IMAGER_POWER);
+	power_switch.on(CAMERA_FLASH);
+	power_switch.on(IMAGER_MRAM);
 
 	constexpr uint8_t INA226 = 64;
     using PowerMonitorConfig = I2C_Register_Config<hi2c4, INA226>;
@@ -356,8 +320,52 @@ void cppmain()
     MLX90640Transport mlx90640_transport;
 	MLX90640<MLX90640Transport> mlx90640(mlx90640_transport);
 
+	RegistrationManager registration_manager;
+	SubscriptionManager subscription_manager;
+	registration_manager.subscribe(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+	registration_manager.subscribe(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
+	registration_manager.subscribe(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
+	registration_manager.publish(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
+	registration_manager.publish(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
+	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
+
 	HAL_Delay(3000);
-	mlx90640.wakeUp();
+
+	O1HeapAllocator<TaskSendHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 2000, 100, 0, canard_adapters));
+
+	O1HeapAllocator<TaskProcessHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskProcessHeartBeat(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskProcessHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskProcessHeartBeat, 2000, 100, canard_adapters));
+
+	O1HeapAllocator<TaskSendNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSendNodePortList(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000, 100, 0, canard_adapters));
+
+	O1HeapAllocator<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSubscribeNodePortList(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSubscribeNodePortList, &subscription_manager, 10000, 100, canard_adapters));
+
+	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
+	constexpr char node_name[50] = "SCIL496_CSAT";
+	O1HeapAllocator<TaskRespondGetInfo<Cyphal<CanardAdapter>>> alloc_TaskRespondGetInfo(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskRespondGetInfo<Cyphal<CanardAdapter>>>(alloc_TaskRespondGetInfo, uuid, node_name, 10000, 100, canard_adapters));
+
+	O1HeapAllocator<TaskRequestGetInfo<Cyphal<CanardAdapter>>> alloc_TaskRequestGetInfo(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskRequestGetInfo<Cyphal<CanardAdapter>>>(alloc_TaskRequestGetInfo, 10000, 100, 13, 0, canard_adapters));
+
+	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
+
+	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
+
+	O1HeapAllocator<TaskMLX90640<PowerSwitch<PowerSwitchTransport>, MLX90640<MLX90640Transport>>> alloc_TaskMLX90640(o1heap);
+	registration_manager.add(allocate_unique_custom<TaskMLX90640<PowerSwitch<PowerSwitchTransport>, MLX90640<MLX90640Transport>>>(alloc_TaskMLX90640, power_switch, IMAGER_POWER, mlx90640, MLXMode::Burst, 25, 250, 1));
+
+    subscription_manager.subscribe<SubscriptionManager::MessageTag>(registration_manager.getSubscriptions(), canard_adapters);
+    subscription_manager.subscribe<SubscriptionManager::ResponseTag>(registration_manager.getServers(), canard_adapters);
+    subscription_manager.subscribe<SubscriptionManager::RequestTag>(registration_manager.getClients(), canard_adapters);
+
+    ServiceManager service_manager(registration_manager.getHandlers());
+	service_manager.initializeServices(HAL_GetTick());
 
 	uint counter = 0;
 	while(1)
@@ -427,18 +435,18 @@ void cppmain()
 //		toHexAsciiWords(reinterpret_cast<uint8_t*>(data), FRAME_SIZE, buffer, sizeof(buffer), 16);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
-		log(LOG_LEVEL_NOTICE, "poll Mmlx90640\r\n");
-		uint16_t data[MLX90640_SUBPAGE_WORDS];
-		if (! mlx90640.readFrame(data))
-		{
-			log(LOG_LEVEL_ERROR, "Mmlx90640.readFrame(data) failed\r\n");
-		}
-		else
-		{
-			char buffer[10*MLX90640_SUBPAGE_SIZE];
-			toHexAsciiWords(reinterpret_cast<uint8_t*>(data), sizeof(data), buffer, sizeof(buffer), 32);
-			CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-		}
+//		log(LOG_LEVEL_NOTICE, "poll Mmlx90640\r\n");
+//		uint16_t data[MLX90640_FRAME_WORDS];
+//		if (! mlx90640.readFrame(data))
+//		{
+//			log(LOG_LEVEL_ERROR, "Mmlx90640.readFrame(data) failed\r\n");
+//		}
+//		else
+//		{
+//			char buffer[10*MLX90640_SUBPAGE_SIZE];
+//			toHexAsciiWords(reinterpret_cast<uint8_t*>(data), sizeof(data), buffer, sizeof(buffer), 32);
+//			CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+//		}
 //		uint16_t status[16];
 //		if (!mlx90640.readStatusBlock(status))
 //		{

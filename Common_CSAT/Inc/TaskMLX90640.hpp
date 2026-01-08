@@ -10,29 +10,36 @@
 #include "PowerSwitch.hpp"
 #include "RegistrationManager.hpp"
 
+extern bool toHexAsciiWords(const uint8_t* data,
+                     size_t dataSize,
+                     char* out,
+                     size_t outSize,
+                     size_t wordsPerLine);
+
+
 // ─────────────────────────────────────────────
 // MLX90640 Task State Machine
 // ─────────────────────────────────────────────
 enum class MLXState : uint8_t
 {
-    Off = 0,      // Sensor unpowered, waiting for trigger
-    PoweringOn,   // PowerSwitch.on() has been called
-    BootDelay,    // Waiting for MLX90640 internal boot time
-    Initializing, // wakeUp(), chess mode, refresh rate, etc.
+    Off = 0,
+    PoweringOn,
+    BootDelay,
+    Initializing,
 
-    WaitCompleteFrame, // Wait a full refresh cycle (both subpages)
-    WaitForReadyA,     // Waiting for NEW_DATA for subpage A
-    ReadSubpageA,      // Reading subpage A
+    WaitCompleteFrame,
+    WaitForReadyA,
+    ReadSubpageA,
 
-    WaitForReadyB, // Waiting for NEW_DATA for subpage B
-    ReadSubpageB,  // Reading subpage B
+    WaitForReadyB,
+    ReadSubpageB,
 
-    FrameComplete, // Both subpages acquired, frame ready
+    FrameComplete,
 
-    ShuttingDown, // Putting MLX90640 into sleep mode
-    PoweringOff,  // PowerSwitch.off() has been called
+    ShuttingDown,
+    PoweringOff,
 
-    Idle // Task finished, waiting for next trigger
+    Idle
 };
 
 // ─────────────────────────────────────────────
@@ -40,22 +47,14 @@ enum class MLXState : uint8_t
 // ─────────────────────────────────────────────
 enum class MLXMode : uint8_t
 {
-    OneShot,   // Acquire exactly one frame
-    Burst,     // Acquire N frames
-    Continuous // Acquire frames indefinitely (not implemented yet)
+    OneShot,
+    Burst,
+    Continuous
 };
 
 // ─────────────────────────────────────────────
 // TaskMLX90640
 // ─────────────────────────────────────────────
-//
-// This task owns the lifecycle of the MLX90640:
-//  - Controls power via PowerSwitch
-//  - Sequences wake-up and acquisition via MLX90640 driver
-//  - Runs as a cooperative state machine inside Task::handleTask()
-//
-// Publishing, triggers, and error/timeout handling can be layered on later.
-//
 template <typename PowerSwitchT, typename MLXT>
 class TaskMLX90640 : public Task
 {
@@ -78,9 +77,15 @@ public:
 
     virtual ~TaskMLX90640() = default;
 
-    // Required by Task base class; no Cyphal registration for this task (yet).
-    void registerTask(RegistrationManager *, std::shared_ptr<Task>) override {}
-    void unregisterTask(RegistrationManager *, std::shared_ptr<Task>) override {}
+    void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+    {
+        manager->subscribe(PURE_HANDLER, task);
+    }
+
+    void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task)
+    {
+        manager->unsubscribe(PURE_HANDLER, task);
+    }
 
     MLXState getState() const { return state; }
     MLXMode getMode() const { return mode; }
@@ -91,63 +96,23 @@ protected:
     {
         switch (state)
         {
-        case MLXState::Off:
-            stateOff();
-            break;
-
-        case MLXState::PoweringOn:
-            statePoweringOn();
-            break;
-
-        case MLXState::BootDelay:
-            stateBootDelay();
-            break;
-
-        case MLXState::Initializing:
-            stateInitialize();
-            break;
-
-        case MLXState::WaitCompleteFrame:
-            stateWaitCompleteFrame();
-            break;
-
-        case MLXState::WaitForReadyA:
-            stateWaitingForReadyA();
-            break;
-
-        case MLXState::ReadSubpageA:
-            stateReadSubpageA();
-            break;
-
-        case MLXState::WaitForReadyB:
-            stateWaitForReadyB();
-            break;
-
-        case MLXState::ReadSubpageB:
-            stateReadSubpageB();
-            break;
-
-        case MLXState::FrameComplete:
-            stateFrameComplete();
-            break;
-
-        case MLXState::ShuttingDown:
-            stateShuttingDown();
-            break;
-
-        case MLXState::PoweringOff:
-            statePoweringOff();
-            break;
-
-        case MLXState::Idle:
-            stateIdle();
-            break;
+        case MLXState::Off:              stateOff(); break;
+        case MLXState::PoweringOn:       statePoweringOn(); break;
+        case MLXState::BootDelay:        stateBootDelay(); break;
+        case MLXState::Initializing:     stateInitialize(); break;
+        case MLXState::WaitCompleteFrame:stateWaitCompleteFrame(); break;
+        case MLXState::WaitForReadyA:    stateWaitingForReadyA(); break;
+        case MLXState::ReadSubpageA:     stateReadSubpageA(); break;
+        case MLXState::WaitForReadyB:    stateWaitForReadyB(); break;
+        case MLXState::ReadSubpageB:     stateReadSubpageB(); break;
+        case MLXState::FrameComplete:    stateFrameComplete(); break;
+        case MLXState::ShuttingDown:     stateShuttingDown(); break;
+        case MLXState::PoweringOff:      statePoweringOff(); break;
+        case MLXState::Idle:             stateIdle(); break;
         }
     }
 
 private:
-    // For now, always start when in Off or Idle.
-    // Later, this will be replaced by Trigger logic.
     bool shouldStart()
     {
         if (state != MLXState::Off && state != MLXState::Idle)
@@ -159,33 +124,41 @@ private:
         if (mode == MLXMode::Burst)
             return burstRemaining > 0;
 
-        return true; // Continuous
+        return true;
     }
 
-    // Placeholder: integrate with Cyphal or other publication mechanism later.
     void publishFrame()
-    {
-        // No-op for now.
-    }
+	{
+//    				char buffer[10*MLX90640_SUBPAGE_SIZE];
+//    				toHexAsciiWords(reinterpret_cast<uint8_t*>(frame), sizeof(frame), buffer, sizeof(buffer), 32);
+//    				CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+	}
+
+    // ─────────────────────────────────────────────
+    // STATE IMPLEMENTATIONS
+    // ─────────────────────────────────────────────
 
     void stateOff()
     {
-        if (shouldStart())
+        if (!shouldStart())
+            return;
+
+        if (!power.on(circuit))
         {
-            if (!power.on(circuit))
-            {
-                log(LOG_LEVEL_ERROR, "TaskMLX90640: power.on() failed\r\n");
-                state = MLXState::Idle;
-                return;
-            }
-            t0 = HAL_GetTick();
-            state = MLXState::PoweringOn;
+            state = MLXState::Idle;
+            log(LOG_LEVEL_ERROR, "TaskMLX90640::stateOff power.on() failed\r\n");
+            return;
         }
+
+        t0 = HAL_GetTick();
+        state = MLXState::PoweringOn;
+        log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateOff: Off -> PoweringOn\r\n");
     }
 
     void statePoweringOn()
     {
         state = MLXState::BootDelay;
+        log(LOG_LEVEL_DEBUG, "TaskMLX90640::statePoweringOn: PoweringOn -> BootDelay\r\n");
     }
 
     void stateBootDelay()
@@ -193,6 +166,7 @@ private:
         if (HAL_GetTick() - t0 >= TASK_BOOT_DELAY_MS)
         {
             state = MLXState::Initializing;
+            log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateBootDelay: BootDelay -> Initializing\r\n");
         }
     }
 
@@ -202,11 +176,12 @@ private:
         {
             state = MLXState::WaitCompleteFrame;
             t0 = HAL_GetTick();
+            log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateInitialize: Initializing -> WaitCompleteFrame\r\n");
         }
         else
         {
-            log(LOG_LEVEL_ERROR, "TaskMLX90640: wakeUp() failed\r\n");
             state = MLXState::ShuttingDown;
+            log(LOG_LEVEL_ERROR, "TaskMLX90640::stateInitialize wakeUp() failed\r\n");
         }
     }
 
@@ -215,14 +190,17 @@ private:
         if ((HAL_GetTick() - t0) >= sensor.getRefreshIntervalMs(REFRESH_RATE))
         {
             state = MLXState::ReadSubpageA;
+            log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateWaitCompleteFrame: WaitCompleteFrame -> ReadSubpageA\r\n");
         }
     }
 
     void stateWaitingForReadyA()
     {
-        if (((HAL_GetTick() - t0) >= (sensor.getRefreshIntervalMs(REFRESH_RATE) * 8 / 10)) && sensor.isReady())
+        if (((HAL_GetTick() - t0) >= (sensor.getRefreshIntervalMs(REFRESH_RATE) * 8 / 10))
+            && sensor.isReady())
         {
             state = MLXState::ReadSubpageA;
+            log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateWaitingForReadyA: WaitForReadyA -> ReadSubpageA\r\n");
         }
     }
 
@@ -232,19 +210,39 @@ private:
         {
             state = MLXState::WaitForReadyB;
             t0 = HAL_GetTick();
+            log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateReadSubpageA: ReadSubpageA -> WaitForReadyB\r\n");
         }
         else
         {
-            log(LOG_LEVEL_ERROR, "TaskMLX90640: readSubpage A failed\r\n");
             state = MLXState::ShuttingDown;
+            log(LOG_LEVEL_ERROR, "TaskMLX90640::stateReadSubpageA failed\r\n");
         }
     }
 
+    // ─────────────────────────────────────────────
+    // FIXED VERSION: STATUS‑BASED SUBPAGE‑FLIP CHECK
+    // ─────────────────────────────────────────────
     void stateWaitForReadyB()
     {
-        if (((HAL_GetTick() - t0) >= (sensor.getRefreshIntervalMs(REFRESH_RATE) * 8 / 10)) && sensor.isReady())
+        const auto elapsed = HAL_GetTick() - t0;
+        const auto min_wait = sensor.getRefreshIntervalMs(REFRESH_RATE) * 8 / 10;
+
+        if (elapsed < min_wait)
+            return;
+
+        uint16_t status = 0;
+        if (!sensor.readStatus(status))
+            return;
+
+        bool ready = (status & 0x0008u) != 0u;
+        int sub = static_cast<int>(status & 0x0001u);
+
+        if (ready && sub != spA)
         {
             state = MLXState::ReadSubpageB;
+            log(LOG_LEVEL_DEBUG,
+                "TaskMLX90640::stateWaitForReadyB: WaitForReadyB -> ReadSubpageB (sub=%d, spA=%d)\r\n",
+                sub, spA);
         }
     }
 
@@ -254,11 +252,12 @@ private:
         {
             state = MLXState::FrameComplete;
             t0 = HAL_GetTick();
+            log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateReadSubpageB: ReadSubpageB -> FrameComplete\r\n");
         }
         else
         {
-            log(LOG_LEVEL_ERROR, "TaskMLX90640: readSubpage B failed\r\n");
             state = MLXState::ShuttingDown;
+            log(LOG_LEVEL_ERROR, "TaskMLX90640::stateReadSubpageB failed\r\n");
         }
     }
 
@@ -276,13 +275,10 @@ private:
         else
         {
             log(LOG_LEVEL_WARNING,
-                "TaskMLX90640: invalid subpage pair spA=%d spB=%d\r\n",
+                "TaskMLX90640::stateFrameComplete invalid subpage pair spA=%d spB=%d\r\n",
                 spA, spB);
         }
 
-        // ─────────────────────────────────────────────
-        // Mode logic
-        // ─────────────────────────────────────────────
         if (mode == MLXMode::OneShot)
         {
             state = MLXState::ShuttingDown;
@@ -292,16 +288,11 @@ private:
             if (burstRemaining > 0)
                 burstRemaining--;
 
-            if (burstRemaining == 0)
-            {
-                state = MLXState::ShuttingDown;
-            }
-            else
-            {
-                state = MLXState::WaitForReadyA; // Next frame
-            }
+            state = (burstRemaining == 0)
+                        ? MLXState::ShuttingDown
+                        : MLXState::WaitForReadyA;
         }
-        else // Continuous
+        else
         {
             state = MLXState::WaitForReadyA;
         }
@@ -311,17 +302,19 @@ private:
     {
         sensor.sleep();
         state = MLXState::PoweringOff;
+        log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateShuttingDown: ShuttingDown -> PoweringOff\r\n");
     }
 
     void statePoweringOff()
     {
         power.off(circuit);
         state = MLXState::Idle;
+        log(LOG_LEVEL_DEBUG, "TaskMLX90640::statePoweringOff: PoweringOff -> Idle\r\n");
     }
 
     void stateIdle()
     {
-        // Stay idle until triggered.
+        log(LOG_LEVEL_DEBUG, "TaskMLX90640::stateIdle\r\n");
     }
 
 private:
