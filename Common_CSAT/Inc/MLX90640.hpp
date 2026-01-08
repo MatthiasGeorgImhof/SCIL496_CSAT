@@ -32,6 +32,16 @@ enum class MLX90640_RefreshRate : uint16_t
     Hz64 = 0b111 << 5   // 64 Hz
 };
 
+constexpr static uint32_t MLX90640_BOOT_TIME_MS = 80;
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz0_5 = 4000; // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz1 = 2000;   // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz2 = 1000;   // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz4 = 500;    // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz8 = 250;    // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz16 = 125;   // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz32 = 63;    // ms
+constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz64 = 32;    // ms
+
 // ─────────────────────────────────────────────
 // MLX90640 Register Map
 // ─────────────────────────────────────────────
@@ -96,6 +106,31 @@ public:
         ctrlReg |= static_cast<uint16_t>(rate);
 
         return writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), ctrlReg);
+    }
+
+    uint32_t getRefreshIntervalMs(MLX90640_RefreshRate rate)
+    {
+        switch (rate)
+        {
+        case MLX90640_RefreshRate::Hz0_5:
+            return MLX90640_REFRESH_INTERVAL_Hz0_5;
+        case MLX90640_RefreshRate::Hz1:
+            return MLX90640_REFRESH_INTERVAL_Hz1;
+        case MLX90640_RefreshRate::Hz2:
+            return MLX90640_REFRESH_INTERVAL_Hz2;
+        case MLX90640_RefreshRate::Hz4:
+            return MLX90640_REFRESH_INTERVAL_Hz4;
+        case MLX90640_RefreshRate::Hz8:
+            return MLX90640_REFRESH_INTERVAL_Hz8;
+        case MLX90640_RefreshRate::Hz16:
+            return MLX90640_REFRESH_INTERVAL_Hz16;
+        case MLX90640_RefreshRate::Hz32:
+            return MLX90640_REFRESH_INTERVAL_Hz32;
+        case MLX90640_RefreshRate::Hz64:
+            return MLX90640_REFRESH_INTERVAL_Hz64;
+        default:
+            return MLX90640_REFRESH_INTERVAL_Hz4;
+        }
     }
 
     // ─────────────────────────────────────────────
@@ -191,12 +226,12 @@ public:
             return false;
         }
 
-        if ((status & 0x0008u) == 0u)
-        {
-            // NEW_DATA not set → caller should have waited, but be defensive
-            log(LOG_LEVEL_WARNING, "MLX90640::readSubpage: NEW_DATA not set (STATUS=0x%04X)\r\n", status);
-            return false;
-        }
+        // if ((status & 0x0008u) == 0u)
+        // {
+        //     // NEW_DATA not set → caller should have waited, but be defensive
+        //     log(LOG_LEVEL_WARNING, "MLX90640::readSubpage: NEW_DATA not set (STATUS=0x%04X)\r\n", status);
+        //     return false;
+        // }
 
         subpage = static_cast<int>(status & 0x0001u); // bit 0 = subpage ID
         log(LOG_LEVEL_TRACE, "MLX90640::readSubpage: STATUS=0x%04X, subpage=%d\r\n", status, subpage);
