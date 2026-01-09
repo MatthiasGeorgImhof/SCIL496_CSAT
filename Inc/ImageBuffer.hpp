@@ -140,10 +140,11 @@ ImageBufferError ImageBuffer<Accessor>::add_image(const ImageMetadata &metadata)
     crc_t checksum = checksum_calculator_.get_checksum();
 
     // print(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE_WO_CHECKSUM);
-    metadata.checksum = checksum;
+    ImageMetadata meta_copy{metadata};
+    meta_copy.checksum = checksum;
     // print(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE);
 
-    if (write(buffer_state_.tail_, reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE) != ImageBufferError::NO_ERROR)
+    if (write(buffer_state_.tail_, reinterpret_cast<const uint8_t *>(&meta_copy), METADATA_SIZE) != ImageBufferError::NO_ERROR)
     {
         // std::cerr << "Write add_image failure" << std::endl;
         return ImageBufferError::WRITE_ERROR;

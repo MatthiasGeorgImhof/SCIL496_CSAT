@@ -19,32 +19,46 @@ void print(const uint8_t *data, size_t size)
 }
 
 // Data Structures (same as before)
+#pragma pack(push, 1)
 struct ImageMetadata
 {
-    const image_magic_t magic;
-    uint32_t timestamp;
-    size_t image_size;
-    float latitude;
-    float longitude;
-    uint8_t camera_index;
-    mutable crc_t checksum;
-    
+    const image_magic_t magic;   // 4 bytes
+    uint32_t timestamp;          // 4 bytes
+    uint32_t image_size;         // 4 bytes
+    float latitude;              // 4 bytes
+    float longitude;             // 4 bytes
+    uint8_t camera_index;        // 1 byte
+    crc_t checksum;              // 4 bytes
+
     ImageMetadata() : magic(IMAGE_MAGIC) {}
-    ImageMetadata& operator=(const ImageMetadata& other) {
-    if (this != &other)
+
+    ImageMetadata(const ImageMetadata& other)
+        : magic(IMAGE_MAGIC)
+        , timestamp(other.timestamp)
+        , image_size(other.image_size)
+        , latitude(other.latitude)
+        , longitude(other.longitude)
+        , camera_index(other.camera_index)
+        , checksum(other.checksum)
+    {}
+
+    ImageMetadata& operator=(const ImageMetadata& other)
     {
-        timestamp = other.timestamp;
-        image_size = other.image_size;
-        latitude = other.latitude;
-        longitude = other.longitude;
-        camera_index = other.camera_index;
-        checksum = other.checksum;
+        if (this != &other)
+        {
+            timestamp = other.timestamp;
+            image_size = other.image_size;
+            latitude = other.latitude;
+            longitude = other.longitude;
+            camera_index = other.camera_index;
+            checksum = other.checksum;
+        }
+        return *this;
     }
-    return *this;
-}
 };
+#pragma pack(pop)
+
 constexpr size_t METADATA_SIZE_WO_CHECKSUM = offsetof(ImageMetadata, checksum);
 constexpr size_t METADATA_SIZE = sizeof(ImageMetadata);
-
 
 #endif // __IMAGE_HPP__

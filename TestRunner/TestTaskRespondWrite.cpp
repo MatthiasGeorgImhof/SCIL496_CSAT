@@ -193,7 +193,7 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles small write")
     ImageMetadata metadata;
     metadata.camera_index = 10;
     metadata.timestamp = 0x12345678;
-    metadata.image_size = test_data.size();
+    metadata.image_size = static_cast<uint32_t>(test_data.size());
     metadata.checksum = 0xff0000ff;
     mock_buffer.push_image(test_data, metadata);
 
@@ -290,7 +290,7 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles large write")
     ImageMetadata metadata;
     metadata.camera_index = 10;
     metadata.timestamp = 0x12345678;
-    metadata.image_size = test_data.size();
+    metadata.image_size = static_cast<uint32_t>(test_data.size());
     metadata.checksum = 0xff0000ff;
     mock_buffer.push_image(test_data, metadata);
 

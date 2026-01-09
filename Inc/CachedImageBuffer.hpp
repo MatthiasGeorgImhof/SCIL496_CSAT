@@ -117,23 +117,45 @@ void CachedImageBuffer<Accessor>::wrap_around(size_t &address)
 template <typename Accessor>
 CachedImageBufferError CachedImageBuffer<Accessor>::add_image(const ImageMetadata &metadata)
 {
-     
-    size_t total_size = METADATA_SIZE + sizeof(crc_t) + metadata.image_size; 
-    if (!has_enough_space(total_size))
+    size_t total_size = METADATA_SIZE + sizeof(crc_t) + metadata.image_size;
+
+    // Ensure image starts at a page boundary
+    size_t align = access_.getAlignment();
+    size_t misalignment = buffer_state_.tail_ % align;
+
+    if (misalignment != 0)
     {
-        // std::cerr << "Write Error: Not enough space in buffer." << std::endl;
-        return CachedImageBufferError::FULL_BUFFER;
+        size_t padding = align - misalignment;
+
+        // Check space for padding + image
+        if (!has_enough_space(padding + total_size))
+            return CachedImageBufferError::FULL_BUFFER;
+
+        // Write padding bytes (0xFF is NAND erase state)
+        std::vector<uint8_t> pad(padding, 0xFF);
+        if (write(buffer_state_.tail_, pad.data(), padding) != CachedImageBufferError::NO_ERROR)
+            return CachedImageBufferError::WRITE_ERROR;
+
+        buffer_state_.tail_ += padding;
+        wrap_around(buffer_state_.tail_);
     }
 
+    // Now tail_ is page-aligned
     current_offset_ = buffer_state_.tail_;
 
+    // Compute metadata checksum
     checksum_calculator_.reset();
-    checksum_calculator_.update(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE_WO_CHECKSUM);
+    checksum_calculator_.update(reinterpret_cast<const uint8_t *>(&metadata),
+                                METADATA_SIZE_WO_CHECKSUM);
     crc_t checksum = checksum_calculator_.get_checksum();
 
-    metadata.checksum = checksum;
+    ImageMetadata meta_copy{metadata};
+    meta_copy.checksum = checksum;
 
-    if (write(buffer_state_.tail_, reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE) != CachedImageBufferError::NO_ERROR)
+    // Write metadata
+    if (write(buffer_state_.tail_,
+              reinterpret_cast<const uint8_t *>(&meta_copy),
+              METADATA_SIZE) != CachedImageBufferError::NO_ERROR)
     {
         return CachedImageBufferError::WRITE_ERROR;
     }
@@ -141,6 +163,7 @@ CachedImageBufferError CachedImageBuffer<Accessor>::add_image(const ImageMetadat
     checksum_calculator_.reset();
     current_offset_ += METADATA_SIZE;
     wrap_around(current_offset_);
+
     return CachedImageBufferError::NO_ERROR;
 }
 

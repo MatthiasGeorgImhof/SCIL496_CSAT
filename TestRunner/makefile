@@ -26,6 +26,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestBMI270.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
+			 TestBufferedAccessor.cpp \
 			 TestCachedImageBuffer.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
@@ -63,6 +64,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMLX90640ImageProcessor.cpp \
 			 TestMockHal.cpp \
 			 TestMR25H10.cpp \
+			 TestMT29F4G01Accessor.cpp \
 			 TestNamedVector3f.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationService.cpp \
@@ -373,6 +375,24 @@ $(BIN_DIR)/TestImageBufferAccessor.o : TestImageBufferAccessor.cpp
 $(BIN_DIR)/TestImageBufferAccessor : $(BIN_DIR)/TestImageBufferAccessor.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestMT29F4G01Accessor.cpp with extra sources
+$(BIN_DIR)/TestMT29F4G01Accessor.o : TestMT29F4G01Accessor.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMT29F4G01Accessor : $(BIN_DIR)/TestMT29F4G01Accessor.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMT29F4G01Accessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestBufferedAccessor.cpp with extra sources
+$(BIN_DIR)/TestBufferedAccessor.o : TestBufferedAccessor.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestBufferedAccessor : $(BIN_DIR)/TestBufferedAccessor.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestBufferedAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTask with extra sources
 $(BIN_DIR)/TestTask.o : TestTask.cpp
