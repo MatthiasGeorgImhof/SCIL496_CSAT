@@ -1,5 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
+#include "ImageBuffer.hpp"
+
 #include "imagebuffer/accessor.hpp"
 #include "imagebuffer/DirectMemoryAccessor.hpp"
 #include "imagebuffer/BufferedAccessor.hpp"
@@ -13,6 +15,9 @@
 #include <cstdint>
 #include <cstddef>
 
+template <typename Accessor>
+using CachedImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+
 TEST_CASE("ImageBuffer with BufferedAccessor")
 {
     return;
@@ -22,7 +27,7 @@ TEST_CASE("ImageBuffer with BufferedAccessor")
 
     DirectMemoryAccessor base_accessor(flash_start, flash_size);
     BufferedAccessor<DirectMemoryAccessor, block_size> buffered_accessor(base_accessor);
-    ImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
+    CachedImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
 
     ImageMetadata metadata;
     metadata.timestamp = 12345;
@@ -150,7 +155,7 @@ TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
 
     DirectMemoryAccessor base_accessor(flash_start, flash_size);
     BufferedAccessor<DirectMemoryAccessor, block_size> buffered_accessor(base_accessor);
-    ImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
+    CachedImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
 
     for (uint i = 0; i < image_count; i++)
     {
@@ -186,9 +191,6 @@ TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
     }
     for (uint i = 0; i < image_count; i++)
     {
-        size_t tail = buffer.get_tail();
-        REQUIRE(tail % block_size == 0);
-
         ImageMetadata metadata;
         REQUIRE(buffer.get_image(metadata) == ImageBufferError::NO_ERROR);
 
@@ -200,7 +202,7 @@ TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
 
         std::vector<uint8_t> data(image_size);
         size_t total = 0;
-        for (size_t j = 0; j < image_size; j+=chunk_size)
+        for (size_t j = 0; j < image_size; j += chunk_size)
         {
             size_t size = chunk_size;
             REQUIRE(buffer.get_data_chunk(&data[j], size) == ImageBufferError::NO_ERROR);

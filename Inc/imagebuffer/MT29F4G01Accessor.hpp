@@ -7,7 +7,8 @@
 #include <algorithm>
 #include <cstring>
 
-#include "CachedImageBuffer.hpp"    // CachedImageBuffer
+#include "ImageBuffer.hpp" 
+#include "imagebuffer/AlignmentPolicy.hpp" // AlignmentPolicy, NoAlignmentPolicy, PageAlignmentPolicy
 #include "imagebuffer/accessor.hpp" // Accessor concept, AccessorError
 #include "Transport.hpp"            // StreamAccessTransport
 

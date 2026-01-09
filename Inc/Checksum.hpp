@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdio>
 
+#include "ChecksumPolicy.hpp"
+
 typedef uint32_t crc_t;
 
 class ChecksumCalculator
@@ -29,6 +31,18 @@ public:
 
 private:
   crc_t checksum_;
+};
+
+// -----------------------------------------------------------------------------
+// Default checksum policy wrapper
+// -----------------------------------------------------------------------------
+struct DefaultChecksumPolicy
+{
+    ChecksumCalculator calc;
+
+    void reset() { calc.reset(); }
+    void update(const uint8_t* data, size_t size) { calc.update(data, size); }
+    crc_t get() const { return calc.get_checksum(); }
 };
 
 #endif // CHECKSUM_HPP

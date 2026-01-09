@@ -1,7 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "ImageBuffer.hpp"
-#include "CachedImageBuffer.hpp"
 #include "InputOutputStream.hpp"
 
 #include "imagebuffer/accessor.hpp"
@@ -13,6 +12,13 @@
 #include <vector>
 #include <iostream>
 #include <fstream> // for file I/O in tests
+
+template<typename Accessor>
+using SimpleImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+
+template <typename Accessor>
+using CachedImageBuffer = ImageBuffer<Accessor, PageAlignmentPolicy>;
+
 
 // Mock Accessor for testing
 struct MockAccessor
@@ -172,9 +178,9 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
 
-    REQUIRE(image_buffer.add_image(metadata) == CachedImageBufferError::NO_ERROR);
-    REQUIRE(image_buffer.add_data_chunk(image_data.data(), metadata.image_size) == CachedImageBufferError::NO_ERROR);
-    REQUIRE(image_buffer.push_image() == CachedImageBufferError::NO_ERROR);
+    REQUIRE(image_buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
+    REQUIRE(image_buffer.add_data_chunk(image_data.data(), metadata.image_size) == ImageBufferError::NO_ERROR);
+    REQUIRE(image_buffer.push_image() == ImageBufferError::NO_ERROR);
 
     SUBCASE("Test initialize") {
         size_t size = 2*sizeof(ImageMetadata);
