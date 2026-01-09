@@ -84,7 +84,7 @@ TEST_CASE("ImageBuffer Add and Get Image")
     metadata.image_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.camera_index = 1;
+    metadata.source = SOURCE::CAMERA_1;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -119,12 +119,11 @@ TEST_CASE("ImageBuffer Add and Get Image")
         ImageMetadata retrieved_metadata;
         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
-        REQUIRE(retrieved_metadata.magic == IMAGE_MAGIC);
         REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
         REQUIRE(retrieved_metadata.image_size == metadata.image_size);
         REQUIRE(retrieved_metadata.latitude == metadata.latitude);
         REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-        REQUIRE(retrieved_metadata.camera_index == metadata.camera_index);
+        REQUIRE(retrieved_metadata.source == metadata.source);
 
         std::vector<uint8_t> retrieved_data(metadata.image_size);
         for (size_t i = 0; i < image_data.size(); i++)
@@ -150,7 +149,7 @@ TEST_CASE("ImageBuffer Add and Get Image")
         large_metadata.image_size = 256;
         large_metadata.latitude = 37.7749f;
         large_metadata.longitude = -122.4194f;
-        large_metadata.camera_index = 1;
+        large_metadata.source = SOURCE::CAMERA_1;
 
         REQUIRE(buffer.add_image(large_metadata) == ImageBufferError::FULL_BUFFER);
     }
@@ -198,7 +197,7 @@ TEST_CASE("ImageBuffer Wrap-Around")
     metadata.image_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.camera_index = 1;
+    metadata.source = SOURCE::CAMERA_1;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -220,7 +219,7 @@ TEST_CASE("ImageBuffer Wrap-Around")
     metadata2.image_size = 128;
     metadata2.latitude = 34.0522f;
     metadata2.longitude = -118.2437f;
-    metadata2.camera_index = 2;
+    metadata2.source = SOURCE::CAMERA_2;
 
     std::vector<uint8_t> image_data2(metadata2.image_size);
     for (size_t i = 0; i < metadata2.image_size; ++i)
@@ -283,7 +282,7 @@ TEST_CASE("ImageBuffer chunk read")
     metadata.image_size = 255;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.camera_index = 1;
+    metadata.source = SOURCE::CAMERA_1;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -330,7 +329,7 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
     metadata.image_size = 1024;
     metadata.latitude = 33.0f;
     metadata.longitude = -97.0f;
-    metadata.camera_index = 3;
+    metadata.source = SOURCE::CAMERA_3;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -352,7 +351,7 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
     REQUIRE(retrieved_metadata.image_size == metadata.image_size);
     REQUIRE(retrieved_metadata.latitude == metadata.latitude);
     REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-    REQUIRE(retrieved_metadata.camera_index == metadata.camera_index);
+    REQUIRE(retrieved_metadata.source == metadata.source);
 
     std::vector<uint8_t> retrieved_data(metadata.image_size);
     for (size_t i = 0; i < image_data.size(); i++)
@@ -380,7 +379,7 @@ TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccessor")
     metadata.image_size = 1024;
     metadata.latitude = 33.0f;
     metadata.longitude = -97.0f;
-    metadata.camera_index = 3;
+    metadata.source = SOURCE::CAMERA_3;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -403,7 +402,7 @@ TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccessor")
     REQUIRE(retrieved_metadata.image_size == metadata.image_size);
     REQUIRE(retrieved_metadata.latitude == metadata.latitude);
     REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-    REQUIRE(retrieved_metadata.camera_index == metadata.camera_index);
+    REQUIRE(retrieved_metadata.source == metadata.source);
 
     std::vector<uint8_t> retrieved_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -420,10 +419,10 @@ TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccessor")
 
     // Additional checks:  Verify the HAL calls
 
-    // little endian
-    std::vector<uint8_t> &flash_memory = accessor.getFlashMemory();
-    CHECK(flash_memory[3] == static_cast<uint8_t>((IMAGE_MAGIC >> 24) & 0xFF));
-    CHECK(flash_memory[2] == static_cast<uint8_t>((IMAGE_MAGIC >> 16) & 0xFF));
-    CHECK(flash_memory[1] == static_cast<uint8_t>((IMAGE_MAGIC >> 8) & 0xFF));
-    CHECK(flash_memory[0] == static_cast<uint8_t>(IMAGE_MAGIC & 0xFF));
+    // // little endian
+    // std::vector<uint8_t> &flash_memory = accessor.getFlashMemory();
+    // CHECK(flash_memory[3] == static_cast<uint8_t>((IMAGE_MAGIC >> 24) & 0xFF));
+    // CHECK(flash_memory[2] == static_cast<uint8_t>((IMAGE_MAGIC >> 16) & 0xFF));
+    // CHECK(flash_memory[1] == static_cast<uint8_t>((IMAGE_MAGIC >> 8) & 0xFF));
+    // CHECK(flash_memory[0] == static_cast<uint8_t>(IMAGE_MAGIC & 0xFF));
 }

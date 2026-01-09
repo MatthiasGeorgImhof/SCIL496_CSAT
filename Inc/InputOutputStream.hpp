@@ -89,7 +89,7 @@ public:
         ImageMetadata metadata;
         (void)buffer_.get_image(metadata);
         size_ = metadata.image_size + sizeof(ImageMetadata);
-        name_ = formatValues(metadata.timestamp, metadata.camera_index);
+        name_ = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.source));
         size = sizeof(metadata);
         std::memcpy(data, reinterpret_cast<uint8_t *>(&metadata), sizeof(ImageMetadata));
         return true;

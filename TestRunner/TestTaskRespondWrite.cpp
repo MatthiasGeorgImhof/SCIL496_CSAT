@@ -191,10 +191,10 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles small write")
     std::vector<uint8_t> test_data(24);
     std::iota(test_data.begin(), test_data.end(), 0);
     ImageMetadata metadata;
-    metadata.camera_index = 10;
+    metadata.source = SOURCE::THERMAL;
     metadata.timestamp = 0x12345678;
     metadata.image_size = static_cast<uint32_t>(test_data.size());
-    metadata.checksum = 0xff0000ff;
+    metadata.meta_crc = 0xff0000ff;
     mock_buffer.push_image(test_data, metadata);
 
     // Initial state
@@ -210,7 +210,6 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles small write")
     std::shared_ptr<CyphalTransfer> transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
     auto request = unpackRequest(transfer);
     CHECK(request.offset == 0);
-    CHECK(strncmp(reinterpret_cast<char *>(request.data.value.elements), "ATMI", 4) == 0);
     loopard.buffer.clear();
     task_response.buffer_.push(transfer);
     task_response.handleTaskImpl();
@@ -288,10 +287,10 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles large write")
     std::vector<uint8_t> test_data(400);
     std::iota(test_data.begin(), test_data.end(), 0);
     ImageMetadata metadata;
-    metadata.camera_index = 10;
+    metadata.source = SOURCE::THERMAL;
     metadata.timestamp = 0x12345678;
     metadata.image_size = static_cast<uint32_t>(test_data.size());
-    metadata.checksum = 0xff0000ff;
+    metadata.meta_crc = 0xff0000ff;
     mock_buffer.push_image(test_data, metadata);
 
     // Initial state
@@ -307,7 +306,6 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles large write")
     std::shared_ptr<CyphalTransfer> transfer = std::make_shared<CyphalTransfer>(loopard.buffer.pop());
     auto request = unpackRequest(transfer);
     CHECK(request.offset == 0);
-    CHECK(strncmp(reinterpret_cast<char *>(request.data.value.elements), "ATMI", 4) == 0);
     loopard.buffer.clear();
     task_response.buffer_.push(transfer);
     task_response.handleTaskImpl();

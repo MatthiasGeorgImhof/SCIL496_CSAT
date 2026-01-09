@@ -29,7 +29,7 @@ TEST_CASE("ImageBuffer with BufferedAccessor")
     metadata.image_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.camera_index = 1;
+    metadata.source = SOURCE::CAMERA_1;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i)
@@ -61,12 +61,11 @@ TEST_CASE("ImageBuffer with BufferedAccessor")
         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
         // std::cerr << "ImageBuffer: get_image returned" << std::endl;
 
-        REQUIRE(retrieved_metadata.magic == IMAGE_MAGIC);
         REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
         REQUIRE(retrieved_metadata.image_size == metadata.image_size);
         REQUIRE(retrieved_metadata.latitude == metadata.latitude);
         REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-        REQUIRE(retrieved_metadata.camera_index == metadata.camera_index);
+        REQUIRE(retrieved_metadata.source == metadata.source);
 
         std::vector<uint8_t> retrieved_data(metadata.image_size);
         for (size_t i = 0; i < image_data.size(); i++)
@@ -111,12 +110,11 @@ TEST_CASE("ImageBuffer with BufferedAccessor")
         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
         // std::cerr << "ImageBuffer: get_image returned" << std::endl;
 
-        REQUIRE(retrieved_metadata.magic == IMAGE_MAGIC);
         REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
         REQUIRE(retrieved_metadata.image_size == metadata.image_size);
         REQUIRE(retrieved_metadata.latitude == metadata.latitude);
         REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-        REQUIRE(retrieved_metadata.camera_index == metadata.camera_index);
+        REQUIRE(retrieved_metadata.source == metadata.source);
 
         std::vector<uint8_t> retrieved_data(metadata.image_size);
         // size_t niter = image_data.size()/CHUNKSIZE;
@@ -161,7 +159,7 @@ TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
         metadata.image_size = image_size;
         metadata.latitude = 37.7749f + static_cast<float>(i) * 0.1f;
         metadata.longitude = -122.4194f + static_cast<float>(i) * 0.1f;
-        metadata.camera_index = static_cast<uint8_t>(i);
+        metadata.source = SOURCE::CAMERA_1;
 
         std::vector<uint8_t> image_data(metadata.image_size);
         for (size_t j = 0; j < metadata.image_size; ++j)
@@ -194,12 +192,11 @@ TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
         ImageMetadata metadata;
         REQUIRE(buffer.get_image(metadata) == ImageBufferError::NO_ERROR);
 
-        REQUIRE(metadata.magic == IMAGE_MAGIC);
         REQUIRE(metadata.timestamp == 12345 + i);
         REQUIRE(metadata.image_size == image_size);
         REQUIRE(metadata.latitude == doctest::Approx(37.7749f + static_cast<float>(i) * 0.1f));
         REQUIRE(metadata.longitude == doctest::Approx(-122.4194f + static_cast<float>(i) * 0.1f));
-        REQUIRE(metadata.camera_index == i);
+        REQUIRE(metadata.source == SOURCE::CAMERA_1);
 
         std::vector<uint8_t> data(image_size);
         size_t total = 0;

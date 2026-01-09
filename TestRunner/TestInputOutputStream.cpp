@@ -73,7 +73,7 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
     metadata.image_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.camera_index = 0xAB;
+    metadata.source = SOURCE::THERMAL;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i) {
@@ -91,7 +91,7 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
         REQUIRE(size == sizeof(ImageMetadata));
         ImageMetadata *metadata_ = reinterpret_cast<ImageMetadata*>(meta);
         CHECK(metadata_->timestamp == metadata.timestamp);
-        CHECK(metadata_->camera_index == metadata.camera_index);
+        CHECK(metadata_->source == metadata.source);
     }
 
     SUBCASE("Test size") {
@@ -99,7 +99,7 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
     }
 
     SUBCASE("Test name") {
-        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, metadata.camera_index);
+        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.source));
         
         CHECK(memcmp(stream.name().data(), expected_name.data(), NAME_LENGTH) == 0);
     }
@@ -165,7 +165,7 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
     metadata.image_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.camera_index = 0xAB;
+    metadata.source = SOURCE::THERMAL;
 
     std::vector<uint8_t> image_data(metadata.image_size);
     for (size_t i = 0; i < metadata.image_size; ++i) {
@@ -183,7 +183,7 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
         REQUIRE(size == sizeof(ImageMetadata));
         ImageMetadata *metadata_ = reinterpret_cast<ImageMetadata*>(meta);
         CHECK(metadata_->timestamp == metadata.timestamp);
-        CHECK(metadata_->camera_index == metadata.camera_index);
+        CHECK(metadata_->source == metadata.source);
     }
 
     SUBCASE("Test size") {
@@ -191,7 +191,7 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
     }
 
     SUBCASE("Test name") {
-        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, metadata.camera_index);
+        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.source));
         
         CHECK(memcmp(stream.name().data(), expected_name.data(), NAME_LENGTH) == 0);
     }

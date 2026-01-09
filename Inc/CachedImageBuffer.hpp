@@ -14,7 +14,7 @@
 #include "Checksum.hpp"
 
 typedef ImageBufferError CachedImageBufferError;
-typedef BufferState CachedBufferState; 
+typedef BufferState CachedBufferState;
 
 template <typename Accessor>
 class CachedImageBuffer
@@ -30,7 +30,6 @@ public:
     CachedImageBufferError get_image(ImageMetadata &metadata);
     CachedImageBufferError get_data_chunk(uint8_t *data, size_t &size);
     CachedImageBufferError pop_image();
-
 
     inline bool is_empty() const { return buffer_state_.is_empty(); };
     inline size_t size() const { return buffer_state_.size(); };
@@ -104,7 +103,6 @@ CachedImageBufferError CachedImageBuffer<Accessor>::read(size_t address, uint8_t
     return CachedImageBufferError::NO_ERROR;
 }
 
-
 template <typename Accessor>
 void CachedImageBuffer<Accessor>::wrap_around(size_t &address)
 {
@@ -117,7 +115,7 @@ void CachedImageBuffer<Accessor>::wrap_around(size_t &address)
 template <typename Accessor>
 CachedImageBufferError CachedImageBuffer<Accessor>::add_image(const ImageMetadata &metadata)
 {
-    size_t total_size = METADATA_SIZE + sizeof(crc_t) + metadata.image_size;
+    size_t total_size = sizeof(StorageHeader) + sizeof(ImageMetadata) + metadata.image_size + sizeof(crc_t);
 
     // Ensure image starts at a page boundary
     size_t align = access_.getAlignment();
@@ -143,14 +141,46 @@ CachedImageBufferError CachedImageBuffer<Accessor>::add_image(const ImageMetadat
     // Now tail_ is page-aligned
     current_offset_ = buffer_state_.tail_;
 
+    // Build StorageHeader
+    StorageHeader hdr{};
+    hdr.magic = STORAGE_MAGIC;
+    hdr.version = STORAGE_HEADER_VERSION;
+    hdr.header_size = sizeof(StorageHeader);
+    hdr.sequence_id = next_sequence_id_++; // You add this member to the class
+    hdr.total_size = static_cast<uint32_t>(
+        sizeof(ImageMetadata) + metadata.image_size + sizeof(crc_t));
+    hdr.flags = 0;
+    std::memset(hdr.reserved, 0, sizeof(hdr.reserved));
+
+    // Compute header CRC
+    checksum_calculator_.reset();
+    checksum_calculator_.update(
+        reinterpret_cast<const uint8_t *>(&hdr),
+        offsetof(StorageHeader, header_crc));
+    hdr.header_crc = checksum_calculator_.get_checksum();
+
+    // Write StorageHeader
+    if (write(buffer_state_.tail_,
+              reinterpret_cast<const uint8_t *>(&hdr),
+              sizeof(StorageHeader)) != NO_ERROR)
+    {
+        return WRITE_ERROR;
+    }
+
+    current_offset_ = buffer_state_.tail_ + sizeof(StorageHeader);
+    wrap_around(current_offset_);
+
     // Compute metadata checksum
     checksum_calculator_.reset();
-    checksum_calculator_.update(reinterpret_cast<const uint8_t *>(&metadata),
-                                METADATA_SIZE_WO_CHECKSUM);
-    crc_t checksum = checksum_calculator_.get_checksum();
+    ImageMetadata meta_copy = metadata;
+    meta_copy.version = 1;
+    meta_copy.metadata_size = static_cast<uint16_t>(sizeof(ImageMetadata));
 
-    ImageMetadata meta_copy{metadata};
-    meta_copy.checksum = checksum;
+    checksum_calculator_.reset();
+    checksum_calculator_.update(
+        reinterpret_cast<const uint8_t *>(&meta_copy),
+        METADATA_SIZE_WO_CRC);
+    meta_copy.meta_crc = checksum_calculator_.get_checksum();
 
     // Write metadata
     if (write(buffer_state_.tail_,
@@ -185,26 +215,27 @@ CachedImageBufferError CachedImageBuffer<Accessor>::add_data_chunk(const uint8_t
 template <typename Accessor>
 CachedImageBufferError CachedImageBuffer<Accessor>::push_image()
 {
-    crc_t checksum = checksum_calculator_.get_checksum(); 
-    if (write(current_offset_, reinterpret_cast<const uint8_t *>(&checksum), sizeof(crc_t)) != CachedImageBufferError::NO_ERROR)
+    crc_t data_crc = checksum_calculator_.get_checksum();
+
+    if (write(current_offset_,
+              reinterpret_cast<const uint8_t *>(&data_crc),
+              sizeof(crc_t)) != NO_ERROR)
     {
-        return CachedImageBufferError::WRITE_ERROR;
+        return WRITE_ERROR;
     }
 
     current_offset_ += sizeof(crc_t);
     wrap_around(current_offset_);
 
-    size_t image_size = current_offset_ - buffer_state_.tail_;
-    if (current_offset_ < buffer_state_.tail_) {
-        image_size = buffer_state_.TOTAL_BUFFER_CAPACITY_ - buffer_state_.tail_ + current_offset_;
-    }
+    // Compute total entry size using StorageHeader.total_size
+    size_t entry_size = sizeof(StorageHeader) + hdr.total_size;
 
-    buffer_state_.size_ += image_size;
+    buffer_state_.size_ += entry_size;
     buffer_state_.tail_ = current_offset_;
     wrap_around(buffer_state_.tail_);
     buffer_state_.count_++;
 
-    return CachedImageBufferError::NO_ERROR;
+    return NO_ERROR;
 }
 
 template <typename Accessor>
@@ -216,6 +247,29 @@ CachedImageBufferError CachedImageBuffer<Accessor>::get_image(ImageMetadata &met
     }
 
     current_offset_ = buffer_state_.head_;
+    StorageHeader hdr{};
+    size_t hdr_size = sizeof(StorageHeader);
+
+    if (read(buffer_state_.head_,
+             reinterpret_cast<uint8_t *>(&hdr),
+             hdr_size) != NO_ERROR)
+    {
+        return READ_ERROR;
+    }
+
+    // Validate magic
+    if (hdr.magic != STORAGE_MAGIC)
+        return CHECKSUM_ERROR;
+
+    // Validate header CRC
+    checksum_calculator_.reset();
+    checksum_calculator_.update(
+        reinterpret_cast<const uint8_t *>(&hdr),
+        offsetof(StorageHeader, header_crc));
+    crc_t hdr_crc = checksum_calculator_.get_checksum();
+
+    if (hdr_crc != hdr.header_crc)
+        return CHECKSUM_ERROR;
 
     current_size_ = METADATA_SIZE;
     size_t size = METADATA_SIZE;
@@ -229,12 +283,12 @@ CachedImageBufferError CachedImageBuffer<Accessor>::get_image(ImageMetadata &met
     }
 
     checksum_calculator_.reset();
-    checksum_calculator_.update(reinterpret_cast<const uint8_t *>(&metadata), METADATA_SIZE_WO_CHECKSUM);
-    crc_t checksum = checksum_calculator_.get_checksum();
-    if (metadata.checksum != checksum)
-    {
+    checksum_calculator_.update(
+        reinterpret_cast<const uint8_t *>(&metadata),
+        METADATA_SIZE_WO_CRC);
+    crc_t crc = checksum_calculator_.get_checksum();
+    if (metadata.meta_crc != crc)
         return CachedImageBufferError::CHECKSUM_ERROR;
-    }
 
     checksum_calculator_.reset();
     current_offset_ += METADATA_SIZE;
@@ -281,7 +335,8 @@ CachedImageBufferError CachedImageBuffer<Accessor>::pop_image()
     wrap_around(current_offset_);
 
     size_t image_size = current_offset_ - buffer_state_.head_;
-    if (current_offset_ < buffer_state_.head_) {
+    if (current_offset_ < buffer_state_.head_)
+    {
         image_size = buffer_state_.TOTAL_BUFFER_CAPACITY_ - buffer_state_.head_ + current_offset_;
     }
 
