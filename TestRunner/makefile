@@ -44,6 +44,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestIGRFModel.cpp \
 			 TestImageBuffer.cpp \
 			 TestImageBufferAccessor.cpp \
+			 TestImageBufferReconstruction.cpp \
 			 TestIMUExtension.cpp \
 			 TestInputOutputStream.cpp \
 			 TestKalmanFunctionGPS.cpp \
@@ -375,6 +376,15 @@ $(BIN_DIR)/TestImageBufferAccessor.o : TestImageBufferAccessor.cpp
 $(BIN_DIR)/TestImageBufferAccessor : $(BIN_DIR)/TestImageBufferAccessor.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestImageBufferReconstruction.cpp with extra sources
+$(BIN_DIR)/TestImageBufferReconstruction.o : TestImageBufferReconstruction.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestImageBufferReconstruction : $(BIN_DIR)/TestImageBufferReconstruction.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferReconstruction.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestMT29F4G01Accessor.cpp with extra sources
 $(BIN_DIR)/TestMT29F4G01Accessor.o : TestMT29F4G01Accessor.cpp
