@@ -83,13 +83,13 @@ TEST_CASE("ImageBuffer Add and Get Image")
 
     ImageMetadata metadata;
     metadata.timestamp = 12345;
-    metadata.image_size = 256;
+    metadata.payload_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.source = SOURCE::CAMERA_1;
+    metadata.producer = METADATA_PRODUCER::CAMERA_1;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
@@ -122,12 +122,12 @@ TEST_CASE("ImageBuffer Add and Get Image")
         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
         REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-        REQUIRE(retrieved_metadata.image_size == metadata.image_size);
+        REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
         REQUIRE(retrieved_metadata.latitude == metadata.latitude);
         REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-        REQUIRE(retrieved_metadata.source == metadata.source);
+        REQUIRE(retrieved_metadata.producer == metadata.producer);
 
-        std::vector<uint8_t> retrieved_data(metadata.image_size);
+        std::vector<uint8_t> retrieved_data(metadata.payload_size);
         for (size_t i = 0; i < image_data.size(); i++)
         {
             size_t size = 1;
@@ -135,7 +135,7 @@ TEST_CASE("ImageBuffer Add and Get Image")
             REQUIRE(size == 1);
         }
 
-        for (size_t i = 0; i < metadata.image_size; ++i)
+        for (size_t i = 0; i < metadata.payload_size; ++i)
         {
             REQUIRE(retrieved_data[i] == image_data[i]);
         }
@@ -148,10 +148,10 @@ TEST_CASE("ImageBuffer Add and Get Image")
 
         ImageMetadata large_metadata;
         large_metadata.timestamp = 12345;
-        large_metadata.image_size = 256;
+        large_metadata.payload_size = 256;
         large_metadata.latitude = 37.7749f;
         large_metadata.longitude = -122.4194f;
-        large_metadata.source = SOURCE::CAMERA_1;
+        large_metadata.producer = METADATA_PRODUCER::CAMERA_1;
 
         REQUIRE(buffer.add_image(large_metadata) == ImageBufferError::FULL_BUFFER);
     }
@@ -168,7 +168,7 @@ TEST_CASE("ImageBuffer Add and Get Image")
         ImageMetadata retrieved_metadata;
         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
-        std::vector<uint8_t> retrieved_data(metadata.image_size);
+        std::vector<uint8_t> retrieved_data(metadata.payload_size);
         for (size_t i = 0; i < image_data.size(); i++)
         {
             size_t size = 1;
@@ -196,13 +196,13 @@ TEST_CASE("ImageBuffer Wrap-Around fails due to size")
 
     ImageMetadata metadata;
     metadata.timestamp = 12345;
-    metadata.image_size = 256;
+    metadata.payload_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.source = SOURCE::CAMERA_1;
+    metadata.producer = METADATA_PRODUCER::CAMERA_1;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
@@ -218,13 +218,13 @@ TEST_CASE("ImageBuffer Wrap-Around fails due to size")
     // Add another image that will cause wrap-around
     ImageMetadata metadata2;
     metadata2.timestamp = 67890;
-    metadata2.image_size = 128;
+    metadata2.payload_size = 128;
     metadata2.latitude = 34.0522f;
     metadata2.longitude = -118.2437f;
-    metadata2.source = SOURCE::CAMERA_2;
+    metadata2.producer = METADATA_PRODUCER::CAMERA_2;
 
-    std::vector<uint8_t> image_data2(metadata2.image_size);
-    for (size_t i = 0; i < metadata2.image_size; ++i)
+    std::vector<uint8_t> image_data2(metadata2.payload_size);
+    for (size_t i = 0; i < metadata2.payload_size; ++i)
     {
         image_data2[i] = static_cast<uint8_t>((i + 100) % 256);
     }
@@ -240,13 +240,13 @@ TEST_CASE("ImageBuffer Wrap-Around suceeds due pop despite size")
 
     ImageMetadata metadata;
     metadata.timestamp = 12345;
-    metadata.image_size = 256;
+    metadata.payload_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.source = SOURCE::CAMERA_1;
+    metadata.producer = METADATA_PRODUCER::CAMERA_1;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
@@ -262,7 +262,7 @@ TEST_CASE("ImageBuffer Wrap-Around suceeds due pop despite size")
     // pop the image to free space
     ImageMetadata retrieved_metadata;
     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
-    std::vector<uint8_t> retrieved_data(metadata.image_size);
+    std::vector<uint8_t> retrieved_data(metadata.payload_size);
     for (size_t i = 0; i < image_data.size(); i++)
     {
         size_t size = 1;
@@ -270,7 +270,7 @@ TEST_CASE("ImageBuffer Wrap-Around suceeds due pop despite size")
         REQUIRE(size == 1);
     }
 
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         REQUIRE(retrieved_data[i] == image_data[i]);
     }
@@ -280,13 +280,13 @@ TEST_CASE("ImageBuffer Wrap-Around suceeds due pop despite size")
     // Add another image that will cause wrap-around
     ImageMetadata metadata2;
     metadata2.timestamp = 67890;
-    metadata2.image_size = 128;
+    metadata2.payload_size = 128;
     metadata2.latitude = 34.0522f;
     metadata2.longitude = -118.2437f;
-    metadata2.source = SOURCE::CAMERA_2;
+    metadata2.producer = METADATA_PRODUCER::CAMERA_2;
 
-    std::vector<uint8_t> image_data2(metadata2.image_size);
-    for (size_t i = 0; i < metadata2.image_size; ++i)
+    std::vector<uint8_t> image_data2(metadata2.payload_size);
+    for (size_t i = 0; i < metadata2.payload_size; ++i)
     {
         image_data2[i] = static_cast<uint8_t>((i + 100) % 256);
     }
@@ -305,7 +305,7 @@ TEST_CASE("ImageBuffer Wrap-Around suceeds due pop despite size")
     ImageMetadata retrieved_metadata2;
     REQUIRE(buffer.get_image(retrieved_metadata2) == ImageBufferError::NO_ERROR);
 
-    std::vector<uint8_t> retrieved_data2(metadata2.image_size);
+    std::vector<uint8_t> retrieved_data2(metadata2.payload_size);
     for (size_t i = 0; i < image_data2.size(); i++)
     {
         size_t size = 1;
@@ -313,7 +313,7 @@ TEST_CASE("ImageBuffer Wrap-Around suceeds due pop despite size")
         REQUIRE(size == 1);
     }
 
-    for (size_t i = 0; i < metadata2.image_size; ++i)
+    for (size_t i = 0; i < metadata2.payload_size; ++i)
     {
         REQUIRE(retrieved_data2[i] == image_data2[i]);
     }
@@ -326,26 +326,26 @@ TEST_CASE("ImageBuffer chunk read")
 
     ImageMetadata metadata;
     metadata.timestamp = 12345;
-    metadata.image_size = 255;
+    metadata.payload_size = 255;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.source = SOURCE::CAMERA_1;
+    metadata.producer = METADATA_PRODUCER::CAMERA_1;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
 
     // Fill most of the buffer
     REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-    REQUIRE(buffer.add_data_chunk(image_data.data(), metadata.image_size) == ImageBufferError::NO_ERROR);
+    REQUIRE(buffer.add_data_chunk(image_data.data(), metadata.payload_size) == ImageBufferError::NO_ERROR);
     REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
     REQUIRE(buffer.count() == 1);
 
     ImageMetadata retrieved_metadata;
     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
-    std::vector<uint8_t> retrieved_data(metadata.image_size);
+    std::vector<uint8_t> retrieved_data(metadata.payload_size);
     
     size_t size = 100;
     REQUIRE(buffer.get_data_chunk(retrieved_data.data(), size) == ImageBufferError::NO_ERROR);
@@ -373,13 +373,13 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
 
     ImageMetadata metadata;
     metadata.timestamp = 98765;
-    metadata.image_size = 1024;
+    metadata.payload_size = 1024;
     metadata.latitude = 33.0f;
     metadata.longitude = -97.0f;
-    metadata.source = SOURCE::CAMERA_3;
+    metadata.producer = METADATA_PRODUCER::CAMERA_3;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
@@ -395,12 +395,12 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
     REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-    REQUIRE(retrieved_metadata.image_size == metadata.image_size);
+    REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
     REQUIRE(retrieved_metadata.latitude == metadata.latitude);
     REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-    REQUIRE(retrieved_metadata.source == metadata.source);
+    REQUIRE(retrieved_metadata.producer == metadata.producer);
 
-    std::vector<uint8_t> retrieved_data(metadata.image_size);
+    std::vector<uint8_t> retrieved_data(metadata.payload_size);
     for (size_t i = 0; i < image_data.size(); i++)
     {
         size_t size = 1;
@@ -408,7 +408,7 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
         REQUIRE(size == 1);
     }
 
-    for (size_t i = 0; i < metadata.image_size; ++i)
+    for (size_t i = 0; i < metadata.payload_size; ++i)
     {
         REQUIRE(retrieved_data[i] == image_data[i]);
     }
@@ -423,20 +423,20 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
 
 //     ImageMetadata metadata;
 //     metadata.timestamp = 98765;
-//     metadata.image_size = 1024;
+//     metadata.payload_size = 1024;
 //     metadata.latitude = 33.0f;
 //     metadata.longitude = -97.0f;
-//     metadata.source = SOURCE::CAMERA_3;
+//     metadata.producer = METADATA_PRODUCER::CAMERA_3;
 
-//     std::vector<uint8_t> image_data(metadata.image_size);
-//     for (size_t i = 0; i < metadata.image_size; ++i)
+//     std::vector<uint8_t> image_data(metadata.payload_size);
+//     for (size_t i = 0; i < metadata.payload_size; ++i)
 //     {
 //         image_data[i] = static_cast<uint8_t>(i % 256);
 //     }
 
 //     // Write image into flash through the buffer
 //     REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-//     for (size_t i = 0; i < metadata.image_size; ++i)
+//     for (size_t i = 0; i < metadata.payload_size; ++i)
 //     {
 //         REQUIRE(buffer.add_data_chunk(&image_data[i], 1) == ImageBufferError::NO_ERROR);
 //     }
@@ -447,21 +447,21 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
 //     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
 //     REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-//     REQUIRE(retrieved_metadata.image_size == metadata.image_size);
+//     REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
 //     REQUIRE(retrieved_metadata.latitude == metadata.latitude);
 //     REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-//     REQUIRE(retrieved_metadata.source == metadata.source);
+//     REQUIRE(retrieved_metadata.producer == metadata.producer);
 
 //     // Read payload back
-//     std::vector<uint8_t> retrieved_data(metadata.image_size);
-//     for (size_t i = 0; i < metadata.image_size; ++i)
+//     std::vector<uint8_t> retrieved_data(metadata.payload_size);
+//     for (size_t i = 0; i < metadata.payload_size; ++i)
 //     {
 //         size_t size = 1;
 //         REQUIRE(buffer.get_data_chunk(&retrieved_data[i], size) == ImageBufferError::NO_ERROR);
 //         REQUIRE(size == 1);
 //     }
 
-//     for (size_t i = 0; i < metadata.image_size; ++i)
+//     for (size_t i = 0; i < metadata.payload_size; ++i)
 //     {
 //         REQUIRE(retrieved_data[i] == image_data[i]);
 //     }

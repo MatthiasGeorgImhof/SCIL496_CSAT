@@ -69,7 +69,7 @@ private:
         size_t offset;       // current ring offset
         size_t entry_size;   // total entry size (header + meta + payload + crc)
         size_t consumed;     // bytes consumed/written so far within this entry
-        size_t payload_size; // payload size in bytes (image_size)
+        size_t payload_size; // payload size in bytes (payload_size)
     };
 
     // ---------------------------------------------------------
@@ -90,7 +90,7 @@ private:
     {
         return sizeof(StorageHeader) +
                sizeof(ImageMetadata) +
-               metadata.image_size +
+               metadata.payload_size +
                sizeof(crc_t);
     }
 
@@ -215,8 +215,7 @@ private:
         hdr.version = STORAGE_HEADER_VERSION;
         hdr.header_size = static_cast<uint16_t>(sizeof(StorageHeader));
         hdr.sequence_id = next_sequence_id_++;
-        hdr.total_size = static_cast<uint32_t>(
-            sizeof(ImageMetadata) + metadata_in.image_size + sizeof(crc_t));
+        hdr.total_size = static_cast<uint32_t>(sizeof(ImageMetadata) + metadata_in.payload_size + sizeof(crc_t));
         hdr.flags = 0;
         std::memset(hdr.reserved, 0, sizeof(hdr.reserved));
 
@@ -319,7 +318,7 @@ private:
         rs.consumed += sizeof(ImageMetadata);
         wrap(rs.offset);
 
-        rs.payload_size = metadata.image_size;
+        rs.payload_size = metadata.payload_size;
 
         // prepare checksum for payload
         checksum_.reset();
@@ -478,7 +477,7 @@ ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::add_image(const ImageMet
     write_state_.offset = buffer_state_.tail_;
     write_state_.entry_size = entry_size;
     write_state_.consumed = 0;
-    write_state_.payload_size = metadata_in.image_size;
+    write_state_.payload_size = metadata_in.payload_size;
 
     status = write_header(metadata_in, write_state_);
     if (status != ImageBufferError::NO_ERROR)

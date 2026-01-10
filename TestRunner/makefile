@@ -108,6 +108,7 @@ TEST_FILES = TestArrayList.cpp \
 			 TestTaskSubscribeNodePortList.cpp \
 			 TestTimeUtils.cpp \
 			 TestTransport.cpp \
+			 TestTrigger.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
@@ -795,6 +796,15 @@ $(BIN_DIR)/TestInputOutputStream.o : TestInputOutputStream.cpp
 $(BIN_DIR)/TestInputOutputStream : $(BIN_DIR)/TestInputOutputStream.o $ $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestInputOutputStream.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestTrigger with extra sources
+$(BIN_DIR)/TestTrigger.o : TestTrigger.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestTrigger : $(BIN_DIR)/TestTrigger.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTrigger.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTimeUtils with extra sources
 $(BIN_DIR)/TestTimeUtils.o : TestTimeUtils.cpp

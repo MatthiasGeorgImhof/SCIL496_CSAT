@@ -9,12 +9,12 @@
 // This precedes every image entry in NAND.
 // -----------------------------------------------------------------------------
 
-// Magic constant for identifying valid entries ("IMST")
+// Magic constant for identifying valid entries ("RCRD")
 constexpr uint32_t STORAGE_MAGIC =
-    (static_cast<uint32_t>('I') << 24) |
-    (static_cast<uint32_t>('M') << 16) |
-    (static_cast<uint32_t>('S') << 8)  |
-    static_cast<uint32_t>('T');
+    (static_cast<uint32_t>('R') << 24) |
+    (static_cast<uint32_t>('C') << 16) |
+    (static_cast<uint32_t>('R') << 8)  |
+    static_cast<uint32_t>('D');
 
 // Version of the StorageHeader format
 constexpr uint16_t STORAGE_HEADER_VERSION = 1;

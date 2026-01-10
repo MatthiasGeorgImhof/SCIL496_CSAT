@@ -115,8 +115,8 @@ template <typename ImageInputStream, typename... Adapters>
 class MockTaskRequestWrite : public TaskRequestWrite<ImageInputStream, Adapters...>
 {
 public:
-    MockTaskRequestWrite(ImageInputStream &source, uint32_t interval, uint32_t tick, CyphalNodeID node_id, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters)
-        : TaskRequestWrite<ImageInputStream, Adapters...>(source, interval, tick, node_id, transfer_id, adapters)
+    MockTaskRequestWrite(ImageInputStream &metadata_producer, uint32_t interval, uint32_t tick, CyphalNodeID node_id, CyphalTransferID transfer_id, std::tuple<Adapters...> &adapters)
+        : TaskRequestWrite<ImageInputStream, Adapters...>(metadata_producer, interval, tick, node_id, transfer_id, adapters)
     {
     }
 
@@ -191,9 +191,9 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles small write")
     std::vector<uint8_t> test_data(24);
     std::iota(test_data.begin(), test_data.end(), 0);
     ImageMetadata metadata;
-    metadata.source = SOURCE::THERMAL;
+    metadata.producer = METADATA_PRODUCER::THERMAL;
     metadata.timestamp = 0x12345678;
-    metadata.image_size = static_cast<uint32_t>(test_data.size());
+    metadata.payload_size = static_cast<uint32_t>(test_data.size());
     metadata.meta_crc = 0xff0000ff;
     mock_buffer.push_image(test_data, metadata);
 
@@ -287,9 +287,9 @@ TEST_CASE("TaskRequestWrite - TaskRequestWrite: Handles large write")
     std::vector<uint8_t> test_data(400);
     std::iota(test_data.begin(), test_data.end(), 0);
     ImageMetadata metadata;
-    metadata.source = SOURCE::THERMAL;
+    metadata.producer = METADATA_PRODUCER::THERMAL;
     metadata.timestamp = 0x12345678;
-    metadata.image_size = static_cast<uint32_t>(test_data.size());
+    metadata.payload_size = static_cast<uint32_t>(test_data.size());
     metadata.meta_crc = 0xff0000ff;
     mock_buffer.push_image(test_data, metadata);
 

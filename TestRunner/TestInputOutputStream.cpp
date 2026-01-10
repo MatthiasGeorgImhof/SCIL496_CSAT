@@ -75,18 +75,18 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
 
     ImageMetadata metadata;
     metadata.timestamp = 0x12345678;
-    metadata.image_size = 256;
+    metadata.payload_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.source = SOURCE::THERMAL;
+    metadata.producer = METADATA_PRODUCER::THERMAL;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i) {
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i) {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
 
     REQUIRE(image_buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-    REQUIRE(image_buffer.add_data_chunk(image_data.data(), metadata.image_size) == ImageBufferError::NO_ERROR);
+    REQUIRE(image_buffer.add_data_chunk(image_data.data(), metadata.payload_size) == ImageBufferError::NO_ERROR);
     REQUIRE(image_buffer.push_image() == ImageBufferError::NO_ERROR);
 
     SUBCASE("Test initialize") {
@@ -96,15 +96,15 @@ TEST_CASE("ImageInputStream with ImageBuffer") {
         REQUIRE(size == sizeof(ImageMetadata));
         ImageMetadata *metadata_ = reinterpret_cast<ImageMetadata*>(meta);
         CHECK(metadata_->timestamp == metadata.timestamp);
-        CHECK(metadata_->source == metadata.source);
+        CHECK(metadata_->producer == metadata.producer);
     }
 
     SUBCASE("Test size") {
-        REQUIRE(stream.size() == metadata.image_size + sizeof(ImageMetadata));
+        REQUIRE(stream.size() == metadata.payload_size + sizeof(ImageMetadata));
     }
 
     SUBCASE("Test name") {
-        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.source));
+        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.producer));
         
         CHECK(memcmp(stream.name().data(), expected_name.data(), NAME_LENGTH) == 0);
     }
@@ -167,18 +167,18 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
 
     ImageMetadata metadata;
     metadata.timestamp = 0x12345678;
-    metadata.image_size = 256;
+    metadata.payload_size = 256;
     metadata.latitude = 37.7749f;
     metadata.longitude = -122.4194f;
-    metadata.source = SOURCE::THERMAL;
+    metadata.producer = METADATA_PRODUCER::THERMAL;
 
-    std::vector<uint8_t> image_data(metadata.image_size);
-    for (size_t i = 0; i < metadata.image_size; ++i) {
+    std::vector<uint8_t> image_data(metadata.payload_size);
+    for (size_t i = 0; i < metadata.payload_size; ++i) {
         image_data[i] = static_cast<uint8_t>(i % 256);
     }
 
     REQUIRE(image_buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-    REQUIRE(image_buffer.add_data_chunk(image_data.data(), metadata.image_size) == ImageBufferError::NO_ERROR);
+    REQUIRE(image_buffer.add_data_chunk(image_data.data(), metadata.payload_size) == ImageBufferError::NO_ERROR);
     REQUIRE(image_buffer.push_image() == ImageBufferError::NO_ERROR);
 
     SUBCASE("Test initialize") {
@@ -188,15 +188,15 @@ TEST_CASE("ImageInputStream with CachedImageBuffer") {
         REQUIRE(size == sizeof(ImageMetadata));
         ImageMetadata *metadata_ = reinterpret_cast<ImageMetadata*>(meta);
         CHECK(metadata_->timestamp == metadata.timestamp);
-        CHECK(metadata_->source == metadata.source);
+        CHECK(metadata_->producer == metadata.producer);
     }
 
     SUBCASE("Test size") {
-        REQUIRE(stream.size() == metadata.image_size + sizeof(ImageMetadata));
+        REQUIRE(stream.size() == metadata.payload_size + sizeof(ImageMetadata));
     }
 
     SUBCASE("Test name") {
-        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.source));
+        std::array<char, NAME_LENGTH> expected_name = formatValues(metadata.timestamp, static_cast<uint8_t>(metadata.producer));
         
         CHECK(memcmp(stream.name().data(), expected_name.data(), NAME_LENGTH) == 0);
     }

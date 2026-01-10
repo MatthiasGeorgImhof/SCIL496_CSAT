@@ -19,10 +19,10 @@ static ImageMetadata make_meta(size_t image_size, uint32_t ts = 1234)
 {
     ImageMetadata m{};
     m.timestamp = ts;
-    m.image_size = static_cast<uint32_t>(image_size);
+    m.payload_size = static_cast<uint32_t>(image_size);
     m.latitude = 1.0f;
     m.longitude = 2.0f;
-    m.source = SOURCE::CAMERA_1;
+    m.producer = METADATA_PRODUCER::CAMERA_1;
     return m;
 }
 
@@ -67,7 +67,7 @@ TEST_CASE("initialize_from_flash: single entry")
 
         REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
 
-        std::vector<uint8_t> payload(meta.image_size);
+        std::vector<uint8_t> payload(meta.payload_size);
         for (size_t i = 0; i < payload.size(); i++)
             payload[i] = uint8_t(i);
 
@@ -87,12 +87,12 @@ TEST_CASE("initialize_from_flash: single entry")
         ImageMetadata meta{};
         REQUIRE(buf.get_image(meta) == ImageBufferError::NO_ERROR);
         REQUIRE(meta.timestamp == 1000);
-        REQUIRE(meta.image_size == 64);
+        REQUIRE(meta.payload_size == 64);
 
-        std::vector<uint8_t> out(meta.image_size);
-        size_t chunk = meta.image_size;
+        std::vector<uint8_t> out(meta.payload_size);
+        size_t chunk = meta.payload_size;
         REQUIRE(buf.get_data_chunk(out.data(), chunk) == ImageBufferError::NO_ERROR);
-        REQUIRE(chunk == meta.image_size);
+        REQUIRE(chunk == meta.payload_size);
 
         for (size_t i = 0; i < out.size(); i++)
             REQUIRE(out[i] == uint8_t(i));
@@ -143,7 +143,7 @@ TEST_CASE("initialize_from_flash: multiple entries")
             ImageMetadata meta{};
             REQUIRE(buf.get_image(meta) == ImageBufferError::NO_ERROR);
             REQUIRE(meta.timestamp == 2000 + i);
-            REQUIRE(meta.image_size == IMG_SIZE);
+            REQUIRE(meta.payload_size == IMG_SIZE);
 
             std::vector<uint8_t> out(IMG_SIZE);
             size_t chunk = IMG_SIZE;
@@ -176,7 +176,7 @@ TEST_CASE("initialize_from_flash: corrupted header truncates tail")
             ImageMetadata meta = make_meta(32, static_cast<uint32_t>(3000 + i));
             REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
 
-            std::vector<uint8_t> payload(meta.image_size, uint8_t(i));
+            std::vector<uint8_t> payload(meta.payload_size, uint8_t(i));
             REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
             REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
         }
@@ -213,10 +213,10 @@ TEST_CASE("initialize_from_flash: corrupted header truncates tail")
         REQUIRE(meta.timestamp == 3000);
 
         // Drain payload (we don't care about its contents here)
-        std::vector<uint8_t> dummy(meta.image_size);
-        size_t chunk = meta.image_size;
+        std::vector<uint8_t> dummy(meta.payload_size);
+        size_t chunk = meta.payload_size;
         REQUIRE(buf.get_data_chunk(dummy.data(), chunk) == ImageBufferError::NO_ERROR);
-        REQUIRE(chunk == meta.image_size);
+        REQUIRE(chunk == meta.payload_size);
 
         // Now CRC comparison is valid
         REQUIRE(buf.pop_image() == ImageBufferError::NO_ERROR);
@@ -241,7 +241,7 @@ TEST_CASE("initialize_from_flash: sequence_id continues correctly")
             ImageMetadata meta = make_meta(32, static_cast<uint32_t>(4000 + i));
             REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
 
-            std::vector<uint8_t> payload(meta.image_size, uint8_t(i));
+            std::vector<uint8_t> payload(meta.payload_size, uint8_t(i));
             REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
             REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
         }
