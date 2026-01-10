@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "ImageBuffer.hpp"
+#include "NullImageBuffer.hpp"
 
 #include "imagebuffer/accessor.hpp"
 #include "imagebuffer/DirectMemoryAccessor.hpp"
@@ -414,59 +415,44 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
     }
 }
 
-// TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccessor")
-// {
-//     // Initialize the mocked HAL
-//     I2C_HandleTypeDef hi2c;
-//     LinuxMockI2CFlashAccessor accessor(&hi2c, 0x08000000, 16384);
-//     ImageBuffer<LinuxMockI2CFlashAccessor> buffer(accessor);
+TEST_CASE("NullImageBuffer basic behavior")
+{
+    NullImageBuffer buf;
 
-//     ImageMetadata metadata;
-//     metadata.timestamp = 98765;
-//     metadata.payload_size = 1024;
-//     metadata.latitude = 33.0f;
-//     metadata.longitude = -97.0f;
-//     metadata.producer = METADATA_PRODUCER::CAMERA_3;
+    // Construct minimal metadata
+    ImageMetadata meta{};
+    meta.version       = 1;
+    meta.metadata_size = sizeof(ImageMetadata);
+    meta.timestamp     = 123456;
+    meta.latitude      = 1.23f;
+    meta.longitude     = 4.56f;
+    meta.payload_size  = 16;
+    meta.dimensions    = {4, 2, 2};
+    meta.format        = METADATA_FORMAT::UNKN;
+    meta.producer      = METADATA_PRODUCER::THERMAL;
 
-//     std::vector<uint8_t> image_data(metadata.payload_size);
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         image_data[i] = static_cast<uint8_t>(i % 256);
-//     }
+    // add_image should succeed and log
+    CHECK(buf.add_image(meta) == ImageBufferError::NO_ERROR);
 
-//     // Write image into flash through the buffer
-//     REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         REQUIRE(buffer.add_data_chunk(&image_data[i], 1) == ImageBufferError::NO_ERROR);
-//     }
-//     REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
+    // add_data_chunk should accept and discard
+    uint8_t dummy[16] = {0};
+    size_t sz = sizeof(dummy);
+    CHECK(buf.add_data_chunk(dummy, sz) == ImageBufferError::NO_ERROR);
 
-//     // Read image back from flash
-//     ImageMetadata retrieved_metadata;
-//     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
+    // push_image should succeed
+    CHECK(buf.push_image() == ImageBufferError::NO_ERROR);
 
-//     REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-//     REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
-//     REQUIRE(retrieved_metadata.latitude == metadata.latitude);
-//     REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-//     REQUIRE(retrieved_metadata.producer == metadata.producer);
+    // Buffer must always appear empty
+    CHECK(buf.is_empty() == true);
+    CHECK(buf.count() == 0);
+    CHECK(buf.size() == 0);
 
-//     // Read payload back
-//     std::vector<uint8_t> retrieved_data(metadata.payload_size);
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         size_t size = 1;
-//         REQUIRE(buffer.get_data_chunk(&retrieved_data[i], size) == ImageBufferError::NO_ERROR);
-//         REQUIRE(size == 1);
-//     }
+    // Reads must return EMPTY_BUFFER
+    ImageMetadata out{};
+    CHECK(buf.get_image(out) == ImageBufferError::EMPTY_BUFFER);
 
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         REQUIRE(retrieved_data[i] == image_data[i]);
-//     }
-
-//     // Optional: verify pop_image works
-//     REQUIRE(buffer.pop_image() == ImageBufferError::NO_ERROR);
-//     REQUIRE(buffer.is_empty() == true);
-// }
+    uint8_t outbuf[8];
+    size_t outsz = sizeof(outbuf);
+    CHECK(buf.get_data_chunk(outbuf, outsz) == ImageBufferError::EMPTY_BUFFER);
+    CHECK(buf.pop_image() == ImageBufferError::EMPTY_BUFFER);
+}
