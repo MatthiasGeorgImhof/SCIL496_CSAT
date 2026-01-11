@@ -33,6 +33,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
 			 TestDetumblerSystem.cpp \
+			 TestDirectMemoryAccessor.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
@@ -42,7 +43,8 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestI2CSwitch.cpp \
 			 TestIGRFModel.cpp \
 			 TestImageBuffer.cpp \
-			 TestDirectMemoryAccessor.cpp \
+			 TestImageBufferInternals.cpp \
+			 TestImageBufferFalseHeaders.cpp \
 			 TestImageBufferReconstruction.cpp \
 			 TestIMUExtension.cpp \
 			 TestInputOutputStream.cpp \
@@ -57,11 +59,11 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestMagnetorquerDriver.cpp \
 			 TestMagnetorquerSystem.cpp \
 			 TestMainLoop.cpp \
-			 TestMMC5983.cpp \
 			 TestMLX90640.cpp \
-			 TestMLX90640EEPROM.cpp \
 			 TestMLX90640AgainstMelexis.cpp \
+			 TestMLX90640EEPROM.cpp \
 			 TestMLX90640ImageProcessor.cpp \
+			 TestMMC5983.cpp \
 			 TestMockHal.cpp \
 			 TestMR25H10.cpp \
 			 TestMT29F4G01Accessor.cpp \
@@ -385,6 +387,24 @@ $(BIN_DIR)/TestDirectMemoryAccessor.o : TestDirectMemoryAccessor.cpp
 $(BIN_DIR)/TestDirectMemoryAccessor : $(BIN_DIR)/TestDirectMemoryAccessor.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestDirectMemoryAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestImageBufferInternals.cpp with extra sources
+$(BIN_DIR)/TestImageBufferInternals.o : TestImageBufferInternals.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestImageBufferInternals : $(BIN_DIR)/TestImageBufferInternals.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferInternals.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestImageBufferFalseHeaders.cpp with extra sources
+$(BIN_DIR)/TestImageBufferFalseHeaders.o : TestImageBufferFalseHeaders.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestImageBufferFalseHeaders : $(BIN_DIR)/TestImageBufferFalseHeaders.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferFalseHeaders.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestImageBufferReconstruction.cpp with extra sources
 $(BIN_DIR)/TestImageBufferReconstruction.o : TestImageBufferReconstruction.cpp

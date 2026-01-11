@@ -13,6 +13,7 @@ enum class ImageBufferError : uint16_t
     CHECKSUM_ERROR = 4,
     EMPTY_BUFFER = 5,
     FULL_BUFFER = 6,
+    DATA_ERROR = 7,
 };
 
 struct BufferState
