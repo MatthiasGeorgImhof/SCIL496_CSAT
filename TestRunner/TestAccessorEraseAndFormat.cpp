@@ -4,7 +4,6 @@
 #include "imagebuffer/DirectMemoryAccessor.hpp"
 #include "imagebuffer/MT29F4G01Accessor.hpp"
 #include "ImageBuffer.hpp"
-#include "imagebuffer/AlignmentPolicy.hpp"
 #include "imagebuffer/storageheader.hpp"
 #include "imagebuffer/image.hpp"
 
@@ -94,14 +93,14 @@ TEST_CASE("DirectMemoryAccessor: format wipes entire region")
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
-// Group 4A: ImageBuffer erase-on-pop behavior (RAM/NOR, NoAlignmentPolicy)
+// Group 4A: ImageBuffer erase-on-pop behavior (RAM/NOR)
 // -----------------------------------------------------------------------------
 TEST_CASE("ImageBuffer (RAM/NOR): pop_image removes single entry")
 {
     DirectMemoryAccessor acc(0x4000, 1024);
     acc.format();
 
-    using Buf = ImageBuffer<DirectMemoryAccessor, NoAlignmentPolicy>;
+    using Buf = ImageBuffer<DirectMemoryAccessor>;
     Buf buf(acc);
 
     REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
@@ -140,7 +139,7 @@ TEST_CASE("ImageBuffer (RAM/NOR): reconstruction after popping entries")
     DirectMemoryAccessor acc(0x5000, 2048);
     acc.format();
 
-    using Buf = ImageBuffer<DirectMemoryAccessor, NoAlignmentPolicy>;
+    using Buf = ImageBuffer<DirectMemoryAccessor>;
 
     {
         Buf buf(acc);
@@ -193,13 +192,13 @@ TEST_CASE("ImageBuffer (RAM/NOR): reconstruction after popping entries")
 }
 
 // -----------------------------------------------------------------------------
-// Group 4B: ImageBuffer erase-on-pop behavior (NAND, PageAlignmentPolicy)
+// Group 4B: ImageBuffer erase-on-pop behavior (NAND)
 // -----------------------------------------------------------------------------
 TEST_CASE("ImageBuffer (NAND): pop_image erases exactly one entry's blocks")
 {
     ConfigurableMemoryAccessor acc(0x6000, 1024, 16); // 16-byte erase blocks
 
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
@@ -237,7 +236,7 @@ TEST_CASE("ImageBuffer (NAND): reconstruction after popping entries")
 {
     ConfigurableMemoryAccessor acc(0x7000, 2048, 16); // NAND-like: 16-byte blocks
 
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
 
     {
         Buf buf(acc);
@@ -311,7 +310,7 @@ TEST_CASE("MT29F4G01Accessor: erase calls correct block")
 }
 
 // ============================================================================
-//  SECTION 1 — RAM/NOR TESTS (DirectMemoryAccessor + NoAlignmentPolicy)
+//  SECTION 1 — RAM/NOR TESTS (DirectMemoryAccessor)
 // ============================================================================
 
 TEST_CASE("RAM/NOR: pop second entry, reconstruct → expect 1 entry")
@@ -319,7 +318,7 @@ TEST_CASE("RAM/NOR: pop second entry, reconstruct → expect 1 entry")
     DirectMemoryAccessor acc(0x1000, 2048);
     acc.format();
 
-    using Buf = ImageBuffer<DirectMemoryAccessor, NoAlignmentPolicy>;
+    using Buf = ImageBuffer<DirectMemoryAccessor>;
     Buf buf(acc);
 
     // Write 3 entries
@@ -360,10 +359,10 @@ TEST_CASE("RAM/NOR: pop second entry, reconstruct → expect 1 entry")
 }
 
 // ============================================================================
-//  SECTION 2 — NAND TESTS (ConfigurableMemoryAccessor + PageAlignmentPolicy)
+//  SECTION 2 — NAND TESTS (ConfigurableMemoryAccessor)
 // ============================================================================
 
-static void write_entry(ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>& buf,
+static void write_entry(ImageBuffer<ConfigurableMemoryAccessor>& buf,
                         uint32_t ts,
                         size_t payload_size)
 {
@@ -384,7 +383,7 @@ static void write_entry(ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPol
 TEST_CASE("NAND: pop second entry, reconstruct → expect 1 entry")
 {
     ConfigurableMemoryAccessor acc(0x6000, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     write_entry(buf, 0x12123434, 4);
@@ -428,7 +427,7 @@ TEST_CASE("NAND: pop second entry, reconstruct → expect 1 entry")
 TEST_CASE("NAND: payload ends inside block")
 {
     ConfigurableMemoryAccessor acc(0x7000, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     write_entry(buf, 100, 3);   // ends well inside block
@@ -450,7 +449,7 @@ TEST_CASE("NAND: payload ends inside block")
 TEST_CASE("NAND: payload ends near block boundary")
 {
     ConfigurableMemoryAccessor acc(0x7100, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     write_entry(buf, 100, 15);  // ends at offset 15 inside block
@@ -472,7 +471,7 @@ TEST_CASE("NAND: payload ends near block boundary")
 TEST_CASE("NAND: payload ends exactly at block boundary")
 {
     ConfigurableMemoryAccessor acc(0x7200, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     write_entry(buf, 100, 16);  // ends exactly at block boundary
@@ -494,7 +493,7 @@ TEST_CASE("NAND: payload ends exactly at block boundary")
 TEST_CASE("NAND: payload ends just past block boundary")
 {
     ConfigurableMemoryAccessor acc(0x7300, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     write_entry(buf, 100, 17);  // spills into next block
@@ -516,7 +515,7 @@ TEST_CASE("NAND: payload ends just past block boundary")
 TEST_CASE("NAND: payload spans multiple blocks")
 {
     ConfigurableMemoryAccessor acc(0x7400, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     write_entry(buf, 100, 64);  // spans 4 blocks
@@ -542,7 +541,7 @@ TEST_CASE("NAND: payload spans multiple blocks")
 TEST_CASE("NAND: add new entry after pop → reconstruction sees all remaining entries")
 {
     ConfigurableMemoryAccessor acc(0x7500, 4096, 16);
-    using Buf = ImageBuffer<ConfigurableMemoryAccessor, PageAlignmentPolicy>;
+    using Buf = ImageBuffer<ConfigurableMemoryAccessor>;
     Buf buf(acc);
 
     // Write 3 entries

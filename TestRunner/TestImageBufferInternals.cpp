@@ -12,9 +12,9 @@
 #include <iostream>
 
 template<typename Accessor>
-class TestableImageBuffer : public ImageBuffer<Accessor, NoAlignmentPolicy> {
+class TestableImageBuffer : public ImageBuffer<Accessor> {
 public:
-    using Base = ImageBuffer<Accessor, NoAlignmentPolicy>;
+    using Base = ImageBuffer<Accessor>;
     using Base::Base;
 
     void set_tail_for_test(size_t t) { this->test_set_tail(t); }
@@ -269,67 +269,6 @@ TEST_CASE("validate_entry: corrupted payload wrapped")
     ImageMetadata out{};
     REQUIRE(buf.test_validate_entry(offset, sz, seq, out) == ImageBufferError::CHECKSUM_ERROR);
 }
-
-// #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-// #include "doctest.h"
-
-// #include "ImageBuffer.hpp"
-// #include "NullImageBuffer.hpp"
-
-// #include "imagebuffer/accessor.hpp"
-// #include "imagebuffer/DirectMemoryAccessor.hpp"
-// #include "mock_hal.h"
-// #include "Checksum.hpp"
-
-// #include <vector>
-// #include <algorithm>
-// #include <cstring>
-// #include <iostream>
-
-// // -----------------------------------------------------------------------------
-// // Test harness: expose internal helpers safely
-// // -----------------------------------------------------------------------------
-
-// template<typename Accessor>
-// class TestableImageBuffer : public ImageBuffer<Accessor, NoAlignmentPolicy> {
-// public:
-//     using Base = ImageBuffer<Accessor, NoAlignmentPolicy>;
-//     using Base::Base;
-
-//     // Expose internal tail for placing entries at arbitrary offsets
-//     void set_tail_for_test(size_t t) { this->test_set_tail(t); }
-
-//     // Expose validate_entry() for direct testing
-//     ImageBufferError test_validate_entry(size_t offset,
-//                                          size_t &entry_size,
-//                                          uint32_t &seq_id,
-//                                          ImageMetadata &meta_out)
-//     {
-//         return this->validate_entry(offset, entry_size, seq_id, meta_out);
-//     }
-// };
-
-// // -----------------------------------------------------------------------------
-// // Helpers
-// // -----------------------------------------------------------------------------
-
-// static void erase_flash(DirectMemoryAccessor &acc, size_t start, size_t size)
-// {
-//     std::vector<uint8_t> blank(size, 0xFF);
-//     REQUIRE(acc.write(static_cast<uint32_t>(start), blank.data(), size) == AccessorError::NO_ERROR);
-// }
-
-// static ImageMetadata make_meta(size_t payload_size, uint32_t ts)
-// {
-//     ImageMetadata m{};
-//     m.timestamp     = ts;
-//     m.payload_size  = static_cast<uint32_t>(payload_size);
-//     m.latitude      = 1.0f;
-//     m.longitude     = 2.0f;
-//     m.producer      = METADATA_PRODUCER::CAMERA_1;
-//     // all other fields left default/ignored
-//     return m;
-// }
 
 // Write a valid entry at a given logical ring offset using ImageBuffer itself.
 // Returns the total entry size (header + metadata + payload + trailing CRC).

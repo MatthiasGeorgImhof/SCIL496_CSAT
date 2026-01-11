@@ -12,10 +12,10 @@
 #include <iostream>
 
 template <typename Accessor>
-class TestableImageBuffer : public ImageBuffer<Accessor, NoAlignmentPolicy>
+class TestableImageBuffer : public ImageBuffer<Accessor>
 {
 public:
-    using Base = ImageBuffer<Accessor, NoAlignmentPolicy>;
+    using Base = ImageBuffer<Accessor>;
     using Base::Base;
 
     void set_tail_for_test(size_t t) { this->test_set_tail(t); }

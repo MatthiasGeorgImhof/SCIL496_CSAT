@@ -12,7 +12,7 @@
 #include <iostream>
 
 template<typename Accessor>
-using SimpleImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+using SimpleImageBuffer = ImageBuffer<Accessor>;
 
 // Mock Accessor for testing
 struct MockAccessor

@@ -6,10 +6,9 @@
 #include "imagebuffer/imagebuffer.hpp"
 #include "imagebuffer/image.hpp"
 #include "ImageBuffer.hpp"
-#include "imagebuffer/AlignmentPolicy.hpp"
 
 template <typename Accessor>
-using CachedImageBuffer = ImageBuffer<Accessor, PageAlignmentPolicy>;
+using CachedImageBuffer = ImageBuffer<Accessor>;
 
 // ------------------------------------------------------------
 // Mock SPI transport satisfying StreamAccessTransport

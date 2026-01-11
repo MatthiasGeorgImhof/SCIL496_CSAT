@@ -36,6 +36,22 @@ struct BufferState
     size_t get_tail() const;
 
     BufferState(size_t head, size_t tail, size_t size, size_t flash_start, size_t total_capacity) : head_(head), tail_(tail), size_(size), count_(0), FLASH_START_ADDRESS_(flash_start), TOTAL_BUFFER_CAPACITY_(total_capacity) {}
+
+// How many bytes are free starting at logical offset `start`
+// before we hit the head (the beginning of used data)?
+size_t available_from(size_t start) const
+{
+    // If buffer is empty, everything is available
+    if (count_ == 0)
+        return TOTAL_BUFFER_CAPACITY_;
+
+    // Normal case: head_ marks the beginning of used data
+    if (start <= head_)
+        return head_ - start;
+    else
+        return TOTAL_BUFFER_CAPACITY_ - (start - head_);
+}
+
 };
 bool BufferState::is_empty() const { return size_ == 0; }
 size_t BufferState::size() const { return size_; };

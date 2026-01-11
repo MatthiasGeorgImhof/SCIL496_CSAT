@@ -13,10 +13,10 @@
 #include <fstream> // for file I/O in tests
 
 template<typename Accessor>
-using SimpleImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+using SimpleImageBuffer = ImageBuffer<Accessor>;
 
 template <typename Accessor>
-using CachedImageBuffer = ImageBuffer<Accessor, PageAlignmentPolicy>;
+using CachedImageBuffer = ImageBuffer<Accessor>;
 
 
 // Mock Accessor for testing

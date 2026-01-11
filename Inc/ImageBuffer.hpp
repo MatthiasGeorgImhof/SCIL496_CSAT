@@ -7,14 +7,13 @@
 #include <cstring>
 #include <vector>
 
-#include "imagebuffer/AlignmentPolicy.hpp"
 #include "imagebuffer/accessor.hpp"
 #include "imagebuffer/image.hpp"
 #include "imagebuffer/storageheader.hpp"
 #include "imagebuffer/imagebuffer.hpp"
 #include "Checksum.hpp"
 
-template <typename Accessor, typename AlignmentPolicy = NoAlignmentPolicy, typename ChecksumPolicy = DefaultChecksumPolicy>
+template <typename Accessor, typename ChecksumPolicy = DefaultChecksumPolicy>
 class ImageBuffer
 {
 public:
@@ -50,6 +49,18 @@ private:
         size_t consumed;
         size_t payload_size;
     };
+
+    size_t entry_alignment() const
+    {
+        size_t a = accessor_.getAlignment();
+        return a == 0 ? 1 : a;
+    }
+
+    size_t align_up(size_t v) const
+    {
+        size_t a = entry_alignment();
+        return (v + a - 1) / a * a;
+    }
 
     ImageBufferError ring_io(EntryState &s, uint8_t *data, size_t size, bool write, bool update_crc)
     {
@@ -117,15 +128,27 @@ private:
 
     void adjust_head(size_t size)
     {
+        size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+
         buffer_state_.size_ -= size;
-        buffer_state_.head_ = (buffer_state_.head_ + size) % buffer_state_.TOTAL_BUFFER_CAPACITY_;
-        size_t align = accessor_.getAlignment();
-        if (align > 0 && (buffer_state_.head_ % align) != 0)
-        {
-            size_t pad = align - (buffer_state_.head_ % align);
-            buffer_state_.head_ = (buffer_state_.head_ + pad) % buffer_state_.TOTAL_BUFFER_CAPACITY_;
-            buffer_state_.size_ = (buffer_state_.size_ > pad) ? buffer_state_.size_ - pad : 0;
-        }
+        buffer_state_.head_ = (buffer_state_.head_ + size) % cap;
+
+        // Align head to next valid entry boundary
+        size_t aligned = align_up(buffer_state_.head_);
+        if (aligned >= cap)
+            aligned -= cap;
+
+        // Reduce size by padding consumed
+        size_t pad = (aligned >= buffer_state_.head_)
+                         ? (aligned - buffer_state_.head_)
+                         : (cap - (buffer_state_.head_ - aligned));
+
+        if (pad <= buffer_state_.size_)
+            buffer_state_.size_ -= pad;
+        else
+            buffer_state_.size_ = 0;
+
+        buffer_state_.head_ = aligned;
         buffer_state_.count_--;
     }
 
@@ -136,57 +159,83 @@ private:
     EntryState write_state_, read_state_;
 };
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::add_image(const ImageMetadata &meta)
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::add_image(const ImageMetadata &meta)
 {
-    size_t total = sizeof(StorageHeader) + sizeof(ImageMetadata) + meta.payload_size + sizeof(crc_t);
+    size_t total = sizeof(StorageHeader) +
+                   sizeof(ImageMetadata) +
+                   meta.payload_size +
+                   sizeof(crc_t);
+
     if (buffer_state_.available() < total)
         return ImageBufferError::FULL_BUFFER;
 
     size_t tail = buffer_state_.tail_;
-    if (!P::align(tail, accessor_, total, buffer_state_.TOTAL_BUFFER_CAPACITY_))
+
+    // Align the tail to the accessor’s alignment
+    size_t aligned_tail = align_up(tail);
+
+    // If aligning pushes us past capacity, wrap
+    if (aligned_tail >= buffer_state_.TOTAL_BUFFER_CAPACITY_)
+        aligned_tail -= buffer_state_.TOTAL_BUFFER_CAPACITY_;
+
+    // Check if the aligned position has enough space
+    if (buffer_state_.available_from(aligned_tail) < total)
         return ImageBufferError::FULL_BUFFER;
-    buffer_state_.tail_ = tail;
 
-    write_state_ = {tail, total, 0, meta.payload_size};
+    // Use the aligned position consistently
+    buffer_state_.tail_ = aligned_tail;
+    write_state_ = {aligned_tail, total, 0, meta.payload_size};
 
-    // Fixed: Initialize to zero first to satisfy -Wmissing-field-initializers
+    // Header
     StorageHeader hdr{};
-    hdr.magic = STORAGE_MAGIC;
-    hdr.version = STORAGE_HEADER_VERSION;
+    hdr.magic       = STORAGE_MAGIC;
+    hdr.version     = STORAGE_HEADER_VERSION;
     hdr.header_size = static_cast<uint16_t>(sizeof(StorageHeader));
     hdr.sequence_id = next_sequence_id_++;
-    hdr.total_size = static_cast<uint32_t>(total - sizeof(StorageHeader));
+    hdr.total_size  = static_cast<uint32_t>(total - sizeof(StorageHeader));
 
-    auto err = process_struct(write_state_, hdr, offsetof(StorageHeader, header_crc), true);
+    auto err = process_struct(write_state_, hdr,
+                              offsetof(StorageHeader, header_crc),
+                              true);
     if (err != ImageBufferError::NO_ERROR)
         return err;
 
+    // Metadata
     ImageMetadata m_out = meta;
-    m_out.version = 1;
+    m_out.version       = 1;
     m_out.metadata_size = sizeof(ImageMetadata);
-    err = process_struct(write_state_, m_out, METADATA_SIZE_WO_CRC, true);
+
+    err = process_struct(write_state_, m_out,
+                         METADATA_SIZE_WO_CRC,
+                         true);
 
     checksum_.reset();
     return err;
 }
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::push_image()
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::push_image()
 {
     crc_t tag = checksum_.get();
-    auto err = ring_io(write_state_, reinterpret_cast<uint8_t *>(&tag), sizeof(crc_t), true, false);
+
+    auto err = ring_io(write_state_,
+                       reinterpret_cast<uint8_t *>(&tag),
+                       sizeof(crc_t),
+                       true,
+                       false);
     if (err != ImageBufferError::NO_ERROR)
         return err;
 
     buffer_state_.size_ += write_state_.entry_size;
     buffer_state_.tail_ = write_state_.offset;
     buffer_state_.count_++;
+
     return ImageBufferError::NO_ERROR;
 }
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::get_image(ImageMetadata &meta)
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::get_image(ImageMetadata &meta)
 {
     if (is_empty())
         return ImageBufferError::EMPTY_BUFFER;
@@ -205,8 +254,8 @@ ImageBufferError ImageBuffer<A, P, C>::get_image(ImageMetadata &meta)
     return err;
 }
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::get_data_chunk(uint8_t *data, size_t &size)
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::get_data_chunk(uint8_t *data, size_t &size)
 {
     size_t overhead = sizeof(StorageHeader) + sizeof(ImageMetadata);
     size_t payload_done = (read_state_.consumed > overhead) ? read_state_.consumed - overhead : 0;
@@ -214,8 +263,8 @@ ImageBufferError ImageBuffer<A, P, C>::get_data_chunk(uint8_t *data, size_t &siz
     return ring_io(read_state_, data, size, false, true);
 }
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::pop_image()
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::pop_image()
 {
     if (is_empty())
         return ImageBufferError::EMPTY_BUFFER;
@@ -232,56 +281,48 @@ ImageBufferError ImageBuffer<A, P, C>::pop_image()
     return erase_entry_blocks(old_head, total_sz);
 }
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::initialize_from_flash()
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::initialize_from_flash()
 {
     const size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
-    buffer_state_.head_ = buffer_state_.tail_ = buffer_state_.size_ =
-        buffer_state_.count_ = next_sequence_id_ = 0;
+    buffer_state_.head_ = buffer_state_.tail_ =
+        buffer_state_.size_ = buffer_state_.count_ =
+            next_sequence_id_ = 0;
 
     if (cap == 0)
         return ImageBufferError::NO_ERROR;
 
     struct Found
     {
-        size_t off;
-        size_t sz;
+        size_t off, sz;
         uint32_t id;
     };
-
     std::vector<Found> entries;
-    size_t scan = 0;
-    size_t step = std::max((size_t)1, accessor_.getAlignment());
 
-    // -------------------------------------------------------------------------
-    // 1) Scan pass: collect all candidate headers (original behavior)
-    // -------------------------------------------------------------------------
+    size_t scan = 0;
+    size_t step = entry_alignment();
+
     while (scan < cap)
     {
         EntryState temp{scan, 0, 0, 0};
         StorageHeader hdr{};
 
-        auto hdr_err = process_struct(
-            temp,
-            hdr,
-            offsetof(StorageHeader, header_crc),
-            false /* read */
-        );
+        auto hdr_err = process_struct(temp, hdr,
+                                      offsetof(StorageHeader, header_crc),
+                                      false);
 
-        if (hdr_err == ImageBufferError::NO_ERROR && hdr.magic == STORAGE_MAGIC)
+        if (hdr_err == ImageBufferError::NO_ERROR &&
+            hdr.magic == STORAGE_MAGIC)
         {
-            // Candidate entry: trust header.total_size for scan purposes.
             size_t e_size = sizeof(StorageHeader) + hdr.total_size;
             entries.push_back({scan, e_size, hdr.sequence_id});
 
-            // Advance scan by the raw entry size, then align.
-            scan = (scan + e_size + step - 1) / step * step;
+            scan = align_up(scan + e_size);
             if (scan >= cap)
                 scan -= cap;
         }
         else
         {
-            // Not a header here; move to the next alignment step.
             scan = (scan + step) % cap;
         }
 
@@ -292,24 +333,20 @@ ImageBufferError ImageBuffer<A, P, C>::initialize_from_flash()
     if (entries.empty())
         return ImageBufferError::NO_ERROR;
 
-    // -------------------------------------------------------------------------
-    // 2) Validation pass: sort by sequence_id, validate, enforce continuity
-    // -------------------------------------------------------------------------
+    // -------------------------
+    // 2) VALIDATION PASS
+    // -------------------------
     std::sort(entries.begin(), entries.end(),
-              [](const Found &a, const Found &b)
-              {
-                  return a.id < b.id;
-              });
+              [](auto &a, auto &b)
+              { return a.id < b.id; });
 
     std::vector<Found> good;
     good.reserve(entries.size());
 
     ImageBufferError first_err = ImageBufferError::NO_ERROR;
 
-    for (size_t i = 0; i < entries.size(); ++i)
+    for (auto &e : entries)
     {
-        const auto &e = entries[i];
-
         size_t validated_size = 0;
         uint32_t sid = 0;
         ImageMetadata dummy{};
@@ -321,38 +358,29 @@ ImageBufferError ImageBuffer<A, P, C>::initialize_from_flash()
             break;
         }
 
-        // Enforce that validate_entry's size matches the scanned size
         if (validated_size != e.sz)
         {
             first_err = ImageBufferError::DATA_ERROR;
             break;
         }
 
-        // Enforce sequence_id continuity: no gaps allowed
         if (!good.empty() && e.id != good.back().id + 1)
         {
             first_err = ImageBufferError::CHECKSUM_ERROR;
             break;
         }
 
-        good.push_back({e.off, validated_size, e.id});
+        good.push_back(e);
     }
 
     if (good.empty())
-    {
-        // No fully valid entries: either everything was junk or the first
-        // candidate failed validation. In both cases we leave buffer empty.
-        return (first_err == ImageBufferError::NO_ERROR)
-                   ? ImageBufferError::NO_ERROR
-                   : first_err;
-    }
+        return first_err;
 
-    // -------------------------------------------------------------------------
-    // 3) Commit reconstructed state from the validated entries
-    // -------------------------------------------------------------------------
+    // -------------------------
+    // 3) COMMIT STATE
+    // -------------------------
     buffer_state_.head_ = good.front().off;
     buffer_state_.size_ = 0;
-    buffer_state_.tail_ = 0;
 
     for (auto &e : good)
     {
@@ -363,14 +391,11 @@ ImageBufferError ImageBuffer<A, P, C>::initialize_from_flash()
     buffer_state_.count_ = good.size();
     next_sequence_id_ = good.back().id + 1;
 
-    // If we saw an error after some good entries, surface it but keep the state.
-    return (first_err == ImageBufferError::NO_ERROR)
-               ? ImageBufferError::NO_ERROR
-               : first_err;
+    return first_err;
 }
 
-template <typename A, typename P, typename C>
-ImageBufferError ImageBuffer<A, P, C>::validate_entry(size_t offset,
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::validate_entry(size_t offset,
                                                       size_t &entry_size,
                                                       uint32_t &seq_id,
                                                       ImageMetadata &meta_out)

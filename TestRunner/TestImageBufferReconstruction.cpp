@@ -12,7 +12,7 @@
 
 // Convenience alias
 template <typename Accessor>
-using TestBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+using TestBuffer = ImageBuffer<Accessor>;
 
 static ImageMetadata make_meta(size_t image_size, uint32_t ts = 1234)
 {
