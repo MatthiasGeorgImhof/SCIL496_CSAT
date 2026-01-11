@@ -2,7 +2,6 @@
 #include <doctest/doctest.h>
 
 #include "imagebuffer/DirectMemoryAccessor.hpp"
-#include "imagebuffer/BufferedAccessor.hpp"
 #include "imagebuffer/MT29F4G01Accessor.hpp"
 #include "ImageBuffer.hpp"
 #include "imagebuffer/AlignmentPolicy.hpp"
@@ -91,36 +90,8 @@ TEST_CASE("DirectMemoryAccessor: format wipes entire region")
 }
 
 // -----------------------------------------------------------------------------
-// Group 3: BufferedAccessor erase + format forwarding
+// Group 3: BufferedAccessor erase + format forwarding: deleted functionality
 // -----------------------------------------------------------------------------
-TEST_CASE("BufferedAccessor: erase flushes cache and forwards")
-{
-    DirectMemoryAccessor base(0x2000, 32);
-    BufferedAccessor<DirectMemoryAccessor, 8> buf(base);
-
-    uint8_t data[4] = {1, 2, 3, 4};
-    REQUIRE(buf.write(0x2000 + 2, data, 4) == AccessorError::NO_ERROR);
-
-    // Now erase
-    REQUIRE(buf.erase(0x2000 + 2) == AccessorError::NO_ERROR);
-
-    // Base memory must reflect erase
-    CHECK(base.getFlashMemory()[2] == 0xFF);
-}
-
-TEST_CASE("BufferedAccessor: format forwards to base")
-{
-    DirectMemoryAccessor base(0x3000, 32);
-    BufferedAccessor<DirectMemoryAccessor, 8> buf(base);
-
-    auto &mem = base.getFlashMemory();
-    std::fill(mem.begin(), mem.end(), 0x55);
-
-    buf.format();
-
-    for (auto b : mem)
-        CHECK(b == 0xFF);
-}
 
 // -----------------------------------------------------------------------------
 // Group 4A: ImageBuffer erase-on-pop behavior (RAM/NOR, NoAlignmentPolicy)

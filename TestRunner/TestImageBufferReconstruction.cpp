@@ -3,7 +3,6 @@
 
 #include "ImageBuffer.hpp"
 #include "imagebuffer/DirectMemoryAccessor.hpp"
-#include "imagebuffer/BufferedAccessor.hpp"
 #include "imagebuffer/storageheader.hpp"
 #include "imagebuffer/image.hpp"
 #include "Checksum.hpp"
