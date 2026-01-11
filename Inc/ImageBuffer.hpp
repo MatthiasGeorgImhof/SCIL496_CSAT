@@ -100,6 +100,7 @@ private:
     ImageBufferError write_ring(size_t address, const uint8_t *data, size_t size)
     {
         const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+        // fprintf(stderr, "write_ring: address=%zu, data=%p, size=%zu\n", address, data, size);
 
         if (size == 0)
             return ImageBufferError::NO_ERROR;
@@ -134,6 +135,7 @@ private:
     ImageBufferError read_ring(size_t address, uint8_t *data, size_t size)
     {
         const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+        // fprintf(stderr, "read_ring: address=%zu, data=%p, size=%zu\n", address, data, size);
 
         if (size == 0)
             return ImageBufferError::NO_ERROR;
@@ -258,6 +260,77 @@ private:
         rs.entry_size = sizeof(StorageHeader) + hdr.total_size;
 
         return ImageBufferError::NO_ERROR;
+    }
+
+    // Erase any erase-blocks that are touched by the popped entry region.
+    // entry_offset: logical start offset of the popped entry (old head_)
+    // entry_size:   total size of the popped entry (header + metadata + payload + crc)
+    ImageBufferError erase_blocks_for_popped_entry(size_t entry_offset,
+                                                   size_t entry_size)
+    {
+        if (entry_size == 0)
+            return ImageBufferError::NO_ERROR;
+
+        const size_t ERASE_BLOCK_SIZE = accessor_.getEraseBlockSize();
+        const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+
+        // Normalize entry region into at most two linear segments
+        // Segment 1: [entry_offset, seg1_end)
+        const size_t seg1_len =
+            std::min(entry_size, capacity - entry_offset);
+        const size_t seg1_start = entry_offset;
+        const size_t seg1_end = seg1_start + seg1_len;
+
+        // Segment 2: optional wrap-around: [0, seg2_end)
+        const bool has_seg2 = (entry_size > seg1_len);
+        const size_t seg2_start = 0;
+        const size_t seg2_end = entry_size - seg1_len;
+
+        auto erase_blocks_in_segment =
+            [&](size_t seg_start, size_t seg_end) -> ImageBufferError
+        {
+            if (seg_start >= seg_end)
+                return ImageBufferError::NO_ERROR;
+
+            // Start from the block that contains seg_start
+            size_t block_start =
+                (seg_start / ERASE_BLOCK_SIZE) * ERASE_BLOCK_SIZE;
+
+            while (block_start < seg_end)
+            {
+                const size_t block_end = block_start + ERASE_BLOCK_SIZE;
+
+                // NEW: erase any block that overlaps the segment at all.
+                //
+                // Overlap condition:
+                //   [block_start, block_end) overlaps [seg_start, seg_end)
+                //   iff block_start < seg_end && block_end > seg_start
+                if (block_start < seg_end && block_end > seg_start)
+                {
+                    const size_t phys_addr =
+                        buffer_state_.FLASH_START_ADDRESS_ + block_start;
+
+                    auto err = accessor_.erase(static_cast<uint32_t>(phys_addr));
+                    if (err != AccessorError::NO_ERROR)
+                        return ImageBufferError::WRITE_ERROR;
+                }
+
+                block_start += ERASE_BLOCK_SIZE;
+            }
+
+            return ImageBufferError::NO_ERROR;
+        };
+
+        // Segment 1
+        auto err = erase_blocks_in_segment(seg1_start, seg1_end);
+        if (err != ImageBufferError::NO_ERROR)
+            return err;
+
+        // Segment 2 (wrap-around)
+        if (has_seg2)
+            err = erase_blocks_in_segment(seg2_start, seg2_end);
+
+        return err;
     }
 
     // ---------------------------------------------------------
@@ -432,6 +505,31 @@ private:
     // ---------------------------------------------------------
     // BufferState advancement
     // ---------------------------------------------------------
+void align_head_after_pop()
+{
+    const size_t align = accessor_.getAlignment();
+    if (align == 0)
+        return;
+
+    const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+    size_t head = buffer_state_.head_;
+
+    const size_t misalignment = head % align;
+    if (misalignment == 0)
+        return;
+
+    const size_t padding = align - misalignment;
+    head += padding;
+    if (head >= capacity)
+        head -= capacity;
+
+    buffer_state_.head_ = head;
+    if (buffer_state_.size_ >= padding)
+        buffer_state_.size_ -= padding;
+    else
+        buffer_state_.size_ = 0; // defensive
+}
+
     void advance_tail(const EntryState &ws)
     {
         buffer_state_.size_ += ws.entry_size;
@@ -440,13 +538,14 @@ private:
         buffer_state_.count_++;
     }
 
-    void advance_head(const EntryState &rs)
-    {
-        buffer_state_.size_ -= rs.entry_size;
-        buffer_state_.head_ = rs.offset;
-        wrap(buffer_state_.head_);
-        buffer_state_.count_--;
-    }
+void advance_head(const EntryState &rs)
+{
+    buffer_state_.size_ -= rs.entry_size;
+    buffer_state_.head_ = rs.offset;
+    wrap(buffer_state_.head_);
+    buffer_state_.count_--;
+    align_head_after_pop();
+}
 
 private:
     BufferState buffer_state_;
@@ -565,16 +664,31 @@ template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
 ImageBufferError
 ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::pop_image()
 {
+    if (is_empty())
+        return ImageBufferError::EMPTY_BUFFER;
+
+    // Capture the entry’s logical region before we advance head_
+    const size_t entry_offset = buffer_state_.head_;
+    const size_t entry_size = read_state_.entry_size;
+
     ImageBufferError status = validate_payload_crc(read_state_);
     if (status != ImageBufferError::NO_ERROR)
         return status;
 
+    // Advance ring head (logical removal)
     advance_head(read_state_);
+
+    // Now that the entry is logically gone,
+    // we can safely erase any fully covered erase-blocks it occupied.
+    status = erase_blocks_for_popped_entry(entry_offset, entry_size);
+    if (status != ImageBufferError::NO_ERROR)
+        return status;
+
     return ImageBufferError::NO_ERROR;
 }
 
 // -----------------------------------------------------------------------------
-// initialize_from_flash (clean version)
+// initialize_from_flash (robust scan-forward reconstruction)
 // -----------------------------------------------------------------------------
 template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
 ImageBufferError
@@ -592,82 +706,147 @@ ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::initialize_from_flash()
     if (capacity == 0)
         return ImageBufferError::NO_ERROR;
 
-    size_t offset             = 0;
-    size_t first_entry_offset = static_cast<size_t>(-1);
-    size_t count              = 0;
-    size_t used_bytes         = 0;
-    uint32_t last_sequence_id = 0;
-    bool corruption_detected  = false;
+    const size_t align = accessor_.getAlignment();
+    const size_t step  = (align == 0 ? 1 : align);
 
-    while (true)
+    auto align_up_mod = [capacity, align](size_t x) -> size_t
+    {
+        if (align <= 1)
+            return x % capacity;
+
+        const size_t rem = x % align;
+        if (rem == 0)
+            return x % capacity;
+
+        x += (align - rem);
+        if (x >= capacity)
+            x -= capacity;
+        return x;
+    };
+
+    struct FoundEntry
+    {
+        size_t   offset;
+        size_t   entry_size;
+        uint32_t sequence_id;
+    };
+
+    std::vector<FoundEntry> entries;
+    entries.reserve(16);
+
+    size_t offset              = 0;
+    size_t scanned             = 0;
+    bool   corruption_detected = false;
+
+    // Expected position of the *next* header if everything is contiguous
+    bool   have_expected_next  = false;
+    size_t expected_next       = 0;
+
+    while (scanned < capacity)
     {
         StorageHeader hdr{};
 
-        // Read raw header bytes
         ImageBufferError err =
             read_ring(offset,
                       reinterpret_cast<uint8_t*>(&hdr),
                       sizeof(StorageHeader));
         if (err != ImageBufferError::NO_ERROR)
         {
-            corruption_detected = true;
-            break;
+            offset  = (offset + step) % capacity;
+            scanned += step;
+            continue;
         }
 
-        // Erased flash → end of valid entries
         if (is_erased_header(hdr))
-            break;
-
-        // Validate magic
-        if (hdr.magic != STORAGE_MAGIC)
         {
-            corruption_detected = true;
-            break;
+            offset  = (offset + step) % capacity;
+            scanned += step;
+            continue;
         }
 
-        // Validate CRC
-        if (!validate_header_crc(hdr))
+        if (hdr.magic != STORAGE_MAGIC || !validate_header_crc(hdr))
         {
-            corruption_detected = true;
-            break;
+            offset  = (offset + step) % capacity;
+            scanned += step;
+            continue;
         }
 
-        // Compute entry size
         const size_t entry_size = sizeof(StorageHeader) + hdr.total_size;
-        if (entry_size > capacity)
+        if (entry_size == 0 || entry_size > capacity)
         {
+            // Impossible entry size → treat as corruption
             corruption_detected = true;
             break;
         }
 
-        // Detect wrap-around overlap
-        if (count > 0 && offset == first_entry_offset)
-            break;
+        // If we already saw at least one valid entry, enforce contiguity:
+        // the next header must appear exactly where the previous entry
+        // says it should end (after accounting for any alignment padding).
+        if (have_expected_next)
+        {
+            if (offset != expected_next)
+            {
+                corruption_detected = true;
+                break;
+            }
+        }
 
-        if (first_entry_offset == static_cast<size_t>(-1))
-            first_entry_offset = offset;
+        // Record this entry
+        entries.push_back(FoundEntry{
+            .offset      = offset,
+            .entry_size  = entry_size,
+            .sequence_id = hdr.sequence_id
+        });
 
-        used_bytes += entry_size;
-        ++count;
-        last_sequence_id = hdr.sequence_id;
+        // Compute where the *next* header is expected to be:
+        // raw_end = offset + entry_size (end of data for this entry)
+        // then align that up to the next aligned position.
+        size_t raw_end = offset + entry_size;
+        expected_next  = align_up_mod(raw_end);
+        have_expected_next = true;
 
-        // Advance to next entry
-        offset += entry_size;
-        if (offset >= capacity)
-            offset -= capacity;
+        // Advance scan pointer to that aligned position, and
+        // account for bytes skipped (entry + padding) in 'scanned'.
+        size_t delta;
+        if (expected_next >= offset)
+            delta = expected_next - offset;
+        else
+            delta = (capacity - offset) + expected_next;
+
+        offset  = expected_next;
+        scanned += delta;
     }
 
-    if (count == 0)
+    if (entries.empty())
+        return corruption_detected ? ImageBufferError::CHECKSUM_ERROR
+                                   : ImageBufferError::NO_ERROR;
+
+    // Sort by sequence ID (the ring can be wrapped)
+    std::sort(entries.begin(),
+              entries.end(),
+              [](const FoundEntry& a, const FoundEntry& b) {
+                  return a.sequence_id < b.sequence_id;
+              });
+
+    // Head is the earliest sequence entry
+    buffer_state_.head_ = entries.front().offset;
+
+    // Tail and used bytes
+    size_t tail       = buffer_state_.head_;
+    size_t used_bytes = 0;
+
+    for (const auto& e : entries)
     {
-        // No valid entries
-        return ImageBufferError::NO_ERROR;
+        used_bytes += e.entry_size;
+        tail += e.entry_size;
+        if (tail >= capacity)
+            tail -= capacity;
     }
 
-    buffer_state_.head_  = first_entry_offset;
-    buffer_state_.tail_  = offset;
+    buffer_state_.tail_  = tail;
     buffer_state_.size_  = used_bytes;
-    buffer_state_.count_ = count;
-    next_sequence_id_    = last_sequence_id + 1;
+    buffer_state_.count_ = entries.size();
+    next_sequence_id_    = entries.back().sequence_id + 1;
 
     return corruption_detected ? ImageBufferError::CHECKSUM_ERROR
                                : ImageBufferError::NO_ERROR;

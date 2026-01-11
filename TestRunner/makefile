@@ -20,7 +20,8 @@ LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
-TEST_FILES = TestArrayList.cpp \
+TEST_FILES = TestAccessorEraseAndFormat.cpp \
+			 TestArrayList.cpp \
 			 TestBlobStore.cpp \
 			 TestBMI270_MMC5983.cpp \
 			 TestBMI270.cpp \
@@ -239,6 +240,15 @@ $(BIN_DIR)/TestBMI270.o : TestBMI270.cpp
 $(BIN_DIR)/TestBMI270 : $(BIN_DIR)/TestBMI270.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestBMI270.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestAccessorEraseAndFormat with extra sources
+$(BIN_DIR)/TestAccessorEraseAndFormat.o : TestAccessorEraseAndFormat.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestAccessorEraseAndFormat : $(BIN_DIR)/TestAccessorEraseAndFormat.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestAccessorEraseAndFormat.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestBMI270_MMC5983 with extra sources
 $(BIN_DIR)/TestBMI270_MMC5983.o : TestBMI270_MMC5983.cpp

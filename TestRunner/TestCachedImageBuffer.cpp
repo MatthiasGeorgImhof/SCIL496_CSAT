@@ -18,133 +18,142 @@
 template <typename Accessor>
 using CachedImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
 
-TEST_CASE("ImageBuffer with BufferedAccessor")
-{
-    return;
-    constexpr size_t flash_start = 0x4000;
-    constexpr size_t flash_size = 4096;
-    constexpr size_t block_size = 512;
+// TEST_CASE("ImageBuffer with BufferedAccessor")
+// {
+//     constexpr size_t flash_start = 0x4000;
+//     constexpr size_t flash_size = 4096;
+//     constexpr size_t block_size = 512;
 
-    DirectMemoryAccessor base_accessor(flash_start, flash_size);
-    BufferedAccessor<DirectMemoryAccessor, block_size> buffered_accessor(base_accessor);
-    CachedImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
+//     DirectMemoryAccessor base_accessor(flash_start, flash_size);
+//     BufferedAccessor<DirectMemoryAccessor, block_size> buffered_accessor(base_accessor);
+//     CachedImageBuffer<BufferedAccessor<DirectMemoryAccessor, block_size>> buffer(buffered_accessor);
 
-    ImageMetadata metadata;
-    metadata.timestamp = 12345;
-    metadata.payload_size = 256;
-    metadata.latitude = 37.7749f;
-    metadata.longitude = -122.4194f;
-    metadata.producer = METADATA_PRODUCER::CAMERA_1;
-    metadata.format = METADATA_FORMAT::MX2F;
-    metadata.dimensions = {32, 24, 2};
+//     ImageMetadata metadata;
+//     metadata.timestamp = 12345;
+//     metadata.payload_size = 256;
+//     metadata.latitude = 37.7749f;
+//     metadata.longitude = -122.4194f;
+//     metadata.producer = METADATA_PRODUCER::CAMERA_1;
+//     metadata.format = METADATA_FORMAT::MX2F;
+//     metadata.dimensions = {32, 24, 2};
 
-    std::vector<uint8_t> image_data(metadata.payload_size);
-    for (size_t i = 0; i < metadata.payload_size; ++i)
-    {
-        image_data[i] = static_cast<uint8_t>(i % 256);
-    }
+//     std::vector<uint8_t> image_data(metadata.payload_size);
+//     for (size_t i = 0; i < metadata.payload_size; ++i)
+//     {
+//         image_data[i] = static_cast<uint8_t>(i % 256);
+//     }
 
-    SUBCASE("Add and Get Image with BufferedAccessor, chunksize 1")
-    {
-        constexpr size_t CHUNKSIZE = 1;
-        // std::cerr << "ImageBuffer: Calling add_image" << std::endl;
-        REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-        // std::cerr << "ImageBuffer: add_image returned" << std::endl;
+//     SUBCASE("Add and Get Image with BufferedAccessor, chunksize 1")
+//     {
+//         constexpr size_t CHUNKSIZE = 1;
+//         // std::cerr << "ImageBuffer: Calling add_image" << std::endl;
+//         REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
+//         // std::cerr << "ImageBuffer: add_image returned" << std::endl;
 
-        for (size_t i = 0; i < image_data.size(); i++)
-        {
-            // std::cerr << "ImageBuffer: Calling add_data_chunk, i=" << i << std::endl;
-            REQUIRE(buffer.add_data_chunk(&image_data[i], CHUNKSIZE) == ImageBufferError::NO_ERROR);
-            // std::cerr << "ImageBuffer: add_data_chunk returned" << std::endl;
-        }
+//         for (size_t i = 0; i < image_data.size(); i++)
+//         {
+//             // std::cerr << "ImageBuffer: Calling add_data_chunk, i=" << i << std::endl;
+//             REQUIRE(buffer.add_data_chunk(&image_data[i], CHUNKSIZE) == ImageBufferError::NO_ERROR);
+//             // std::cerr << "ImageBuffer: add_data_chunk returned" << std::endl;
+//         }
 
-        std::cerr << "ImageBuffer: Calling push_image" << std::endl;
-        REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
-        // std::cerr << "ImageBuffer: push_image returned" << std::endl;
+//         std::cerr << "ImageBuffer: Calling push_image" << std::endl;
+//         REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
+//         // std::cerr << "ImageBuffer: push_image returned" << std::endl;
 
-        ImageMetadata retrieved_metadata;
+//         ImageMetadata retrieved_metadata;
 
-        // std::cerr << "ImageBuffer: Calling get_image" << std::endl;
-        REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
-        // std::cerr << "ImageBuffer: get_image returned" << std::endl;
+//         // std::cerr << "ImageBuffer: Calling get_image" << std::endl;
+//         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
+//         // std::cerr << "ImageBuffer: get_image returned" << std::endl;
 
-        REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-        REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
-        REQUIRE(retrieved_metadata.latitude == metadata.latitude);
-        REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-        REQUIRE(retrieved_metadata.producer == metadata.producer);
+//         REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
+//         REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
+//         REQUIRE(retrieved_metadata.latitude == metadata.latitude);
+//         REQUIRE(retrieved_metadata.longitude == metadata.longitude);
+//         REQUIRE(retrieved_metadata.producer == metadata.producer);
 
-        std::vector<uint8_t> retrieved_data(metadata.payload_size);
-        for (size_t i = 0; i < image_data.size(); i++)
-        {
-            size_t size = CHUNKSIZE;
-            // std::cerr << "ImageBuffer: Calling get_data_chunk, i=" << i << std::endl;
-            REQUIRE(buffer.get_data_chunk(&retrieved_data[i], size) == ImageBufferError::NO_ERROR);
-            // std::cerr << "ImageBuffer: get_data_chunk returned, size=" << size << std::endl;
-            REQUIRE(size == CHUNKSIZE);
-        }
+//         std::vector<uint8_t> retrieved_data(metadata.payload_size);
+//         for (size_t i = 0; i < image_data.size(); i++)
+//         {
+//             size_t size = CHUNKSIZE;
+//             // std::cerr << "ImageBuffer: Calling get_data_chunk, i=" << i << std::endl;
+//             REQUIRE(buffer.get_data_chunk(&retrieved_data[i], size) == ImageBufferError::NO_ERROR);
+//             // std::cerr << "ImageBuffer: get_data_chunk returned, size=" << size << std::endl;
+//             REQUIRE(size == CHUNKSIZE);
+//         }
 
-        for (size_t i = 0; i < metadata.payload_size; ++i)
-        {
-            REQUIRE(retrieved_data[i] == image_data[i]);
-        }
+//         for (size_t i = 0; i < metadata.payload_size; ++i)
+//         {
+//             REQUIRE(retrieved_data[i] == image_data[i]);
+//         }
 
-        buffer.pop_image();
-        REQUIRE(buffer.is_empty());
-    }
+//         buffer.pop_image();
+//         REQUIRE(buffer.is_empty());
+//     }
 
-    SUBCASE("Add and Get Image with BufferedAccessor, chunksize 33")
-    {
-        constexpr size_t CHUNKSIZE = 33;
-        // std::cerr << "ImageBuffer: Calling add_image" << std::endl;
-        REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-        // std::cerr << "ImageBuffer: add_image returned" << std::endl;
+//     SUBCASE("Add and Get Image with BufferedAccessor, chunksize 33")
+//     {
+//         constexpr size_t CHUNKSIZE = 33;
 
-        for (size_t i = 0; i < image_data.size(); i += CHUNKSIZE)
-        {
-            // std::cerr << "ImageBuffer: Calling add_data_chunk, i=" << i << std::endl;
-            REQUIRE(buffer.add_data_chunk(&image_data[i], CHUNKSIZE) == ImageBufferError::NO_ERROR);
-            // std::cerr << "ImageBuffer: add_data_chunk returned" << std::endl;
-        }
+//         REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
 
-        std::cerr << "ImageBuffer: Calling push_image" << std::endl;
-        REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
-        // std::cerr << "ImageBuffer: push_image returned" << std::endl;
+//         // Write payload in 33-byte chunks, respecting payload_size
+//         size_t total = 0;
+//         while (total + CHUNKSIZE <= image_data.size())
+//         {
+//             size_t size = CHUNKSIZE;
+//             REQUIRE(buffer.add_data_chunk(&image_data[total], size) == ImageBufferError::NO_ERROR);
+//             REQUIRE(size == CHUNKSIZE);
+//             total += size;
+//         }
 
-        ImageMetadata retrieved_metadata;
+//         // Write the remainder (if any)
+//         if (total < image_data.size())
+//         {
+//             size_t rem = image_data.size() - total;
+//             REQUIRE(buffer.add_data_chunk(&image_data[total], rem) == ImageBufferError::NO_ERROR);
+//         }
 
-        // std::cerr << "ImageBuffer: Calling get_image" << std::endl;
-        REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
-        // std::cerr << "ImageBuffer: get_image returned" << std::endl;
+//         REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
 
-        REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-        REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
-        REQUIRE(retrieved_metadata.latitude == metadata.latitude);
-        REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-        REQUIRE(retrieved_metadata.producer == metadata.producer);
+//         // Read back metadata
+//         ImageMetadata retrieved_metadata;
+//         REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
 
-        std::vector<uint8_t> retrieved_data(metadata.payload_size);
-        // size_t niter = image_data.size()/CHUNKSIZE;
-        size_t nrem = image_data.size() % CHUNKSIZE;
-        for (size_t i = 0; i < image_data.size(); i += CHUNKSIZE)
-        {
-            size_t size = CHUNKSIZE;
-            // std::cerr << "ImageBuffer: Calling get_data_chunk, i=" << i << std::endl;
-            REQUIRE(buffer.get_data_chunk(&retrieved_data[i], size) == ImageBufferError::NO_ERROR);
-            // std::cerr << "ImageBuffer: get_data_chunk returned, size=" << size << std::endl;
-            bool result = size == CHUNKSIZE || size == nrem;
-            REQUIRE(result);
-        }
+//         REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
+//         REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
+//         REQUIRE(retrieved_metadata.latitude == metadata.latitude);
+//         REQUIRE(retrieved_metadata.longitude == metadata.longitude);
+//         REQUIRE(retrieved_metadata.producer == metadata.producer);
 
-        for (size_t i = 0; i < metadata.payload_size; ++i)
-        {
-            REQUIRE(retrieved_data[i] == image_data[i]);
-        }
+//         // Read back payload
+//         std::vector<uint8_t> retrieved_data(metadata.payload_size);
 
-        buffer.pop_image();
-        REQUIRE(buffer.is_empty());
-    }
-}
+//         total = 0;
+//         while (total + CHUNKSIZE <= metadata.payload_size)
+//         {
+//             size_t size = CHUNKSIZE;
+//             REQUIRE(buffer.get_data_chunk(&retrieved_data[total], size) == ImageBufferError::NO_ERROR);
+//             REQUIRE(size == CHUNKSIZE);
+//             total += size;
+//         }
+
+//         if (total < metadata.payload_size)
+//         {
+//             size_t rem = metadata.payload_size - total;
+//             REQUIRE(buffer.get_data_chunk(&retrieved_data[total], rem) == ImageBufferError::NO_ERROR);
+//             REQUIRE(rem == metadata.payload_size - total);
+//         }
+
+//         // Validate payload
+//         for (size_t i = 0; i < metadata.payload_size; ++i)
+//             REQUIRE(retrieved_data[i] == image_data[i]);
+
+//         REQUIRE(buffer.pop_image() == ImageBufferError::NO_ERROR);
+//         REQUIRE(buffer.is_empty());
+//     }
+// }
 
 TEST_CASE("ImageBuffer with BufferedAccessor: Multiple Images")
 {

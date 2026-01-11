@@ -35,6 +35,7 @@ public:
     size_t getAlignment() const { return 4096; }
     size_t getFlashMemorySize() const { return 1ULL << 20; }
     size_t getFlashStartAddress() const { return 0; }
+    size_t getEraseBlockSize() const { return 1; }
 
     std::vector<uint8_t> last_write_data;
 };

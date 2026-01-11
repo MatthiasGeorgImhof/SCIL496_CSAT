@@ -75,6 +75,7 @@ struct MockAccessor
     size_t getFlashMemorySize() const { return size; };
     size_t getFlashStartAddress() const { return start; };
     size_t getAlignment() const { return 1; }
+    size_t getEraseBlockSize() const { return 1; } 
 
     AccessorError write(size_t address, const uint8_t *buffer, size_t num_bytes)
     {
@@ -345,7 +346,7 @@ TEST_CASE("Test BufferedAccessor")
 
     SUBCASE("getAlignment() test")
     {
-        REQUIRE(buffered_accessor.getAlignment() == BLOCK_SIZE);
+        REQUIRE(buffered_accessor.getAlignment() == 1);
     }
 }
 

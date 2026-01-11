@@ -38,8 +38,9 @@ public:
     std::vector<uint8_t> last_write;
 };
 
-static_assert(StreamAccessTransport<MockSPITransport>,
-              "MockSPITransport must satisfy StreamAccessTransport");
+static_assert(StreamAccessTransport<MockSPITransport>, "MockSPITransport must satisfy StreamAccessTransport");
+
+static_assert(Accessor<MT29F4G01Accessor<MockSPITransport>>, "Accessor concept failed");
 
 // ------------------------------------------------------------
 // Test suite
