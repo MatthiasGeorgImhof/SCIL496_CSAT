@@ -53,10 +53,7 @@ static size_t write_valid_entry(DirectMemoryAccessor &acc,
                                 const ImageMetadata &meta)
 {
     TestableImageBuffer<DirectMemoryAccessor> buf(acc);
-
-    // Place tail at desired offset inside ring
     buf.set_tail_for_test(offset);
-
     REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
 
     std::vector<uint8_t> payload(meta.payload_size);

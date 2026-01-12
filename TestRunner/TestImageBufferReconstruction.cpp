@@ -260,3 +260,326 @@ TEST_CASE("initialize_from_flash: sequence_id continues correctly")
 
     REQUIRE(hdr.sequence_id == 2); // previous were 0 and 1
 }
+
+TEST_CASE("initialize_from_flash: metadata wraps across boundary")
+{
+    constexpr size_t flash_start = 0x4000;
+    constexpr size_t flash_size  = 512;
+
+    DirectMemoryAccessor acc(flash_start, flash_size);
+    erase_flash(acc, flash_start, flash_size);
+
+    const size_t WRAP_PAYLOAD = 16;
+    const size_t FILL_PAYLOAD = 8;
+
+    // 1) Use small entries to push tail near the end.
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+
+        while (true)
+        {
+            size_t tail      = buf.get_tail();
+            (void)tail;
+            size_t available = buf.available();
+            size_t total_wrap_entry =
+                sizeof(StorageHeader) + sizeof(ImageMetadata) + WRAP_PAYLOAD + sizeof(crc_t);
+
+            // Stop when we don't have enough space for another filler + the wrapped entry.
+            size_t total_filler =
+                sizeof(StorageHeader) + sizeof(ImageMetadata) + FILL_PAYLOAD + sizeof(crc_t);
+
+            if (available < total_filler + total_wrap_entry)
+                break;
+
+            ImageMetadata meta_fill = make_meta(FILL_PAYLOAD, 1);
+            REQUIRE(buf.add_image(meta_fill) == ImageBufferError::NO_ERROR);
+
+            std::vector<uint8_t> payload(FILL_PAYLOAD, 0xAA);
+            REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+        }
+
+        // 2) Now add the wrapped entry that will cross the boundary.
+        ImageMetadata meta = make_meta(WRAP_PAYLOAD, 7777);
+        REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+
+        std::vector<uint8_t> payload(meta.payload_size, 0xAB);
+        REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+        REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+    }
+
+    // 3) Reconstruct and verify.
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+        REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
+
+        // We only assert that the last entry (timestamp 7777) is present and correct.
+        REQUIRE(buf.count() >= 1);
+
+        // Drain earlier entries if any.
+        while (true)
+        {
+            ImageMetadata meta{};
+            if (buf.get_image(meta) != ImageBufferError::NO_ERROR)
+                break;
+
+            if (meta.timestamp == 7777)
+            {
+                REQUIRE(meta.payload_size == WRAP_PAYLOAD);
+                std::vector<uint8_t> out(meta.payload_size);
+                size_t chunk = meta.payload_size;
+                REQUIRE(buf.get_data_chunk(out.data(), chunk) == ImageBufferError::NO_ERROR);
+                REQUIRE(chunk == meta.payload_size);
+
+                for (size_t i = 0; i < out.size(); i++)
+                    REQUIRE(out[i] == 0xAB);
+
+                break;
+            }
+
+            // Skip non-target entries.
+            std::vector<uint8_t> dummy(meta.payload_size);
+            size_t chunk = meta.payload_size;
+            REQUIRE(buf.get_data_chunk(dummy.data(), chunk) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.pop_image() == ImageBufferError::NO_ERROR);
+        }
+    }
+}
+
+TEST_CASE("initialize_from_flash: payload wraps across boundary")
+{
+    constexpr size_t flash_start = 0x4000;
+    constexpr size_t flash_size  = 512;
+
+    DirectMemoryAccessor acc(flash_start, flash_size);
+    erase_flash(acc, flash_start, flash_size);
+
+    const size_t WRAP_PAYLOAD = 100;
+    const size_t FILL_PAYLOAD = 8;
+
+    // 1) Fill with small entries to push tail near boundary.
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+
+        while (true)
+        {
+            size_t available = buf.available();
+            size_t total_wrap_entry =
+                sizeof(StorageHeader) + sizeof(ImageMetadata) + WRAP_PAYLOAD + sizeof(crc_t);
+            size_t total_filler =
+                sizeof(StorageHeader) + sizeof(ImageMetadata) + FILL_PAYLOAD + sizeof(crc_t);
+
+            if (available < total_filler + total_wrap_entry)
+                break;
+
+            ImageMetadata meta_fill = make_meta(FILL_PAYLOAD, 1);
+            REQUIRE(buf.add_image(meta_fill) == ImageBufferError::NO_ERROR);
+
+            std::vector<uint8_t> payload(FILL_PAYLOAD, 0x11);
+            REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+        }
+
+        // 2) Add the wrapped entry.
+        ImageMetadata meta = make_meta(WRAP_PAYLOAD, 8888);
+        REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+
+        std::vector<uint8_t> payload(meta.payload_size);
+        for (size_t i = 0; i < payload.size(); i++)
+            payload[i] = uint8_t(i);
+
+        REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+        REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+    }
+
+    // 3) Reconstruct and verify.
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+        REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
+        REQUIRE(buf.count() >= 1);
+
+        while (true)
+        {
+            ImageMetadata meta{};
+            if (buf.get_image(meta) != ImageBufferError::NO_ERROR)
+                break;
+
+            if (meta.timestamp == 8888)
+            {
+                REQUIRE(meta.payload_size == WRAP_PAYLOAD);
+                std::vector<uint8_t> out(meta.payload_size);
+                size_t chunk = meta.payload_size;
+                REQUIRE(buf.get_data_chunk(out.data(), chunk) == ImageBufferError::NO_ERROR);
+
+                for (size_t i = 0; i < out.size(); i++)
+                    REQUIRE(out[i] == uint8_t(i));
+
+                break;
+            }
+
+            std::vector<uint8_t> dummy(meta.payload_size);
+            size_t chunk = meta.payload_size;
+            REQUIRE(buf.get_data_chunk(dummy.data(), chunk) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.pop_image() == ImageBufferError::NO_ERROR);
+        }
+    }
+}
+
+TEST_CASE("initialize_from_flash: trailing CRC wraps across boundary")
+{
+    constexpr size_t flash_start = 0x4000;
+    constexpr size_t flash_size  = 512;
+
+    DirectMemoryAccessor acc(flash_start, flash_size);
+    erase_flash(acc, flash_start, flash_size);
+
+    const size_t WRAP_PAYLOAD = 0;   // force minimal entry size
+    const size_t FILL_PAYLOAD = 8;
+
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+
+        // 1) Fill until only a small region remains, so CRC is likely to wrap.
+        while (true)
+        {
+            size_t available = buf.available();
+            size_t total_wrap_entry =
+                sizeof(StorageHeader) + sizeof(ImageMetadata) + WRAP_PAYLOAD + sizeof(crc_t);
+            size_t total_filler =
+                sizeof(StorageHeader) + sizeof(ImageMetadata) + FILL_PAYLOAD + sizeof(crc_t);
+
+            if (available < total_filler + total_wrap_entry)
+                break;
+
+            ImageMetadata meta_fill = make_meta(FILL_PAYLOAD, 1);
+            REQUIRE(buf.add_image(meta_fill) == ImageBufferError::NO_ERROR);
+
+            std::vector<uint8_t> payload(FILL_PAYLOAD, 0x22);
+            REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+        }
+
+        // 2) Add the CRC-wrapping entry (no payload, just header+metadata+CRC).
+        ImageMetadata meta = make_meta(WRAP_PAYLOAD, 9999);
+        REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+        REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+    }
+
+    // 3) Reconstruct and verify that the last entry is present.
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+        REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
+        REQUIRE(buf.count() >= 1);
+
+        bool found = false;
+        while (true)
+        {
+            ImageMetadata meta{};
+            if (buf.get_image(meta) != ImageBufferError::NO_ERROR)
+                break;
+
+            if (meta.timestamp == 9999)
+            {
+                REQUIRE(meta.payload_size == WRAP_PAYLOAD);
+                found = true;
+                break;
+            }
+
+            std::vector<uint8_t> dummy(meta.payload_size);
+            size_t chunk = meta.payload_size;
+            REQUIRE(buf.get_data_chunk(dummy.data(), chunk) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.pop_image() == ImageBufferError::NO_ERROR);
+        }
+
+        CHECK(found);
+    }
+}
+
+TEST_CASE("initialize_from_flash: truncated payload causes rejection")
+{
+    constexpr size_t flash_start = 0x4000;
+    constexpr size_t flash_size = 512;
+
+    DirectMemoryAccessor acc(flash_start, flash_size);
+    erase_flash(acc, flash_start, flash_size);
+
+    // Write a valid entry
+    size_t entry_size = 0;
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+        ImageMetadata meta = make_meta(64, 1234);
+        REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+
+        std::vector<uint8_t> payload(meta.payload_size, 0xAA);
+        REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+        REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+
+        entry_size = buf.size();
+    }
+
+    // Corrupt by erasing last half of payload
+    size_t corrupt_off = flash_start + entry_size - 20;
+    std::vector<uint8_t> ff(20, 0xFF);
+    acc.write(corrupt_off, ff.data(), ff.size());
+
+    TestBuffer<DirectMemoryAccessor> buf(acc);
+    REQUIRE(buf.initialize_from_flash() == ImageBufferError::CHECKSUM_ERROR);
+    REQUIRE(buf.count() == 0);
+}
+
+TEST_CASE("initialize_from_flash: truncated third entry stops reconstruction")
+{
+    constexpr size_t flash_start = 0x4000;
+    constexpr size_t flash_size = 8192;
+    DirectMemoryAccessor acc(flash_start, flash_size);
+    erase_flash(acc, flash_start, flash_size);
+    size_t offsets[3];
+    // Write 3 entries
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+        for (uint i = 0; i < 3; i++)
+        {
+            offsets[i] = buf.get_tail();
+            ImageMetadata meta = make_meta(32, 5000 + i);
+            REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+            std::vector<uint8_t> payload(meta.payload_size, uint8_t(i));
+            REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+        }
+    }
+    // Truncate third entry
+    std::vector<uint8_t> ff(16, 0xFF);
+    acc.write(flash_start + offsets[2], ff.data(), ff.size());
+    TestBuffer<DirectMemoryAccessor> buf(acc);
+    REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
+    REQUIRE(buf.count() == 2);
+}
+
+TEST_CASE("initialize_from_flash: non-contiguous sequence IDs stop reconstruction")
+{
+    constexpr size_t flash_start = 0x4000;
+    constexpr size_t flash_size = 8192;
+    DirectMemoryAccessor acc(flash_start, flash_size);
+    erase_flash(acc, flash_start, flash_size);
+    // Write two entries normally
+    {
+        TestBuffer<DirectMemoryAccessor> buf(acc);
+        for (uint i = 0; i < 2; i++)
+        {
+            ImageMetadata meta = make_meta(32, 6000 + i);
+            REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+            std::vector<uint8_t> payload(meta.payload_size, uint8_t(i));
+            REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+            REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+        }
+    }
+    // Corrupt second header's sequence_id 
+    StorageHeader hdr{};
+    acc.read(flash_start + 0, reinterpret_cast<uint8_t *>(&hdr), sizeof(hdr));
+    size_t first_size = sizeof(StorageHeader) + hdr.total_size;
+    uint32_t bad_seq = 10;
+    acc.write(flash_start + first_size + offsetof(StorageHeader, sequence_id), reinterpret_cast<uint8_t *>(&bad_seq), sizeof(bad_seq));
+    TestBuffer<DirectMemoryAccessor> buf(acc);
+    REQUIRE(buf.initialize_from_flash() == ImageBufferError::NO_ERROR);
+    REQUIRE(buf.count() == 1);
+}

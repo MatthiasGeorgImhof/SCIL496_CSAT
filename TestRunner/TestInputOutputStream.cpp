@@ -56,7 +56,7 @@ struct MockAccessor
         return AccessorError::NO_ERROR; // Simulate successful read
     }
 
-    AccessorError erase(uint32_t /*address*/) {
+    AccessorError erase(size_t /*address*/) {
         // Mock implementation - just return success
         return AccessorError::NO_ERROR;
     }

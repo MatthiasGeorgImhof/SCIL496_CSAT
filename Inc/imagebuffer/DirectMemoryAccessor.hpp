@@ -92,16 +92,16 @@ void DirectMemoryAccessor::format() {
     std::fill(flash_memory.begin(), flash_memory.end(), 0xFF);
 }
 
-
 AccessorError DirectMemoryAccessor::checkBounds(size_t address, size_t size)
 {
-    if (address < FLASH_START_ADDRESS || address + size > FLASH_START_ADDRESS + TOTAL_BUFFER_SIZE)
+    const size_t start = FLASH_START_ADDRESS;
+    const size_t end   = FLASH_START_ADDRESS + TOTAL_BUFFER_SIZE;
+
+    if (address < start || address + size > end)
     {
-        std::cerr << "Error: Access out of bounds. Address: 0x" << std::hex << address
-                  << ", Size: " << size << std::dec << std::endl; // Added address and size for debugging
         return AccessorError::OUT_OF_BOUNDS;
     }
-    return AccessorError::NO_ERROR; // Return success
+    return AccessorError::NO_ERROR;
 }
 
 static_assert(Accessor<DirectMemoryAccessor>, "DirectMemoryAccessor does not satisfy the Accessor concept!");

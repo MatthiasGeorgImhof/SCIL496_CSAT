@@ -3,7 +3,7 @@
 
 #include "imagebuffer/MT29F4G01Accessor.hpp"
 #include "Transport.hpp"
-#include "imagebuffer/imagebuffer.hpp"
+#include "imagebuffer/buffer_state.hpp"
 #include "imagebuffer/image.hpp"
 #include "ImageBuffer.hpp"
 

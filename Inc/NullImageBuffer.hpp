@@ -3,7 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include "imagebuffer/imagebuffer.hpp" // ImageBufferError
+#include "imagebuffer/buffer_state.hpp" // ImageBufferError
 #include "imagebuffer/image.hpp"       // ImageMetadata
 #include "Logger.hpp"
 

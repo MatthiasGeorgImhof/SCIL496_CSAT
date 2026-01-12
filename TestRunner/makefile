@@ -27,6 +27,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestBMI270.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
+			 TestBufferState.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCoordinateTransformations.cpp \
