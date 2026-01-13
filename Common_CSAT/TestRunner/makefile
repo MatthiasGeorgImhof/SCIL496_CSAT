@@ -20,20 +20,21 @@ LIBS_PATH =			-L $(HOME)/Data/github/can/lib_x86_64
 LIBS =				-lcanardd -lserardd -ludpardd -lo1heapd
 
 # Source and object files
-TEST_FILES = TestArrayList.cpp \
+TEST_FILES = TestAccessorEraseAndFormat.cpp \
+			 TestArrayList.cpp \
 			 TestBlobStore.cpp \
 			 TestBMI270_MMC5983.cpp \
 			 TestBMI270.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
-			 TestBufferedAccessor.cpp \
-			 TestCachedImageBuffer.cpp \
+			 TestBufferState.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphal.cpp \
 			 TestCyphalSubscriptions.cpp \
 			 TestDetumblerSystem.cpp \
+			 TestDirectMemoryAccessor.cpp \
 			 TestFileAccess.cpp \
 			 TestFileSource.cpp \
 			 TestGNSS.cpp \
@@ -43,7 +44,8 @@ TEST_FILES = TestArrayList.cpp \
 			 TestI2CSwitch.cpp \
 			 TestIGRFModel.cpp \
 			 TestImageBuffer.cpp \
-			 TestImageBufferAccessor.cpp \
+			 TestImageBufferInternals.cpp \
+			 TestImageBufferFalseHeaders.cpp \
 			 TestImageBufferReconstruction.cpp \
 			 TestIMUExtension.cpp \
 			 TestInputOutputStream.cpp \
@@ -58,11 +60,11 @@ TEST_FILES = TestArrayList.cpp \
 			 TestMagnetorquerDriver.cpp \
 			 TestMagnetorquerSystem.cpp \
 			 TestMainLoop.cpp \
-			 TestMMC5983.cpp \
 			 TestMLX90640.cpp \
-			 TestMLX90640EEPROM.cpp \
 			 TestMLX90640AgainstMelexis.cpp \
+			 TestMLX90640EEPROM.cpp \
 			 TestMLX90640ImageProcessor.cpp \
+			 TestMMC5983.cpp \
 			 TestMockHal.cpp \
 			 TestMR25H10.cpp \
 			 TestMT29F4G01Accessor.cpp \
@@ -240,6 +242,15 @@ $(BIN_DIR)/TestBMI270 : $(BIN_DIR)/TestBMI270.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestBMI270.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestAccessorEraseAndFormat with extra sources
+$(BIN_DIR)/TestAccessorEraseAndFormat.o : TestAccessorEraseAndFormat.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestAccessorEraseAndFormat : $(BIN_DIR)/TestAccessorEraseAndFormat.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestAccessorEraseAndFormat.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
 # Rule for TestBMI270_MMC5983 with extra sources
 $(BIN_DIR)/TestBMI270_MMC5983.o : TestBMI270_MMC5983.cpp
 	@echo "Compiling $<"
@@ -369,14 +380,32 @@ $(BIN_DIR)/TestHSClockSwitch : $(BIN_DIR)/TestHSClockSwitch.o $(BIN_DIR)/HSClock
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestHSClockSwitch.o $(BIN_DIR)/HSClockSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
-# Rule for TestImageBufferAccessor.cpp with extra sources
-$(BIN_DIR)/TestImageBufferAccessor.o : TestImageBufferAccessor.cpp
+# Rule for TestDirectMemoryAccessor.cpp with extra sources
+$(BIN_DIR)/TestDirectMemoryAccessor.o : TestDirectMemoryAccessor.cpp
 	@echo "Compiling $<"
 	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestImageBufferAccessor : $(BIN_DIR)/TestImageBufferAccessor.o $(MOCK_HAL_OBJECTS)
+$(BIN_DIR)/TestDirectMemoryAccessor : $(BIN_DIR)/TestDirectMemoryAccessor.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestDirectMemoryAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestImageBufferInternals.cpp with extra sources
+$(BIN_DIR)/TestImageBufferInternals.o : TestImageBufferInternals.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestImageBufferInternals : $(BIN_DIR)/TestImageBufferInternals.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferInternals.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestImageBufferFalseHeaders.cpp with extra sources
+$(BIN_DIR)/TestImageBufferFalseHeaders.o : TestImageBufferFalseHeaders.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestImageBufferFalseHeaders : $(BIN_DIR)/TestImageBufferFalseHeaders.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBufferFalseHeaders.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestImageBufferReconstruction.cpp with extra sources
 $(BIN_DIR)/TestImageBufferReconstruction.o : TestImageBufferReconstruction.cpp
@@ -395,15 +424,6 @@ $(BIN_DIR)/TestMT29F4G01Accessor.o : TestMT29F4G01Accessor.cpp
 $(BIN_DIR)/TestMT29F4G01Accessor : $(BIN_DIR)/TestMT29F4G01Accessor.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMT29F4G01Accessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
-
-# Rule for TestBufferedAccessor.cpp with extra sources
-$(BIN_DIR)/TestBufferedAccessor.o : TestBufferedAccessor.cpp
-	@echo "Compiling $<"
-	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
-
-$(BIN_DIR)/TestBufferedAccessor : $(BIN_DIR)/TestBufferedAccessor.o $(MOCK_HAL_OBJECTS)
-	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestBufferedAccessor.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTask with extra sources
 $(BIN_DIR)/TestTask.o : TestTask.cpp
@@ -708,15 +728,6 @@ $(BIN_DIR)/TestImageBuffer.o : TestImageBuffer.cpp
 $(BIN_DIR)/TestImageBuffer : $(BIN_DIR)/TestImageBuffer.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestImageBuffer.o $(MOCK_HAL_OBJECTS) $(LIBS)
-
-# Rule for TestCachedImageBuffer with extra sources
-$(BIN_DIR)/TestCachedImageBuffer.o : TestCachedImageBuffer.cpp
-	@echo "Compiling $<"
-	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
-
-$(BIN_DIR)/TestCachedImageBuffer : $(BIN_DIR)/TestCachedImageBuffer.o $(MOCK_HAL_OBJECTS)
-	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCachedImageBuffer.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestPowerSwitch with extra sources
 $(BIN_DIR)/TestPowerSwitch.o : TestPowerSwitch.cpp

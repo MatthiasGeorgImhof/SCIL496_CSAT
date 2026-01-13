@@ -3,13 +3,12 @@
 
 #include "imagebuffer/MT29F4G01Accessor.hpp"
 #include "Transport.hpp"
-#include "imagebuffer/imagebuffer.hpp"
+#include "imagebuffer/buffer_state.hpp"
 #include "imagebuffer/image.hpp"
 #include "ImageBuffer.hpp"
-#include "imagebuffer/AlignmentPolicy.hpp"
 
 template <typename Accessor>
-using CachedImageBuffer = ImageBuffer<Accessor, PageAlignmentPolicy>;
+using CachedImageBuffer = ImageBuffer<Accessor>;
 
 // ------------------------------------------------------------
 // Mock SPI transport satisfying StreamAccessTransport
@@ -38,8 +37,9 @@ public:
     std::vector<uint8_t> last_write;
 };
 
-static_assert(StreamAccessTransport<MockSPITransport>,
-              "MockSPITransport must satisfy StreamAccessTransport");
+static_assert(StreamAccessTransport<MockSPITransport>, "MockSPITransport must satisfy StreamAccessTransport");
+
+static_assert(Accessor<MT29F4G01Accessor<MockSPITransport>>, "Accessor concept failed");
 
 // ------------------------------------------------------------
 // Test suite

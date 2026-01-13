@@ -13,10 +13,10 @@
 #include <fstream> // for file I/O in tests
 
 template<typename Accessor>
-using SimpleImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+using SimpleImageBuffer = ImageBuffer<Accessor>;
 
 template <typename Accessor>
-using CachedImageBuffer = ImageBuffer<Accessor, PageAlignmentPolicy>;
+using CachedImageBuffer = ImageBuffer<Accessor>;
 
 
 // Mock Accessor for testing
@@ -32,6 +32,7 @@ struct MockAccessor
     size_t getFlashMemorySize() const { return size; };
     size_t getFlashStartAddress() const { return start; };
     size_t getAlignment() const { return 1; }
+    size_t getEraseBlockSize() const { return 1; } 
 
     AccessorError write(size_t address, const uint8_t *buffer, size_t num_bytes)
     {
@@ -55,7 +56,7 @@ struct MockAccessor
         return AccessorError::NO_ERROR; // Simulate successful read
     }
 
-    AccessorError erase(uint32_t /*address*/) {
+    AccessorError erase(size_t /*address*/) {
         // Mock implementation - just return success
         return AccessorError::NO_ERROR;
     }

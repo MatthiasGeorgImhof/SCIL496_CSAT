@@ -8,7 +8,6 @@
 #include <cstring>
 
 #include "ImageBuffer.hpp" 
-#include "imagebuffer/AlignmentPolicy.hpp" // AlignmentPolicy, NoAlignmentPolicy, PageAlignmentPolicy
 #include "imagebuffer/accessor.hpp" // Accessor concept, AccessorError
 #include "Transport.hpp"            // StreamAccessTransport
 
@@ -77,10 +76,12 @@ public:
     AccessorError write(size_t address, const uint8_t* data, size_t size);
     AccessorError read(size_t address, uint8_t* data, size_t size);
     AccessorError erase(size_t address);
+    void format(); 
 
     size_t getAlignment() const         { return PAGE_SIZE; }
     size_t getFlashMemorySize() const   { return TOTAL_SIZE; }
     size_t getFlashStartAddress() const { return flash_start_; }
+    size_t getEraseBlockSize() const { return BLOCK_SIZE; }
 
     // ─────────────────────────────────────────────
     // Public mapping for testing / introspection
@@ -423,6 +424,17 @@ MT29F4G01Accessor<TransportT>::write(size_t address,
 
     return AccessorError::NO_ERROR;
 }
+
+template <StreamAccessTransport TransportT>
+void MT29F4G01Accessor<TransportT>::format() {
+    const size_t block = getEraseBlockSize();
+    const size_t start = getFlashStartAddress();
+    const size_t size  = getFlashMemorySize();
+
+    for (size_t addr = start; addr < start + size; addr += block)
+        erase(addr);
+}
+
 
 template <StreamAccessTransport TransportT>
 inline AccessorError
