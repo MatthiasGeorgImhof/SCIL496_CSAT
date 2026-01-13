@@ -76,8 +76,14 @@ public:
 
     virtual ~TaskMLX90640() = default;
 
-    void registerTask(RegistrationManager *, std::shared_ptr<Task>) override {}
-    void unregisterTask(RegistrationManager *, std::shared_ptr<Task>) override {}
+    void registerTask(RegistrationManager *manager, std::shared_ptr<Task> task) override
+    {
+        manager->subscribe(PURE_HANDLER, task);
+    }
+    void unregisterTask(RegistrationManager *manager, std::shared_ptr<Task> task) override
+    {
+        manager->unsubscribe(PURE_HANDLER, task);
+    }
 
     MLXState getState() const { return state_; }
     MLXMode getMode() const { return mode_; }
@@ -86,7 +92,9 @@ public:
 protected:
     void handleTaskImpl() override
     {
-        switch (state_)
+        log(LOG_LEVEL_DEBUG, "TaskMLX90640 handled in state %d\r\n", static_cast<uint8_t>(state_));
+
+    	switch (state_)
         {
         case MLXState::Off:
             stateOff();
@@ -311,6 +319,7 @@ private:
         meta.producer = METADATA_PRODUCER::CAMERA_1;
         meta.format = METADATA_FORMAT::UNKN;
 
+        log(LOG_LEVEL_INFO, "MLX90640: Publishing frame to ImageBuffer\r\n");
         if (image_buffer_.add_image(meta) != ImageBufferError::NO_ERROR)
         {
             log(LOG_LEVEL_ERROR, "MLX90640: add_image() failed\r\n");
