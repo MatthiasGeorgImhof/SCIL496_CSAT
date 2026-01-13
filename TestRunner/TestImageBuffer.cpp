@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "ImageBuffer.hpp"
+#include "NullImageBuffer.hpp"
 
 #include "imagebuffer/accessor.hpp"
 #include "imagebuffer/DirectMemoryAccessor.hpp"
@@ -11,7 +12,7 @@
 #include <iostream>
 
 template<typename Accessor>
-using SimpleImageBuffer = ImageBuffer<Accessor, NoAlignmentPolicy>;
+using SimpleImageBuffer = ImageBuffer<Accessor>;
 
 // Mock Accessor for testing
 struct MockAccessor
@@ -26,6 +27,7 @@ struct MockAccessor
     size_t getFlashMemorySize() const { return size; };
     size_t getFlashStartAddress() const { return start; };
     size_t getAlignment() const { return 1; }
+    size_t getEraseBlockSize() const { return 1; } 
 
     AccessorError write(size_t address, const uint8_t *buffer, size_t num_bytes)
     {
@@ -49,7 +51,7 @@ struct MockAccessor
         return AccessorError::NO_ERROR; // Simulate successful read
     }
 
-    AccessorError erase(uint32_t /*address*/) {
+    AccessorError erase(size_t /*address*/) {
         // Mock implementation - just return success
         return AccessorError::NO_ERROR;
     }
@@ -414,59 +416,98 @@ TEST_CASE("ImageBuffer with DirectMemoryAccessor")
     }
 }
 
-// TEST_CASE("ImageBuffer with LinuxMockI2CFlashAccessor")
-// {
-//     // Initialize the mocked HAL
-//     I2C_HandleTypeDef hi2c;
-//     LinuxMockI2CFlashAccessor accessor(&hi2c, 0x08000000, 16384);
-//     ImageBuffer<LinuxMockI2CFlashAccessor> buffer(accessor);
+TEST_CASE("NullImageBuffer basic behavior")
+{
+    NullImageBuffer buf;
 
-//     ImageMetadata metadata;
-//     metadata.timestamp = 98765;
-//     metadata.payload_size = 1024;
-//     metadata.latitude = 33.0f;
-//     metadata.longitude = -97.0f;
-//     metadata.producer = METADATA_PRODUCER::CAMERA_3;
+    // Construct minimal metadata
+    ImageMetadata meta{};
+    meta.version       = 1;
+    meta.metadata_size = sizeof(ImageMetadata);
+    meta.timestamp     = 123456;
+    meta.latitude      = 1.23f;
+    meta.longitude     = 4.56f;
+    meta.payload_size  = 16;
+    meta.dimensions    = {4, 2, 2};
+    meta.format        = METADATA_FORMAT::UNKN;
+    meta.producer      = METADATA_PRODUCER::THERMAL;
 
-//     std::vector<uint8_t> image_data(metadata.payload_size);
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         image_data[i] = static_cast<uint8_t>(i % 256);
-//     }
+    // add_image should succeed and log
+    CHECK(buf.add_image(meta) == ImageBufferError::NO_ERROR);
 
-//     // Write image into flash through the buffer
-//     REQUIRE(buffer.add_image(metadata) == ImageBufferError::NO_ERROR);
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         REQUIRE(buffer.add_data_chunk(&image_data[i], 1) == ImageBufferError::NO_ERROR);
-//     }
-//     REQUIRE(buffer.push_image() == ImageBufferError::NO_ERROR);
+    // add_data_chunk should accept and discard
+    uint8_t dummy[16] = {0};
+    size_t sz = sizeof(dummy);
+    CHECK(buf.add_data_chunk(dummy, sz) == ImageBufferError::NO_ERROR);
 
-//     // Read image back from flash
-//     ImageMetadata retrieved_metadata;
-//     REQUIRE(buffer.get_image(retrieved_metadata) == ImageBufferError::NO_ERROR);
+    // push_image should succeed
+    CHECK(buf.push_image() == ImageBufferError::NO_ERROR);
 
-//     REQUIRE(retrieved_metadata.timestamp == metadata.timestamp);
-//     REQUIRE(retrieved_metadata.payload_size == metadata.payload_size);
-//     REQUIRE(retrieved_metadata.latitude == metadata.latitude);
-//     REQUIRE(retrieved_metadata.longitude == metadata.longitude);
-//     REQUIRE(retrieved_metadata.producer == metadata.producer);
+    // Buffer must always appear empty
+    CHECK(buf.is_empty() == true);
+    CHECK(buf.count() == 0);
+    CHECK(buf.size() == 0);
 
-//     // Read payload back
-//     std::vector<uint8_t> retrieved_data(metadata.payload_size);
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         size_t size = 1;
-//         REQUIRE(buffer.get_data_chunk(&retrieved_data[i], size) == ImageBufferError::NO_ERROR);
-//         REQUIRE(size == 1);
-//     }
+    // Reads must return EMPTY_BUFFER
+    ImageMetadata out{};
+    CHECK(buf.get_image(out) == ImageBufferError::EMPTY_BUFFER);
 
-//     for (size_t i = 0; i < metadata.payload_size; ++i)
-//     {
-//         REQUIRE(retrieved_data[i] == image_data[i]);
-//     }
+    uint8_t outbuf[8];
+    size_t outsz = sizeof(outbuf);
+    CHECK(buf.get_data_chunk(outbuf, outsz) == ImageBufferError::EMPTY_BUFFER);
+    CHECK(buf.pop_image() == ImageBufferError::EMPTY_BUFFER);
+}
 
-//     // Optional: verify pop_image works
-//     REQUIRE(buffer.pop_image() == ImageBufferError::NO_ERROR);
-//     REQUIRE(buffer.is_empty() == true);
-// }
+// -----------------------------------------------------------------------------
+// Minimal test-only subclass to expose test_set_tail()
+// -----------------------------------------------------------------------------
+template <typename Accessor>
+class TestImageBuffer : public ImageBuffer<Accessor>
+{
+public:
+    using Base = ImageBuffer<Accessor>;
+    using Base::Base;   // inherit constructors
+
+    void set_tail_for_test(size_t t) {
+        this->test_set_tail(t);
+    }
+};
+
+
+TEST_CASE("Regression: DirectMemoryAccessor 512-byte temp buffer can write one full entry")
+{
+    // 1. Create a 512-byte temp flash
+    std::vector<uint8_t> temp(512, 0xFF);
+    DirectMemoryAccessor temp_acc(reinterpret_cast<uintptr_t>(temp.data()), temp.size());
+
+    // 2. Construct a buffer on that accessor
+    TestImageBuffer<DirectMemoryAccessor> buf(temp_acc);
+
+    // 3. Place tail at 0 (as write_valid_entry does)
+    buf.set_tail_for_test(0);
+
+    // 4. Create metadata with a small payload
+    ImageMetadata meta{};
+    meta.timestamp     = 1234;
+    meta.payload_size  = 32;
+    meta.latitude      = 1.0f;
+    meta.longitude     = 2.0f;
+    meta.producer      = METADATA_PRODUCER::CAMERA_1;
+
+    // 5. add_image must succeed
+    REQUIRE(buf.add_image(meta) == ImageBufferError::NO_ERROR);
+
+    // 6. Write payload
+    std::vector<uint8_t> payload(meta.payload_size);
+    for (size_t i = 0; i < payload.size(); i++)
+        payload[i] = static_cast<uint8_t>(i);
+
+    REQUIRE(buf.add_data_chunk(payload.data(), payload.size()) == ImageBufferError::NO_ERROR);
+
+    // 7. push_image must succeed
+    REQUIRE(buf.push_image() == ImageBufferError::NO_ERROR);
+
+    // 8. Final sanity: buffer state is consistent
+    CHECK(buf.size() > 0);
+    CHECK(buf.count() == 1);
+}

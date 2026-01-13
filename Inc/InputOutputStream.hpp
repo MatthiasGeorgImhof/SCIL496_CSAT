@@ -10,7 +10,8 @@
 #include <fstream>
 
 #include "imagebuffer/image.hpp"
-#include "imagebuffer/imagebuffer.hpp"
+#include "imagebuffer/buffer_state.hpp"
+#include "ImageBuffer.hpp"
 
 //
 //

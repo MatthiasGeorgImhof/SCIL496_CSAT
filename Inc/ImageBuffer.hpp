@@ -7,20 +7,25 @@
 #include <cstring>
 #include <vector>
 
-#include "imagebuffer/AlignmentPolicy.hpp" // AlignmentPolicy, NoAlignmentPolicy, PageAlignmentPolicy
-#include "imagebuffer/accessor.hpp"        // AccessorError
-#include "imagebuffer/image.hpp"           // ImageMetadata, crc_t, METADATA_SIZE_WO_CRC
-#include "imagebuffer/storageheader.hpp"   // StorageHeader, STORAGE_MAGIC, STORAGE_HEADER_VERSION
-#include "imagebuffer/imagebuffer.hpp"     // BufferState, ImageBufferError
+#include "imagebuffer/accessor.hpp"
+#include "imagebuffer/image.hpp"
+#include "imagebuffer/storageheader.hpp"
+#include "imagebuffer/buffer_state.hpp"
 #include "Checksum.hpp"
 
-// -----------------------------------------------------------------------------
-// ImageBuffer (canonical ring implementation)
-// -----------------------------------------------------------------------------
-template <
-    typename Accessor,
-    typename AlignmentPolicy = NoAlignmentPolicy,
-    typename ChecksumPolicy = DefaultChecksumPolicy>
+enum class ImageBufferError : uint16_t
+{
+    NO_ERROR = 0,
+    WRITE_ERROR = 1,
+    READ_ERROR = 2,
+    OUT_OF_BOUNDS = 3,
+    CHECKSUM_ERROR = 4,
+    EMPTY_BUFFER = 5,
+    FULL_BUFFER = 6,
+    DATA_ERROR = 7,
+};
+
+template <typename Accessor, typename ChecksumPolicy = DefaultChecksumPolicy>
 class ImageBuffer
 {
 public:
@@ -31,646 +36,618 @@ public:
                         accessor.getFlashStartAddress(),
                         accessor.getFlashMemorySize()),
           accessor_(accessor),
-          checksum_(),
           next_sequence_id_(0),
-          write_state_{0, 0, 0, 0},
-          read_state_{0, 0, 0, 0}
-    {
-    }
+          write_state_{},
+          read_state_{} {}
 
-    // Write path
-    ImageBufferError add_image(const ImageMetadata &metadata);
-    ImageBufferError add_data_chunk(const uint8_t *data, size_t size);
-    ImageBufferError push_image();
-
-    // Read path
-    ImageBufferError get_image(ImageMetadata &metadata);
-    ImageBufferError get_data_chunk(uint8_t *data, size_t &size);
-    ImageBufferError pop_image();
-
-    // Boot-time reconstruction from flash
-    ImageBufferError initialize_from_flash();
-
-    // State queries
-    inline bool is_empty() const { return buffer_state_.is_empty(); }
-    inline size_t size() const { return buffer_state_.size(); }
-    inline size_t count() const { return buffer_state_.count(); }
-    inline size_t available() const { return buffer_state_.available(); }
+    // ---------------------------------------------------------------------
+    // Public state queries (unchanged API)
+    // ---------------------------------------------------------------------
+    inline bool   is_empty() const { return buffer_state_.is_empty(); }
+    inline size_t size()     const { return buffer_state_.size(); }
+    inline size_t count()    const { return buffer_state_.count(); }
+    inline size_t available()const { return buffer_state_.available(); }
     inline size_t capacity() const { return buffer_state_.capacity(); }
     inline size_t get_head() const { return buffer_state_.get_head(); }
     inline size_t get_tail() const { return buffer_state_.get_tail(); }
 
+    // ---------------------------------------------------------------------
+    // Public API (unchanged signatures)
+    // ---------------------------------------------------------------------
+    ImageBufferError add_image(const ImageMetadata &meta);
+    ImageBufferError add_data_chunk(const uint8_t *data, size_t size)
+    {
+        return ring_io(write_state_,
+                       const_cast<uint8_t *>(data),
+                       size,
+                       true,
+                       true);
+    }
+    ImageBufferError push_image();
+    ImageBufferError get_image(ImageMetadata &meta);
+    ImageBufferError get_data_chunk(uint8_t *data, size_t &size);
+    ImageBufferError pop_image();
+    ImageBufferError initialize_from_flash();
+
+protected:
+    void test_set_tail(size_t t) { buffer_state_.tail_ = t; }
+    ImageBufferError validate_entry(size_t offset,
+                                    size_t &entry_size,
+                                    uint32_t &seq_id,
+                                    ImageMetadata &meta_out);
+
 private:
-    // ---------------------------------------------------------
-    // Small state structs
-    // ---------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // Per-entry streaming state
+    // ---------------------------------------------------------------------
     struct EntryState
     {
         size_t offset;       // current ring offset
-        size_t entry_size;   // total entry size (header + meta + payload + crc)
-        size_t consumed;     // bytes consumed/written so far within this entry
-        size_t payload_size; // payload size in bytes (payload_size)
+        size_t entry_size;   // logical entry size (bytes)
+        size_t consumed;     // bytes consumed from this entry
+        size_t payload_size; // payload bytes (for read path)
     };
 
-    // ---------------------------------------------------------
-    // Basic helpers
-    // ---------------------------------------------------------
-    bool has_enough_space(size_t bytes) const
+    // ---------------------------------------------------------------------
+    // Layout helpers (constexpr to avoid repeated size math)
+    // ---------------------------------------------------------------------
+    static constexpr size_t header_size()   { return sizeof(StorageHeader); }
+    static constexpr size_t metadata_size() { return sizeof(ImageMetadata); }
+    static constexpr size_t crc_size()      { return sizeof(crc_t); }
+
+    static constexpr size_t overhead_size()
     {
-        return buffer_state_.available() >= bytes;
+        return header_size() + metadata_size();
     }
 
-    void wrap(size_t &addr)
+    static constexpr size_t entry_total_size(size_t payload)
     {
-        if (addr >= buffer_state_.TOTAL_BUFFER_CAPACITY_)
-            addr -= buffer_state_.TOTAL_BUFFER_CAPACITY_;
+        return overhead_size() + payload + crc_size();
     }
 
-    size_t compute_entry_size(const ImageMetadata &metadata) const
+    // ---------------------------------------------------------------------
+    // Alignment helpers (accessor is the single source of truth)
+    // ---------------------------------------------------------------------
+    size_t entry_alignment() const
     {
-        return sizeof(StorageHeader) +
-               sizeof(ImageMetadata) +
-               metadata.payload_size +
-               sizeof(crc_t);
+        size_t a = accessor_.getAlignment();
+        return a == 0 ? 1 : a;
     }
 
-    // ---------------------------------------------------------
-    // Ring I/O (wrap-aware)
-    // ---------------------------------------------------------
-    ImageBufferError write_ring(size_t address, const uint8_t *data, size_t size)
+    size_t align_up(size_t v) const
     {
-        const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+        size_t a = entry_alignment();
+        return (v + a - 1) / a * a;
+    }
 
-        if (size == 0)
-            return ImageBufferError::NO_ERROR;
+    size_t align_up_wrapped(size_t v) const
+    {
+        size_t aligned = align_up(v);
+        const size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+        return (aligned >= cap) ? (aligned - cap) : aligned;
+    }
 
-        if (size > capacity)
-            return ImageBufferError::OUT_OF_BOUNDS;
+    // ---------------------------------------------------------------------
+    // Core ring I/O
+    //   - s.offset is always a logical ring offset (0..cap-1)
+    //   - s.consumed is incremented by `size`
+    //   - if update_crc == true, checksum_ must have been reset beforehand
+    // ---------------------------------------------------------------------
+ImageBufferError ring_io(EntryState &s,
+                         uint8_t *data,
+                         size_t size,
+                         bool write,
+                         bool update_crc)
+{
+    if (size == 0)
+        return ImageBufferError::NO_ERROR;
 
-        size_t addr = address;
-        size_t remaining = size;
-        const uint8_t *ptr = data;
+    const size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+    if (size > cap)
+        return ImageBufferError::OUT_OF_BOUNDS;
 
-        while (remaining > 0)
-        {
-            const size_t to_end = capacity - addr;
-            const size_t chunk = (remaining <= to_end) ? remaining : to_end;
+    using Address = decltype(accessor_.getFlashStartAddress());
 
-            auto status = static_cast<ImageBufferError>(
-                accessor_.write(addr + buffer_state_.FLASH_START_ADDRESS_,
-                                ptr,
-                                chunk));
-            if (status != ImageBufferError::NO_ERROR)
-                return status;
+    size_t remaining = size;
+    while (remaining > 0)
+    {
+        const size_t chunk = std::min(remaining, cap - s.offset);
+        const Address phys_addr =
+            static_cast<Address>(accessor_.getFlashStartAddress() + s.offset);
 
-            addr = (addr + chunk == capacity) ? 0U : addr + chunk;
-            ptr += chunk;
+        const auto status = write
+            ? accessor_.write(phys_addr, data, chunk)
+            : accessor_.read(phys_addr, data, chunk);
+
+            if (status != AccessorError::NO_ERROR)
+                return write
+                    ? ImageBufferError::WRITE_ERROR
+                    : ImageBufferError::READ_ERROR;
+
+            if (update_crc)
+                checksum_.update(data, chunk);
+
+            s.offset = (s.offset + chunk) % cap;
+            data     += chunk;
             remaining -= chunk;
         }
 
+        s.consumed += size;
         return ImageBufferError::NO_ERROR;
     }
 
-    ImageBufferError read_ring(size_t address, uint8_t *data, size_t size)
+    // ---------------------------------------------------------------------
+    // process_struct:
+    //   - handles CRC for fixed-size structs (header, metadata)
+    //   - uses a local checksum instance to avoid coupling with payload CRC
+    // ---------------------------------------------------------------------
+    template <typename T>
+    ImageBufferError process_struct(EntryState &s,
+                                    T &obj,
+                                    size_t crc_offset,
+                                    bool write)
     {
-        const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+        ChecksumPolicy cs;
 
-        if (size == 0)
-            return ImageBufferError::NO_ERROR;
-
-        if (size > capacity)
-            return ImageBufferError::OUT_OF_BOUNDS;
-
-        size_t addr = address;
-        size_t remaining = size;
-        uint8_t *ptr = data;
-
-        while (remaining > 0)
+        if (write)
         {
-            const size_t to_end = capacity - addr;
-            const size_t chunk = (remaining <= to_end) ? remaining : to_end;
+            cs.reset();
+            cs.update(reinterpret_cast<uint8_t *>(&obj), crc_offset);
+            *reinterpret_cast<crc_t *>(
+                reinterpret_cast<uint8_t *>(&obj) + crc_offset) = cs.get();
+        }
 
-            auto status = static_cast<ImageBufferError>(
-                accessor_.read(addr + buffer_state_.FLASH_START_ADDRESS_,
-                               ptr,
-                               chunk));
-            if (status != ImageBufferError::NO_ERROR)
-                return status;
+        auto err = ring_io(s,
+                           reinterpret_cast<uint8_t *>(&obj),
+                           sizeof(T),
+                           write,
+                           false);
+        if (err != ImageBufferError::NO_ERROR)
+            return err;
 
-            addr = (addr + chunk == capacity) ? 0U : addr + chunk;
-            ptr += chunk;
-            remaining -= chunk;
+        if (!write)
+        {
+            cs.reset();
+            cs.update(reinterpret_cast<uint8_t *>(&obj), crc_offset);
+
+            const crc_t stored =
+                *reinterpret_cast<crc_t *>(
+                    reinterpret_cast<uint8_t *>(&obj) + crc_offset);
+
+            if (cs.get() != stored)
+                return ImageBufferError::CHECKSUM_ERROR;
         }
 
         return ImageBufferError::NO_ERROR;
     }
 
-    // ---------------------------------------------------------
-    // Alignment helper
-    // ---------------------------------------------------------
-    ImageBufferError align_tail_for_entry(size_t entry_size)
+    // ---------------------------------------------------------------------
+    // Erase all erase-blocks touched by an entry
+    // ---------------------------------------------------------------------
+    ImageBufferError erase_entry_blocks(size_t offset, size_t size)
     {
-        size_t tail = buffer_state_.tail_;
-        if (!AlignmentPolicy::align(tail,
-                                    accessor_,
-                                    entry_size,
-                                    buffer_state_.TOTAL_BUFFER_CAPACITY_))
+        const size_t block_sz = accessor_.getEraseBlockSize();
+        const size_t cap      = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+
+        for (size_t i = 0; i < size; i += block_sz)
         {
-            return ImageBufferError::FULL_BUFFER;
+            const size_t block_addr = ((offset + i) % cap / block_sz) * block_sz;
+            const size_t phys = buffer_state_.FLASH_START_ADDRESS_ + block_addr;
+
+            if (accessor_.erase(phys) != AccessorError::NO_ERROR)
+                return ImageBufferError::WRITE_ERROR;
         }
 
-        buffer_state_.tail_ = tail;
         return ImageBufferError::NO_ERROR;
     }
 
-    // ---------------------------------------------------------
-    // StorageHeader helpers
-    // ---------------------------------------------------------
-    void compute_header_crc(StorageHeader &hdr)
+    // ---------------------------------------------------------------------
+    // Adjust head after popping an entry
+    //   - decreases size_
+    //   - advances head_
+    //   - aligns head_ to next valid boundary
+    //   - accounts for padding as "consumed" size
+    // ---------------------------------------------------------------------
+    void adjust_head(size_t size)
     {
-        checksum_.reset();
-        checksum_.update(reinterpret_cast<const uint8_t *>(&hdr),
-                         offsetof(StorageHeader, header_crc));
-        hdr.header_crc = checksum_.get();
-    }
+        const size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
 
-    bool validate_header_crc(const StorageHeader &hdr)
-    {
-        checksum_.reset();
-        checksum_.update(reinterpret_cast<const uint8_t *>(&hdr),
-                         offsetof(StorageHeader, header_crc));
-        return checksum_.get() == hdr.header_crc;
-    }
+        buffer_state_.size_ -= size;
+        buffer_state_.head_  = (buffer_state_.head_ + size) % cap;
 
-    bool is_erased_header(const StorageHeader &hdr) const
-    {
-        // Adjust if your erased pattern differs.
-        return hdr.magic == 0xFFFFFFFFu;
-    }
+        const size_t aligned = align_up_wrapped(buffer_state_.head_);
 
-    ImageBufferError write_header(const ImageMetadata &metadata_in, EntryState &ws)
-    {
-        StorageHeader hdr{};
-        hdr.magic = STORAGE_MAGIC;
-        hdr.version = STORAGE_HEADER_VERSION;
-        hdr.header_size = static_cast<uint16_t>(sizeof(StorageHeader));
-        hdr.sequence_id = next_sequence_id_++;
-        hdr.total_size = static_cast<uint32_t>(sizeof(ImageMetadata) + metadata_in.payload_size + sizeof(crc_t));
-        hdr.flags = 0;
-        std::memset(hdr.reserved, 0, sizeof(hdr.reserved));
+        // padding between old head and aligned head
+        size_t pad;
+        if (aligned >= buffer_state_.head_)
+            pad = aligned - buffer_state_.head_;
+        else
+            pad = cap - (buffer_state_.head_ - aligned);
 
-        compute_header_crc(hdr);
+        buffer_state_.size_ =
+            (pad <= buffer_state_.size_) ? (buffer_state_.size_ - pad) : 0;
 
-        ImageBufferError status =
-            write_ring(ws.offset,
-                       reinterpret_cast<const uint8_t *>(&hdr),
-                       sizeof(StorageHeader));
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        ws.offset += sizeof(StorageHeader);
-        ws.consumed += sizeof(StorageHeader);
-        wrap(ws.offset);
-
-        // entry_size was set by caller from compute_entry_size()
-        return ImageBufferError::NO_ERROR;
-    }
-
-    ImageBufferError read_header(StorageHeader &hdr, EntryState &rs)
-    {
-        ImageBufferError status =
-            read_ring(rs.offset,
-                      reinterpret_cast<uint8_t *>(&hdr),
-                      sizeof(StorageHeader));
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        if (hdr.magic != STORAGE_MAGIC)
-            return ImageBufferError::CHECKSUM_ERROR;
-
-        if (!validate_header_crc(hdr))
-            return ImageBufferError::CHECKSUM_ERROR;
-
-        rs.offset += sizeof(StorageHeader);
-        rs.consumed += sizeof(StorageHeader);
-        wrap(rs.offset);
-
-        rs.entry_size = sizeof(StorageHeader) + hdr.total_size;
-
-        return ImageBufferError::NO_ERROR;
-    }
-
-    // ---------------------------------------------------------
-    // ImageMetadata helpers
-    // ---------------------------------------------------------
-    void compute_metadata_crc(ImageMetadata &meta)
-    {
-        checksum_.reset();
-        checksum_.update(reinterpret_cast<const uint8_t *>(&meta),
-                         METADATA_SIZE_WO_CRC);
-        meta.meta_crc = checksum_.get();
-    }
-
-    bool validate_metadata_crc(const ImageMetadata &meta)
-    {
-        checksum_.reset();
-        checksum_.update(reinterpret_cast<const uint8_t *>(&meta),
-                         METADATA_SIZE_WO_CRC);
-        return checksum_.get() == meta.meta_crc;
-    }
-
-    ImageBufferError write_metadata(const ImageMetadata &metadata_in, EntryState &ws)
-    {
-        ImageMetadata meta = metadata_in;
-        meta.version = 1;
-        meta.metadata_size = sizeof(ImageMetadata);
-
-        compute_metadata_crc(meta);
-
-        ImageBufferError status =
-            write_ring(ws.offset,
-                       reinterpret_cast<const uint8_t *>(&meta),
-                       sizeof(ImageMetadata));
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        ws.offset += sizeof(ImageMetadata);
-        ws.consumed += sizeof(ImageMetadata);
-        wrap(ws.offset);
-
-        // payload_size is managed by caller
-        return ImageBufferError::NO_ERROR;
-    }
-
-    ImageBufferError read_metadata(ImageMetadata &metadata, EntryState &rs)
-    {
-        ImageBufferError status =
-            read_ring(rs.offset,
-                      reinterpret_cast<uint8_t *>(&metadata),
-                      sizeof(ImageMetadata));
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        if (!validate_metadata_crc(metadata))
-            return ImageBufferError::CHECKSUM_ERROR;
-
-        rs.offset += sizeof(ImageMetadata);
-        rs.consumed += sizeof(ImageMetadata);
-        wrap(rs.offset);
-
-        rs.payload_size = metadata.payload_size;
-
-        // prepare checksum for payload
-        checksum_.reset();
-
-        return ImageBufferError::NO_ERROR;
-    }
-
-    // ---------------------------------------------------------
-    // Payload helpers
-    // ---------------------------------------------------------
-    ImageBufferError write_payload_chunk(const uint8_t *data, size_t size, EntryState &ws)
-    {
-        if (size == 0)
-            return ImageBufferError::NO_ERROR;
-
-        checksum_.update(data, size);
-
-        ImageBufferError status = write_ring(ws.offset, data, size);
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        ws.offset += size;
-        ws.consumed += size;
-        wrap(ws.offset);
-
-        return ImageBufferError::NO_ERROR;
-    }
-
-    ImageBufferError write_payload_crc(EntryState &ws)
-    {
-        const crc_t data_crc = checksum_.get();
-
-        ImageBufferError status =
-            write_ring(ws.offset,
-                       reinterpret_cast<const uint8_t *>(&data_crc),
-                       sizeof(crc_t));
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        ws.offset += sizeof(crc_t);
-        ws.consumed += sizeof(crc_t);
-        wrap(ws.offset);
-
-        if (ws.consumed != ws.entry_size)
-            return ImageBufferError::WRITE_ERROR;
-
-        return ImageBufferError::NO_ERROR;
-    }
-
-    ImageBufferError read_payload_chunk(uint8_t *data, size_t &size, EntryState &rs)
-    {
-        const size_t header_and_meta =
-            sizeof(StorageHeader) + sizeof(ImageMetadata);
-
-        if (rs.consumed < header_and_meta)
-            return ImageBufferError::READ_ERROR; // logic bug
-
-        const size_t payload_consumed =
-            rs.consumed - header_and_meta;
-
-        if (payload_consumed >= rs.payload_size)
-        {
-            size = 0; // no payload left; caller should now call pop_image()
-            return ImageBufferError::NO_ERROR;
-        }
-
-        const size_t remaining_payload = rs.payload_size - payload_consumed;
-
-        if (size > remaining_payload)
-            size = remaining_payload;
-
-        if (size == 0)
-            return ImageBufferError::NO_ERROR;
-
-        ImageBufferError status = read_ring(rs.offset, data, size);
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        checksum_.update(data, size);
-
-        rs.offset += size;
-        rs.consumed += size;
-        wrap(rs.offset);
-
-        return ImageBufferError::NO_ERROR;
-    }
-
-    ImageBufferError validate_payload_crc(EntryState &rs)
-    {
-        crc_t stored_crc = 0;
-        ImageBufferError status =
-            read_ring(rs.offset,
-                      reinterpret_cast<uint8_t *>(&stored_crc),
-                      sizeof(crc_t));
-        if (status != ImageBufferError::NO_ERROR)
-            return status;
-
-        if (stored_crc != checksum_.get())
-            return ImageBufferError::CHECKSUM_ERROR;
-
-        rs.offset += sizeof(crc_t);
-        rs.consumed += sizeof(crc_t);
-        wrap(rs.offset);
-
-        if (rs.consumed != rs.entry_size)
-            return ImageBufferError::READ_ERROR;
-
-        return ImageBufferError::NO_ERROR;
-    }
-
-    // ---------------------------------------------------------
-    // BufferState advancement
-    // ---------------------------------------------------------
-    void advance_tail(const EntryState &ws)
-    {
-        buffer_state_.size_ += ws.entry_size;
-        buffer_state_.tail_ = ws.offset;
-        wrap(buffer_state_.tail_);
-        buffer_state_.count_++;
-    }
-
-    void advance_head(const EntryState &rs)
-    {
-        buffer_state_.size_ -= rs.entry_size;
-        buffer_state_.head_ = rs.offset;
-        wrap(buffer_state_.head_);
+        buffer_state_.head_ = aligned;
         buffer_state_.count_--;
     }
 
-private:
+    // ---------------------------------------------------------------------
+    // Members
+    // ---------------------------------------------------------------------
     BufferState buffer_state_;
     Accessor &accessor_;
-    ChecksumPolicy checksum_;
+    ChecksumPolicy checksum_; // used for payload CRC and validate_entry payload
     uint32_t next_sequence_id_;
 
     EntryState write_state_;
     EntryState read_state_;
 };
 
-// -----------------------------------------------------------------------------
+// ==========================================================================
 // add_image
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::add_image(const ImageMetadata &metadata_in)
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::add_image(const ImageMetadata &meta)
 {
-    const size_t entry_size = compute_entry_size(metadata_in);
+    const size_t total = entry_total_size(meta.payload_size);
 
-    if (!has_enough_space(entry_size))
+    if (buffer_state_.available() < total)
+    {
         return ImageBufferError::FULL_BUFFER;
+    }
 
-    ImageBufferError status = align_tail_for_entry(entry_size);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    const size_t tail         = buffer_state_.tail_;
+    const size_t aligned_tail = align_up_wrapped(tail);
 
-    write_state_.offset = buffer_state_.tail_;
-    write_state_.entry_size = entry_size;
-    write_state_.consumed = 0;
-    write_state_.payload_size = metadata_in.payload_size;
+    buffer_state_.tail_ = aligned_tail;
+    write_state_ = { aligned_tail, 0, 0, meta.payload_size };
 
-    status = write_header(metadata_in, write_state_);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    // StorageHeader
+    StorageHeader hdr{};
+    hdr.magic       = STORAGE_MAGIC;
+    hdr.version     = STORAGE_HEADER_VERSION;
+    hdr.header_size = static_cast<uint16_t>(sizeof(StorageHeader));
+    hdr.sequence_id = next_sequence_id_++;
+    hdr.total_size  = static_cast<uint32_t>(total - header_size());
 
-    status = write_metadata(metadata_in, write_state_);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    auto err = process_struct(write_state_,
+                              hdr,
+                              offsetof(StorageHeader, header_crc),
+                              true);
+    if (err != ImageBufferError::NO_ERROR)
+        return err;
 
-    // Prepare for payload CRC
-    checksum_.reset();
+    // ImageMetadata
+    ImageMetadata m_out = meta;
+    m_out.version       = 1;
+    m_out.metadata_size = static_cast<uint16_t>(metadata_size());
 
-    return ImageBufferError::NO_ERROR;
+    err = process_struct(write_state_,
+                         m_out,
+                         METADATA_SIZE_WO_CRC,
+                         true);
+
+    checksum_.reset(); // prepare for payload CRC
+    return err;
 }
 
-// -----------------------------------------------------------------------------
-// add_data_chunk
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::add_data_chunk(const uint8_t *data,
-                                                                       size_t size)
-{
-    return write_payload_chunk(data, size, write_state_);
-}
-
-// -----------------------------------------------------------------------------
+// ==========================================================================
 // push_image
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::push_image()
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::push_image()
 {
-    ImageBufferError status = write_payload_crc(write_state_);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    crc_t tag = checksum_.get();
 
-    advance_tail(write_state_);
+    auto err = ring_io(write_state_,
+                       reinterpret_cast<uint8_t *>(&tag),
+                       crc_size(),
+                       true,
+                       false);
+    if (err != ImageBufferError::NO_ERROR)
+        return err;
+
+    buffer_state_.size_ += write_state_.consumed;
+    buffer_state_.tail_  = write_state_.offset;
+    buffer_state_.count_++;
+
     return ImageBufferError::NO_ERROR;
 }
 
-// -----------------------------------------------------------------------------
+// ==========================================================================
 // get_image
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::get_image(ImageMetadata &metadata)
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::get_image(ImageMetadata &meta)
 {
     if (is_empty())
         return ImageBufferError::EMPTY_BUFFER;
 
-    read_state_.offset = buffer_state_.head_;
-    read_state_.entry_size = 0;
-    read_state_.consumed = 0;
-    read_state_.payload_size = 0;
+    read_state_ = { buffer_state_.head_, 0, 0, 0 };
 
     StorageHeader hdr{};
-    ImageBufferError status = read_header(hdr, read_state_);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    auto err = process_struct(read_state_,
+                              hdr,
+                              offsetof(StorageHeader, header_crc),
+                              false);
+    if (err != ImageBufferError::NO_ERROR ||
+        hdr.magic != STORAGE_MAGIC)
+        return ImageBufferError::CHECKSUM_ERROR;
 
-    status = read_metadata(metadata, read_state_);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    read_state_.entry_size = header_size() + hdr.total_size;
 
-    // read_metadata() already set payload_size and reset checksum_ for payload
+    err = process_struct(read_state_,
+                         meta,
+                         METADATA_SIZE_WO_CRC,
+                         false);
+    if (err != ImageBufferError::NO_ERROR)
+        return err;
+
+    read_state_.payload_size = meta.payload_size;
+    checksum_.reset(); // prepare for payload CRC during get_data_chunk
     return ImageBufferError::NO_ERROR;
 }
 
-// -----------------------------------------------------------------------------
+// ==========================================================================
 // get_data_chunk
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::get_data_chunk(uint8_t *data,
-                                                                       size_t &size)
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::get_data_chunk(uint8_t *data, size_t &size)
 {
-    return read_payload_chunk(data, size, read_state_);
+    const size_t overhead = overhead_size();
+
+    const size_t payload_done =
+        (read_state_.consumed > overhead)
+            ? (read_state_.consumed - overhead)
+            : 0;
+
+    const size_t remaining =
+        (read_state_.payload_size > payload_done)
+            ? (read_state_.payload_size - payload_done)
+            : 0;
+
+    size = std::min(size, remaining);
+
+    return ring_io(read_state_,
+                   data,
+                   size,
+                   false,
+                   true); // update payload CRC
 }
 
-// -----------------------------------------------------------------------------
+// ==========================================================================
 // pop_image
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::pop_image()
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::pop_image()
 {
-    ImageBufferError status = validate_payload_crc(read_state_);
-    if (status != ImageBufferError::NO_ERROR)
-        return status;
+    if (is_empty())
+        return ImageBufferError::EMPTY_BUFFER;
 
-    advance_head(read_state_);
-    return ImageBufferError::NO_ERROR;
+    crc_t stored = 0;
+    const crc_t actual = checksum_.get();
+    const size_t old_head = buffer_state_.head_;
+    const size_t total_sz = read_state_.entry_size;
+
+    auto err = ring_io(read_state_,
+                       reinterpret_cast<uint8_t *>(&stored),
+                       crc_size(),
+                       false,
+                       false);
+    if (err != ImageBufferError::NO_ERROR)
+        return ImageBufferError::READ_ERROR;
+
+    if (stored != actual)
+        return ImageBufferError::CHECKSUM_ERROR;
+
+    adjust_head(total_sz);
+    return erase_entry_blocks(old_head, total_sz);
 }
 
-// -----------------------------------------------------------------------------
-// initialize_from_flash (clean version)
-// -----------------------------------------------------------------------------
-template <typename Accessor, typename AlignmentPolicy, typename ChecksumPolicy>
-ImageBufferError
-ImageBuffer<Accessor, AlignmentPolicy, ChecksumPolicy>::initialize_from_flash()
+// ==========================================================================
+// initialize_from_flash
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::initialize_from_flash()
 {
-    const size_t capacity = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+    const size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
 
-    // Reset state
-    buffer_state_.head_  = 0;
-    buffer_state_.tail_  = 0;
-    buffer_state_.size_  = 0;
-    buffer_state_.count_ = 0;
-    next_sequence_id_    = 0;
+    buffer_state_.head_ = buffer_state_.tail_ =
+        buffer_state_.size_ = buffer_state_.count_ =
+            next_sequence_id_ = 0;
 
-    if (capacity == 0)
+    if (cap == 0)
         return ImageBufferError::NO_ERROR;
 
-    size_t offset             = 0;
-    size_t first_entry_offset = static_cast<size_t>(-1);
-    size_t count              = 0;
-    size_t used_bytes         = 0;
-    uint32_t last_sequence_id = 0;
-    bool corruption_detected  = false;
-
-    while (true)
+    struct Found
     {
+        size_t   off;
+        size_t   sz;
+        uint32_t id;
+    };
+
+    std::vector<Found> entries;
+    size_t scan = 0;
+    const size_t step = entry_alignment();
+
+    // 1) Scan for candidate headers
+    while (scan < cap)
+    {
+        EntryState temp{ scan, 0, 0, 0 };
         StorageHeader hdr{};
 
-        // Read raw header bytes
-        ImageBufferError err =
-            read_ring(offset,
-                      reinterpret_cast<uint8_t*>(&hdr),
-                      sizeof(StorageHeader));
-        if (err != ImageBufferError::NO_ERROR)
+        auto hdr_err = process_struct(temp,
+                                      hdr,
+                                      offsetof(StorageHeader, header_crc),
+                                      false);
+
+        if (hdr_err == ImageBufferError::NO_ERROR &&
+            hdr.magic == STORAGE_MAGIC)
         {
-            corruption_detected = true;
-            break;
+            const size_t e_size = header_size() + hdr.total_size;
+            entries.push_back({ scan, e_size, hdr.sequence_id });
+
+            scan = align_up_wrapped(scan + e_size);
+        }
+        else
+        {
+            scan = (scan + step) % cap;
         }
 
-        // Erased flash → end of valid entries
-        if (is_erased_header(hdr))
+        if (scan == 0)
             break;
-
-        // Validate magic
-        if (hdr.magic != STORAGE_MAGIC)
-        {
-            corruption_detected = true;
-            break;
-        }
-
-        // Validate CRC
-        if (!validate_header_crc(hdr))
-        {
-            corruption_detected = true;
-            break;
-        }
-
-        // Compute entry size
-        const size_t entry_size = sizeof(StorageHeader) + hdr.total_size;
-        if (entry_size > capacity)
-        {
-            corruption_detected = true;
-            break;
-        }
-
-        // Detect wrap-around overlap
-        if (count > 0 && offset == first_entry_offset)
-            break;
-
-        if (first_entry_offset == static_cast<size_t>(-1))
-            first_entry_offset = offset;
-
-        used_bytes += entry_size;
-        ++count;
-        last_sequence_id = hdr.sequence_id;
-
-        // Advance to next entry
-        offset += entry_size;
-        if (offset >= capacity)
-            offset -= capacity;
     }
 
-    if (count == 0)
-    {
-        // No valid entries
+    if (entries.empty())
         return ImageBufferError::NO_ERROR;
+
+    // 2) Validation pass
+    std::sort(entries.begin(),
+              entries.end(),
+              [](const Found &a, const Found &b)
+              {
+                  return a.id < b.id;
+              });
+
+    std::vector<Found> good;
+    good.reserve(entries.size());
+
+    ImageBufferError first_err = ImageBufferError::NO_ERROR;
+
+    for (const auto &e : entries)
+    {
+        size_t      validated_size = 0;
+        uint32_t    sid            = 0;
+        ImageMetadata dummy{};
+
+        auto v_err = validate_entry(e.off,
+                                    validated_size,
+                                    sid,
+                                    dummy);
+        if (v_err != ImageBufferError::NO_ERROR)
+        {
+            first_err = v_err;
+            break;
+        }
+
+        if (validated_size != e.sz)
+        {
+            first_err = ImageBufferError::DATA_ERROR;
+            break;
+        }
+
+        if (!good.empty() &&
+            e.id != good.back().id + 1)
+        {
+            first_err = ImageBufferError::CHECKSUM_ERROR;
+            break;
+        }
+
+        good.push_back(e);
     }
 
-    buffer_state_.head_  = first_entry_offset;
-    buffer_state_.tail_  = offset;
-    buffer_state_.size_  = used_bytes;
-    buffer_state_.count_ = count;
-    next_sequence_id_    = last_sequence_id + 1;
+    if (good.empty())
+        return first_err;
 
-    return corruption_detected ? ImageBufferError::CHECKSUM_ERROR
-                               : ImageBufferError::NO_ERROR;
+    // 3) Commit reconstructed state
+    buffer_state_.head_ = good.front().off;
+    buffer_state_.size_ = 0;
+
+    for (const auto &e : good)
+    {
+        buffer_state_.size_ += e.sz;
+        buffer_state_.tail_  = (e.off + e.sz) % cap;
+    }
+
+    buffer_state_.count_ = good.size();
+    next_sequence_id_    = good.back().id + 1;
+
+    return first_err;
+}
+
+// ==========================================================================
+// validate_entry
+// ==========================================================================
+template <typename A, typename C>
+ImageBufferError ImageBuffer<A, C>::validate_entry(size_t offset,
+                                                   size_t &entry_size,
+                                                   uint32_t &seq_id,
+                                                   ImageMetadata &meta_out)
+{
+    const size_t cap = buffer_state_.TOTAL_BUFFER_CAPACITY_;
+    if (cap == 0)
+        return ImageBufferError::CHECKSUM_ERROR;
+
+    EntryState s{ offset, 0, 0, 0 };
+
+    // 1) Header
+    StorageHeader hdr{};
+    auto err = process_struct(s,
+                              hdr,
+                              offsetof(StorageHeader, header_crc),
+                              false);
+    if (err != ImageBufferError::NO_ERROR ||
+        hdr.magic != STORAGE_MAGIC)
+        return ImageBufferError::CHECKSUM_ERROR;
+
+    entry_size = header_size() + hdr.total_size;
+    seq_id     = hdr.sequence_id;
+
+    if (entry_size > cap)
+        return ImageBufferError::CHECKSUM_ERROR;
+
+    // 2) Metadata
+    err = process_struct(s,
+                         meta_out,
+                         METADATA_SIZE_WO_CRC,
+                         false);
+    if (err != ImageBufferError::NO_ERROR)
+        return err;
+
+    const size_t payload_size = meta_out.payload_size;
+    s.payload_size            = payload_size;
+
+    const size_t expected_total =
+        metadata_size() + payload_size + crc_size();
+
+    if (hdr.total_size != expected_total)
+        return ImageBufferError::DATA_ERROR;
+
+    // 3) Payload CRC
+    checksum_.reset();
+
+    size_t remaining = payload_size;
+    uint8_t buf[64];
+
+    while (remaining > 0)
+    {
+        const size_t chunk = std::min(remaining, sizeof(buf));
+        auto io_err = ring_io(s,
+                              buf,
+                              chunk,
+                              false,
+                              true);
+        if (io_err != ImageBufferError::NO_ERROR)
+            return io_err;
+
+        remaining -= chunk;
+    }
+
+    // 4) Trailing CRC
+    crc_t stored = 0;
+    err = ring_io(s,
+                  reinterpret_cast<uint8_t *>(&stored),
+                  crc_size(),
+                  false,
+                  false);
+    if (err != ImageBufferError::NO_ERROR)
+        return err;
+
+    const crc_t actual = checksum_.get();
+    if (actual != stored)
+        return ImageBufferError::CHECKSUM_ERROR;
+
+    return ImageBufferError::NO_ERROR;
 }
 
 #endif // IMAGE_BUFFER_HPP
