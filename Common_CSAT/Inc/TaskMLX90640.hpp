@@ -94,7 +94,7 @@ protected:
     {
         log(LOG_LEVEL_DEBUG, "TaskMLX90640 handled in state %d\r\n", static_cast<uint8_t>(state_));
 
-    	switch (state_)
+        switch (state_)
         {
         case MLXState::Off:
             stateOff();
@@ -217,7 +217,7 @@ private:
 
     void stateWaitingForReadyA()
     {
-        if (((HAL_GetTick() - t0_) >= (sensor_.getRefreshIntervalMs(REFRESH_RATE) * 8 / 10)) && sensor_.isReady())
+        if (((HAL_GetTick() - t0_) >= (sensor_.getRefreshIntervalMs(REFRESH_RATE) * 9 / 20)) && sensor_.isReady())
         {
             state_ = MLXState::ReadSubpageA;
         }
@@ -227,6 +227,15 @@ private:
     {
         if (sensor_.readSubpage(subA_, spA_))
         {
+            // spA_ is now 0 or 1 (or something bogus)
+            if (spA_ != 0 && spA_ != 1)
+            {
+                log(LOG_LEVEL_ERROR, "TaskMLX90640: readSubpage A returned invalid subpage=%d\r\n", spA_);
+                state_ = MLXState::Error;
+                return;
+            }
+
+            // We have one subpage stored; wait for the other one.
             state_ = MLXState::WaitForReadyB;
             t0_ = HAL_GetTick();
         }
@@ -239,7 +248,7 @@ private:
 
     void stateWaitForReadyB()
     {
-        if (((HAL_GetTick() - t0_) >= (sensor_.getRefreshIntervalMs(REFRESH_RATE) * 8 / 10)) && sensor_.isReady())
+        if (((HAL_GetTick() - t0_) >= (sensor_.getRefreshIntervalMs(REFRESH_RATE) * 9 / 20)) && sensor_.isReady())
         {
             state_ = MLXState::ReadSubpageB;
         }
@@ -247,8 +256,36 @@ private:
 
     void stateReadSubpageB()
     {
-        if (sensor_.readSubpage(subB_, spB_))
+        int new_sp = -1;
+        if (sensor_.readSubpage(subB_, new_sp))
         {
+            if (new_sp != 0 && new_sp != 1)
+            {
+                log(LOG_LEVEL_ERROR, "TaskMLX90640: readSubpage B returned invalid subpage=%d\r\n", new_sp);
+                state_ = MLXState::Error;
+                return;
+            }
+
+            if (new_sp == spA_)
+            {
+                // We got the same subpage as before:
+                // treat this as the start of a new frame, and keep this as the new A.
+                log(LOG_LEVEL_WARNING,
+                    "TaskMLX90640: same subpage twice (sp=%d) - restarting pair\r\n",
+                    new_sp);
+
+                // Move B -> A, just to reuse the buffers.
+                std::memcpy(subA_, subB_, sizeof(subA_));
+                spA_ = new_sp;
+
+                // Wait for the other subpage again.
+                state_ = MLXState::WaitForReadyB;
+                t0_ = HAL_GetTick();
+                return;
+            }
+
+            // We finally have two different subpages in this frame: spA_ and new_sp.
+            spB_ = new_sp;
             state_ = MLXState::FrameComplete;
             t0_ = HAL_GetTick();
         }
@@ -273,8 +310,16 @@ private:
         else
         {
             log(LOG_LEVEL_WARNING,
-                "TaskMLX90640: invalid subpage pair spA=%d spB=%d\r\n",
+                "TaskMLX90640: invalid subpage pair spA=%d spB=%d - retrying\r\n",
                 spA_, spB_);
+
+            // Reset subpage tracking and try again.
+            spA_ = -1;
+            spB_ = -1;
+
+            state_ = MLXState::WaitForReadyA;
+            t0_    = HAL_GetTick();
+            return;
         }
 
         if (mode_ == MLXMode::OneShot)
@@ -371,6 +416,8 @@ private:
     int spB_;
 
     constexpr static MLX90640_RefreshRate REFRESH_RATE = MLX90640_RefreshRate::Hz4;
+    constexpr static uint32_t REFRESH_INTERVAL = mlx90640_refresh_interval_ms(REFRESH_RATE);
+    constexpr static uint32_t REFRESH_INTERVAL_2 = REFRESH_INTERVAL/2;
     constexpr static uint32_t TASK_BOOT_DELAY_MS = MLX90640_BOOT_TIME_MS;
 };
 

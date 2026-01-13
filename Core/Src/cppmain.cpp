@@ -45,6 +45,8 @@
 #include "CameraSwitch.hpp"
 #include "OV5640.hpp"
 #include "MLX90640.hpp"
+#include "NullImageBuffer.hpp"
+#include "Trigger.hpp"
 #include "TaskMLX90640.hpp"
 
 #include "au.hh"
@@ -204,6 +206,12 @@ bool toHexAsciiWords(const uint8_t* data,
     return true;
 }
 
+template<typename T, typename... Args>
+static void register_task_with_heap(RegistrationManager &rm, O1HeapInstance *heap, Args&&... args)
+{
+	static O1HeapAllocator<T> alloc(heap);
+	rm.add(allocate_unique_custom<T>(alloc, std::forward<Args>(args)...));
+}
 
 void cppmain()
 {
@@ -234,15 +242,18 @@ void cppmain()
 	LoopardAdapter loopard_adapter;
 	Cyphal<LoopardAdapter> loopard_cyphal(&loopard_adapter);
 	loopard_cyphal.setNodeID(cyphal_node_id);
+	using LoopardCyphal = Cyphal<LoopardAdapter>;
 
 	CanardAdapter canard_adapter;
 	canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
 	canard_adapter.que = canardTxInit(512, CANARD_MTU_CAN_CLASSIC);
 	Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
 	canard_cyphal.setNodeID(cyphal_node_id);
+	using CanardCyphal = Cyphal<CanardAdapter>;
+
 
 //	Logger::setCyphalCanardAdapter(&canard_cyphal);
-	std::tuple<Cyphal<CanardAdapter>> canard_adapters = { canard_cyphal };
+	std::tuple<CanardCyphal> canard_adapters = { canard_cyphal };
 	std::tuple<> empty_adapters = {} ;
 
 	constexpr auto CAMERA_POWER = CIRCUITS::CIRCUIT_0;
@@ -331,34 +342,39 @@ void cppmain()
 
 	HAL_Delay(3000);
 
-	O1HeapAllocator<TaskSendHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskSendHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskSendHeartBeat, 2000, 100, 0, canard_adapters));
-
-	O1HeapAllocator<TaskProcessHeartBeat<Cyphal<CanardAdapter>>> alloc_TaskProcessHeartBeat(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskProcessHeartBeat<Cyphal<CanardAdapter>>>(alloc_TaskProcessHeartBeat, 2000, 100, canard_adapters));
-
-	O1HeapAllocator<TaskSendNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSendNodePortList(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSendNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSendNodePortList, &registration_manager, 10000, 100, 0, canard_adapters));
-
-	O1HeapAllocator<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>> alloc_TaskSubscribeNodePortList(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskSubscribeNodePortList<Cyphal<CanardAdapter>>>(alloc_TaskSubscribeNodePortList, &subscription_manager, 10000, 100, canard_adapters));
-
 	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
 	constexpr char node_name[50] = "SCIL496_CSAT";
-	O1HeapAllocator<TaskRespondGetInfo<Cyphal<CanardAdapter>>> alloc_TaskRespondGetInfo(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskRespondGetInfo<Cyphal<CanardAdapter>>>(alloc_TaskRespondGetInfo, uuid, node_name, 10000, 100, canard_adapters));
 
-	O1HeapAllocator<TaskRequestGetInfo<Cyphal<CanardAdapter>>> alloc_TaskRequestGetInfo(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskRequestGetInfo<Cyphal<CanardAdapter>>>(alloc_TaskRequestGetInfo, 10000, 100, 13, 0, canard_adapters));
+	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
+	register_task_with_heap<TSHeart>(registration_manager, o1heap, 2000, 100, 0, canard_adapters);
 
-	O1HeapAllocator<TaskBlinkLED> alloc_TaskBlinkLED(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskBlinkLED>(alloc_TaskBlinkLED, GPIOB, LED1_Pin, 1000, 100));
+	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
+	register_task_with_heap<TPHeart>(registration_manager, o1heap, 2000, 100, canard_adapters);
 
-	O1HeapAllocator<TaskCheckMemory> alloc_TaskCheckMemory(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskCheckMemory>(alloc_TaskCheckMemory, o1heap, 2000, 100));
+	using TSendNodeList = TaskSendNodePortList<CanardCyphal>;
+	register_task_with_heap<TSendNodeList>(registration_manager, o1heap, &registration_manager, 10000, 100, 0, canard_adapters);
 
-	O1HeapAllocator<TaskMLX90640<PowerSwitch<PowerSwitchTransport>, MLX90640<MLX90640Transport>>> alloc_TaskMLX90640(o1heap);
-	registration_manager.add(allocate_unique_custom<TaskMLX90640<PowerSwitch<PowerSwitchTransport>, MLX90640<MLX90640Transport>>>(alloc_TaskMLX90640, power_switch, IMAGER_POWER, mlx90640, MLXMode::Burst, 25, 250, 1));
+	using TSubscribeNodeList = TaskSubscribeNodePortList<CanardCyphal>;
+	register_task_with_heap<TSubscribeNodeList>(registration_manager, o1heap, &subscription_manager, 10000, 100, canard_adapters);
+
+	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
+	register_task_with_heap<TRespondInfo>(registration_manager, o1heap, uuid, node_name, 10000, 100, canard_adapters);
+
+	using TRequestInfo = TaskRequestGetInfo<CanardCyphal>;
+	register_task_with_heap<TRequestInfo>(registration_manager, o1heap, 10000, 100, 13, 0, canard_adapters);
+
+	using TBlink = TaskBlinkLED;
+	register_task_with_heap<TBlink>(registration_manager, o1heap, GPIOB, LED1_Pin, 1000, 100);
+
+	using TCheckMem = TaskCheckMemory;
+	register_task_with_heap<TCheckMem>(registration_manager, o1heap, o1heap, 2000, 100);
+
+	using PowerSwitchType = PowerSwitch<PowerSwitchTransport>;
+	using MLX90640Type = MLX90640<MLX90640Transport>;
+	using TMLX = TaskMLX90640<PowerSwitchType, MLX90640Type, NullImageBuffer, PeriodicTrigger>;
+	NullImageBuffer imgbuf;
+	PeriodicTrigger trig(30000);
+	register_task_with_heap<TMLX>(registration_manager, o1heap, power_switch, IMAGER_POWER, mlx90640, imgbuf, trig, MLXMode::Burst, 2, 250, 1);
 
     subscription_manager.subscribe<SubscriptionManager::MessageTag>(registration_manager.getSubscriptions(), canard_adapters);
     subscription_manager.subscribe<SubscriptionManager::ResponseTag>(registration_manager.getServers(), canard_adapters);
