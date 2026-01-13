@@ -4,7 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include "imagebuffer/buffer_state.hpp" // ImageBufferError
-#include "imagebuffer/image.hpp"       // ImageMetadata
+#include "imagebuffer/image.hpp"        // ImageMetadata
+#include "ImageBuffer.hpp"              // ImageMetadata
 #include "Logger.hpp"
 
 // -----------------------------------------------------------------------------
