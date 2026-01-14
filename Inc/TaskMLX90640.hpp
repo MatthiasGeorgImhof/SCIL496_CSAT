@@ -211,13 +211,13 @@ private:
 
     void stateWaitCompleteFrame()
     {
-        if ((HAL_GetTick() - t0_) >= sensor_.getRefreshIntervalMs(REFRESH_RATE))
+        if ((HAL_GetTick() - t0_) >= REFRESH_INTERVAL)
             state_ = MLXState::ReadSubpageA;
     }
 
     void stateWaitingForReadyA()
     {
-        if (((HAL_GetTick() - t0_) >= (sensor_.getRefreshIntervalMs(REFRESH_RATE) * 9 / 20)) && sensor_.isReady())
+        if (((HAL_GetTick() - t0_) >= REFRESH_INTERVAL_2) && sensor_.isReady())
         {
             state_ = MLXState::ReadSubpageA;
         }
@@ -248,7 +248,7 @@ private:
 
     void stateWaitForReadyB()
     {
-        if (((HAL_GetTick() - t0_) >= (sensor_.getRefreshIntervalMs(REFRESH_RATE) * 9 / 20)) && sensor_.isReady())
+        if (((HAL_GetTick() - t0_) >= REFRESH_INTERVAL_2) && sensor_.isReady())
         {
             state_ = MLXState::ReadSubpageB;
         }
@@ -416,7 +416,7 @@ private:
     int spB_;
 
     constexpr static MLX90640_RefreshRate REFRESH_RATE = MLX90640_RefreshRate::Hz4;
-    constexpr static uint32_t REFRESH_INTERVAL = mlx90640_refresh_interval_ms(REFRESH_RATE);
+    constexpr static uint32_t REFRESH_INTERVAL = getRefreshIntervalMs(REFRESH_RATE);
     constexpr static uint32_t REFRESH_INTERVAL_2 = REFRESH_INTERVAL/2;
     constexpr static uint32_t TASK_BOOT_DELAY_MS = MLX90640_BOOT_TIME_MS;
 };

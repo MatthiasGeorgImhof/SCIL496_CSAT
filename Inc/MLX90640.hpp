@@ -42,7 +42,7 @@ constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz16 = 125;   // ms
 constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz32 = 63;    // ms
 constexpr static uint32_t MLX90640_REFRESH_INTERVAL_Hz64 = 32;    // ms
 
-constexpr uint32_t mlx90640_refresh_interval_ms(MLX90640_RefreshRate rate)
+constexpr uint32_t getRefreshIntervalMs(MLX90640_RefreshRate rate)
 {
     switch (rate)
     {
@@ -124,31 +124,6 @@ public:
         ctrlReg |= static_cast<uint16_t>(rate);
 
         return writeReg16(static_cast<uint16_t>(MLX90640_REGISTERS::CONTROL1), ctrlReg);
-    }
-
-    uint32_t getRefreshIntervalMs(MLX90640_RefreshRate rate)
-    {
-        switch (rate)
-        {
-        case MLX90640_RefreshRate::Hz0_5:
-            return MLX90640_REFRESH_INTERVAL_Hz0_5;
-        case MLX90640_RefreshRate::Hz1:
-            return MLX90640_REFRESH_INTERVAL_Hz1;
-        case MLX90640_RefreshRate::Hz2:
-            return MLX90640_REFRESH_INTERVAL_Hz2;
-        case MLX90640_RefreshRate::Hz4:
-            return MLX90640_REFRESH_INTERVAL_Hz4;
-        case MLX90640_RefreshRate::Hz8:
-            return MLX90640_REFRESH_INTERVAL_Hz8;
-        case MLX90640_RefreshRate::Hz16:
-            return MLX90640_REFRESH_INTERVAL_Hz16;
-        case MLX90640_RefreshRate::Hz32:
-            return MLX90640_REFRESH_INTERVAL_Hz32;
-        case MLX90640_RefreshRate::Hz64:
-            return MLX90640_REFRESH_INTERVAL_Hz64;
-        default:
-            return MLX90640_REFRESH_INTERVAL_Hz4;
-        }
     }
 
     // ─────────────────────────────────────────────
