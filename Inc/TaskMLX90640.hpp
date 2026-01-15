@@ -392,7 +392,7 @@ private:
             return;
         }
 
-        log(LOG_LEVEL_INFO, "MLX90640: frame stored in ImageBuffer\r\n");
+        log(LOG_LEVEL_DEBUG, "MLX90640: frame stored in ImageBuffer\r\n");
     }
 
 private:
