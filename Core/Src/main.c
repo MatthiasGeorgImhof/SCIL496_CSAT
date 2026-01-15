@@ -192,7 +192,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -613,10 +613,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin|LED1_Pin|ENABLE_2V8_Pin|ENABLE_1V5_Pin
-                          |CAMERA_RST_Pin|CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
+                          |CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, ATTN_Pin|I2C1_RST_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, ATTN_Pin|I2C1_RST_Pin|CAMERA_RST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, SPI1_CS_MRAM_Pin|SPI1_CS_FLASH2_Pin|SPI1_CS_FLASH1_Pin|CAN2_STB_Pin

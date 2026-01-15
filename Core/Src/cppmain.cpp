@@ -1,6 +1,7 @@
 #include <cppmain.h>
 #include <cpphal.h>
 #include "usb_device.h"
+#include "stm32l4xx_ll_i2c.h"
 
 #include <memory>
 
@@ -48,11 +49,13 @@
 #include "NullImageBuffer.hpp"
 #include "Trigger.hpp"
 #include "TaskMLX90640.hpp"
+#include "CameraSwitch.hpp"
 
 #include "au.hh"
 #include "au.hpp"
 
 #include "Logger.hpp"
+#include "SCCB.hpp"
 
 constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
@@ -100,110 +103,110 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
-uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
-int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
+constexpr uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
+constexpr int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
 
 #include <cstdint>
 #include <cstdio>
 
 bool toHexAscii(const uint8_t* data,
-                size_t dataSize,
-                char* out,
-                size_t outSize,
-                size_t bytesPerLine = 16)
+		size_t dataSize,
+		char* out,
+		size_t outSize,
+		size_t bytesPerLine = 16)
 {
-    if (!data || !out || outSize == 0)
-        return false;
+	if (!data || !out || outSize == 0)
+		return false;
 
-    size_t pos = 0;
+	size_t pos = 0;
 
-    for (size_t i = 0; i < dataSize; ++i)
-    {
-        // Format for one byte: "0xNN" + space or newline
-        int written = std::snprintf(
-            out + pos,
-            (pos < outSize ? outSize - pos : 0),
-            "0x%02X",
-            data[i]
-        );
+	for (size_t i = 0; i < dataSize; ++i)
+	{
+		// Format for one byte: "0xNN" + space or newline
+		int written = std::snprintf(
+				out + pos,
+				(pos < outSize ? outSize - pos : 0),
+				"0x%02X",
+				data[i]
+		);
 
-        if (written < 0 || pos + written >= outSize)
-            return false; // buffer too small
+		if (written < 0 || pos + written >= outSize)
+			return false; // buffer too small
 
-        pos += written;
+		pos += written;
 
-        // Add separator
-        bool endOfLine = ((i + 1) % bytesPerLine == 0);
-        bool lastByte  = (i + 1 == dataSize);
+		// Add separator
+		bool endOfLine = ((i + 1) % bytesPerLine == 0);
+		bool lastByte  = (i + 1 == dataSize);
 
-        if (!lastByte)
-        {
-            const char* sep = endOfLine ? "\n" : " ";
-            size_t sepLen = endOfLine ? 1 : 1;
+		if (!lastByte)
+		{
+			const char* sep = endOfLine ? "\n" : " ";
+			size_t sepLen = endOfLine ? 1 : 1;
 
-            if (pos + sepLen >= outSize)
-                return false;
+			if (pos + sepLen >= outSize)
+				return false;
 
-            out[pos++] = sep[0];
-        }
-    }
+			out[pos++] = sep[0];
+		}
+	}
 
-    // Null‑terminate
-    if (pos >= outSize-3)
-        return false;
+	// Null‑terminate
+	if (pos >= outSize-3)
+		return false;
 
-    out[pos+0] = '\n';
-    out[pos+1] = '\n';
-    out[pos+2] = '\0';
-    return true;
+	out[pos+0] = '\n';
+	out[pos+1] = '\n';
+	out[pos+2] = '\0';
+	return true;
 }
 
 bool toHexAsciiWords(const uint8_t* data,
-                     size_t dataSize,
-                     char* out,
-                     size_t outSize,
-                     size_t wordsPerLine)
+		size_t dataSize,
+		char* out,
+		size_t outSize,
+		size_t wordsPerLine)
 {
-    if (!data || !out || outSize == 0 || (dataSize % 2) != 0)
-        return false;
+	if (!data || !out || outSize == 0 || (dataSize % 2) != 0)
+		return false;
 
-    size_t pos = 0;
-    size_t wordCount = dataSize / 2;
+	size_t pos = 0;
+	size_t wordCount = dataSize / 2;
 
-    for (size_t w = 0; w < wordCount; w++)
-    {
-        uint16_t be = (uint16_t(data[2*w]) << 8) | data[2*w + 1];
+	for (size_t w = 0; w < wordCount; w++)
+	{
+		uint16_t be = (uint16_t(data[2*w]) << 8) | data[2*w + 1];
 
-        int written = std::snprintf(out + pos, outSize - pos, "0x%04X", be);
-        if (written <= 0 || pos + written >= outSize)
-            return false;
+		int written = std::snprintf(out + pos, outSize - pos, "0x%04X", be);
+		if (written <= 0 || pos + written >= outSize)
+			return false;
 
-        pos += written;
+		pos += written;
 
-        bool lastWord = (w + 1 == wordCount);
-        bool endOfLine = ((w + 1) % wordsPerLine == 0);
+		bool lastWord = (w + 1 == wordCount);
+		bool endOfLine = ((w + 1) % wordsPerLine == 0);
 
-        if (!lastWord)
-        {
-            const char* sep = endOfLine ? ",\r\n" : ", ";
-            size_t sepLen = std::strlen(sep);
+		if (!lastWord)
+		{
+			const char* sep = endOfLine ? ",\r\n" : ", ";
+			size_t sepLen = std::strlen(sep);
 
-            if (pos + sepLen >= outSize)
-                return false;
+			if (pos + sepLen >= outSize)
+				return false;
 
-            std::memcpy(out + pos, sep, sepLen);
-            pos += sepLen;
-        }
-    }
+			std::memcpy(out + pos, sep, sepLen);
+			pos += sepLen;
+		}
+	}
 
-    if (pos + 3 >= outSize)
-        return false;
+	if (pos + 3 >= outSize)
+		return false;
 
-    out[pos++] = '\r';
-    out[pos++] = '\n';
-    out[pos]   = '\0';
+	out[pos++] = '\r';
+	out[pos++] = '\n';
+	out[pos]   = '\0';
 
-    return true;
+	return true;
 }
 
 template<typename T, typename... Args>
@@ -252,7 +255,7 @@ void cppmain()
 	using CanardCyphal = Cyphal<CanardAdapter>;
 
 
-//	Logger::setCyphalCanardAdapter(&canard_cyphal);
+	//	Logger::setCyphalCanardAdapter(&canard_cyphal);
 	std::tuple<CanardCyphal> canard_adapters = { canard_cyphal };
 	std::tuple<> empty_adapters = {} ;
 
@@ -262,9 +265,9 @@ void cppmain()
 	constexpr auto IMAGER_MRAM = CIRCUITS::CIRCUIT_3;
 
 	constexpr uint8_t GPIO_EXPANDER = 32;
-    using PowerSwitchConfig = I2C_Register_Config<hi2c4, GPIO_EXPANDER>;
-    using PowerSwitchTransport = I2CRegisterTransport<PowerSwitchConfig>;
-    PowerSwitchTransport ps_transport;
+	using PowerSwitchConfig = I2C_Register_Config<hi2c4, GPIO_EXPANDER>;
+	using PowerSwitchTransport = I2CRegisterTransport<PowerSwitchConfig>;
+	PowerSwitchTransport ps_transport;
 	PowerSwitch<PowerSwitchTransport> power_switch(ps_transport, GPIOB, POWER_RST_Pin);
 	power_switch.on(CAMERA_POWER);
 	power_switch.on(IMAGER_POWER);
@@ -272,64 +275,44 @@ void cppmain()
 	power_switch.on(IMAGER_MRAM);
 
 	constexpr uint8_t INA226 = 64;
-    using PowerMonitorConfig = I2C_Register_Config<hi2c4, INA226>;
-    using PowerMonitorTransport = I2CRegisterTransport<PowerMonitorConfig>;
-    PowerMonitorTransport pm_transport;
+	using PowerMonitorConfig = I2C_Register_Config<hi2c4, INA226>;
+	using PowerMonitorTransport = I2CRegisterTransport<PowerMonitorConfig>;
+	PowerMonitorTransport pm_transport;
 	PowerMonitor<PowerMonitorTransport> power_monitor(pm_transport);
 
 	HAL_GPIO_WritePin(ENABLE_1V5_GPIO_Port, ENABLE_1V5_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_2V8_GPIO_Port, ENABLE_2V8_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(I2C1_RST_GPIO_Port, I2C1_RST_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_RESET);
 
-//	constexpr uint8_t CAMERA_SWITCH = 0x70;
-//	using I2CSwitchConfig = I2C_Register_Config<hi2c1, CAMERA_SWITCH>;
-//	using I2CSwitchTransport = I2CRegisterTransport<I2CSwitchConfig>;
-//	I2CSwitchTransport cam_sw_transport;
-//	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
-//	camera_switch.select(I2CSwitchChannel::Channel2);
-
-	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
-	LoopManager loop_manager(allocator);
+	HAL_Delay(5);
+	constexpr uint8_t CAMERA_SWITCH = 0x70;
+	using CameraSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
+	using CameraSwitchTransport = I2CStreamTransport<CameraSwitchConfig>;
+	CameraSwitchTransport cam_sw_transport;
+	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
+	camera_switch.select(I2CSwitchChannel::Channel1);
 
 	constexpr uint8_t CAMERA = OV5640_ID;
-    using CameraConfig = I2C_Register_Config<hi2c1, CAMERA>;
-    using CameraTransport = I2CRegisterTransport<CameraConfig>;
-    CameraTransport cam_transport;
-    using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
-    CameraClockOE cam_clock;
-    using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
-    CameraPowerDn cam_powrdn;
-    using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
-    CameraReset cam_reset;
-    OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
-    camera.powerUp();
+	using CameraConfig = I2C_Register_Config<hi2c1, CAMERA>;
+	using CameraTransport = I2CRegisterTransport<CameraConfig>;
+	CameraTransport cam_transport;
+	using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
+	CameraClockOE cam_clock;
+	using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
+	CameraPowerDn cam_powrdn;
+	using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
+	CameraReset cam_reset;
+	OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
+	camera.powerUp();
 
-	constexpr uint8_t CAMERA_SWITCH = 0x70;
-    using CameraSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
-    using CameraSwitchTransport = I2CStreamTransport<CameraSwitchConfig>;
-    CameraSwitchTransport cam_sw_transport;
-	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
-	camera_switch.select(I2CSwitchChannel::Channel2);
-//    	using I2CSwitchConfig = I2C_Register_Config<hi2c1, CAMERA_SWITCH>;
-//    	using I2CSwitchTransport = I2CRegisterTransport<I2CSwitchConfig>;
-//    	I2CSwitchTransport cam_sw_transport;
-//    	I2CSwitch<I2CSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
-//    	camera_switch.select(I2CSwitchChannel::Channel2);
-
-//	uint8_t channel = static_cast<uint8_t>(I2CSwitchChannel::Channel2);
-//	HAL_I2C_StateTypeDef state1 = HAL_I2C_GetState(&hi2c1);
-//	HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
-//	HAL_StatusTypeDef code1 = HAL_I2C_Master_Transmit(&hi2c1, CAMERA_SWITCH << 1, &channel, 1, 100);
-//	uint32_t error1 = HAL_I2C_GetError(&hi2c1);
-
-	constexpr uint8_t THERMO_I2C_ADR = 0x33;
-    using MLX90640Config = I2C_Register_Config<hi2c2, THERMO_I2C_ADR, I2CAddressWidth::Bits16>;
-    using MLX90640Transport = I2CRegisterTransport<MLX90640Config>;
-    MLX90640Transport mlx90640_transport;
-	MLX90640<MLX90640Transport> mlx90640(mlx90640_transport);
+	//	constexpr uint8_t THERMO_I2C_ADR = 0x33;
+	//    using MLX90640Config = I2C_Register_Config<hi2c2, THERMO_I2C_ADR, I2CAddressWidth::Bits16>;
+	//    using MLX90640Transport = I2CRegisterTransport<MLX90640Config>;
+	//    MLX90640Transport mlx90640_transport;
+	//	MLX90640<MLX90640Transport> mlx90640(mlx90640_transport);
 
 	RegistrationManager registration_manager;
 	SubscriptionManager subscription_manager;
@@ -341,6 +324,8 @@ void cppmain()
 	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
 	HAL_Delay(3000);
+	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+	LoopManager loop_manager(allocator);
 
 	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
 	constexpr char node_name[50] = "SCIL496_CSAT";
@@ -369,18 +354,18 @@ void cppmain()
 	using TCheckMem = TaskCheckMemory;
 	register_task_with_heap<TCheckMem>(registration_manager, o1heap, o1heap, 2000, 100);
 
-	using PowerSwitchType = PowerSwitch<PowerSwitchTransport>;
-	using MLX90640Type = MLX90640<MLX90640Transport>;
-	using TMLX = TaskMLX90640<PowerSwitchType, MLX90640Type, NullImageBuffer, PeriodicTrigger>;
-	NullImageBuffer imgbuf;
-	PeriodicTrigger trig(30000);
-	register_task_with_heap<TMLX>(registration_manager, o1heap, power_switch, IMAGER_POWER, mlx90640, imgbuf, trig, MLXMode::Burst, 2, 250, 1);
+	//	using PowerSwitchType = PowerSwitch<PowerSwitchTransport>;
+	//	using MLX90640Type = MLX90640<MLX90640Transport>;
+	//	using TMLX = TaskMLX90640<PowerSwitchType, MLX90640Type, NullImageBuffer, PeriodicTrigger>;
+	//	NullImageBuffer imgbuf;
+	//	PeriodicTrigger trig(30000);
+	//	register_task_with_heap<TMLX>(registration_manager, o1heap, power_switch, IMAGER_POWER, mlx90640, imgbuf, trig, MLXMode::Burst, 2, 250, 1);
 
-    subscription_manager.subscribe<SubscriptionManager::MessageTag>(registration_manager.getSubscriptions(), canard_adapters);
-    subscription_manager.subscribe<SubscriptionManager::ResponseTag>(registration_manager.getServers(), canard_adapters);
-    subscription_manager.subscribe<SubscriptionManager::RequestTag>(registration_manager.getClients(), canard_adapters);
+	subscription_manager.subscribe<SubscriptionManager::MessageTag>(registration_manager.getSubscriptions(), canard_adapters);
+	subscription_manager.subscribe<SubscriptionManager::ResponseTag>(registration_manager.getServers(), canard_adapters);
+	subscription_manager.subscribe<SubscriptionManager::RequestTag>(registration_manager.getClients(), canard_adapters);
 
-    ServiceManager service_manager(registration_manager.getHandlers());
+	ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
 
 	uint counter = 0;
@@ -399,150 +384,30 @@ void cppmain()
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 
-//		uint8_t data1 = 0;
-//		HAL_I2C_StateTypeDef state1 = HAL_I2C_GetState(&hi2c1);
-//		HAL_I2C_ModeTypeDef mode1 = HAL_I2C_GetMode(&hi2c1);
-//		HAL_StatusTypeDef code1 = HAL_I2C_Master_Receive(&hi2c1, CAMERA_SWITCH << 1, &data1, 1, 100);
-//		uint32_t error1 = HAL_I2C_GetError(&hi2c1);
-
-//		constexpr uint8_t THERMO_I2C_ADR = 0x33;
-//		uint8_t data2[3] = {0,0,0};
-//		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
-//		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
-////		HAL_StatusTypeDef code2 = HAL_I2C_Master_Receive(&hi2c2, THERMO_I2C_ADR << 1, &data2, 1, 100);
-//		HAL_StatusTypeDef code2 = HAL_I2C_Mem_Read(&hi2c2, THERMO_I2C_ADR << 1, 0x2407, I2C_MEMADD_SIZE_16BIT, data2, 3, HAL_MAX_DELAY);
-//		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
-//
-//		char buffer[256];
-//		sprintf(buffer, "step %ld: (%x %x) (%x %x %x %x)\r\n", HAL_GetTick(), code1, code2, code2, data2[0], data2[1], data2[2]);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-//		constexpr uint8_t THERMO_I2C_ADR = 0x33;
-//		constexpr size_t EEPROM_SIZE = 0x340 * 2;
-//		uint8_t data2[EEPROM_SIZE];
-//		HAL_I2C_StateTypeDef state2 = HAL_I2C_GetState(&hi2c2);
-//		HAL_I2C_ModeTypeDef mode2 = HAL_I2C_GetMode(&hi2c2);
-//		HAL_StatusTypeDef code2 = HAL_I2C_Mem_Read(&hi2c2, THERMO_I2C_ADR << 1, 0x2400, I2C_MEMADD_SIZE_16BIT, data2, EEPROM_SIZE, HAL_MAX_DELAY);
-//		uint32_t error2 = HAL_I2C_GetError(&hi2c2);
-//
-//		char buffer[8*EEPROM_SIZE];
-//		toHexAsciiWords(data2, EEPROM_SIZE, buffer, sizeof(buffer), 16);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-//		constexpr size_t EEPROM_SIZE = 0x340 * sizeof(uint16_t);
-//		uint16_t data[EEPROM_SIZE/2];
-//		if (! mlx90640.readEEPROM(data))
-//		{
-//			std::memset(data, EEPROM_SIZE, 0);
-//		}
-//
-//		char buffer[8*EEPROM_SIZE];
-//		toHexAsciiWords(reinterpret_cast<uint8_t*>(data), EEPROM_SIZE, buffer, sizeof(buffer), 16);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-//		constexpr size_t FRAME_SIZE = 1668 * sizeof(uint16_t);
-//		uint16_t data[FRAME_SIZE/2];
-//		if (! mlx90640.readFrame(data))
-//		{
-//			std::memset(data, FRAME_SIZE, 0);
-//		}
-//
-//		char buffer[8*FRAME_SIZE];
-//		toHexAsciiWords(reinterpret_cast<uint8_t*>(data), FRAME_SIZE, buffer, sizeof(buffer), 16);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-//		log(LOG_LEVEL_NOTICE, "poll Mmlx90640\r\n");
-//		uint16_t data[MLX90640_FRAME_WORDS];
-//		if (! mlx90640.readFrame(data))
-//		{
-//			log(LOG_LEVEL_ERROR, "Mmlx90640.readFrame(data) failed\r\n");
-//		}
-//		else
-//		{
-//			char buffer[10*MLX90640_SUBPAGE_SIZE];
-//			toHexAsciiWords(reinterpret_cast<uint8_t*>(data), sizeof(data), buffer, sizeof(buffer), 32);
-//			CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-//		}
-//		uint16_t status[16];
-//		if (!mlx90640.readStatusBlock(status))
-//		{
-//		    memset(status, 0, sizeof(status));
-//		}
-//
-//		char buffer[256];   // plenty of space
-//		toHexAsciiWords(reinterpret_cast<uint8_t*>(status), sizeof(status), buffer, sizeof(buffer), 16);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-
+		uint8_t data = 0;
+		HAL_I2C_StateTypeDef state = HAL_I2C_GetState(&hi2c1);
+		HAL_I2C_ModeTypeDef mode = HAL_I2C_GetMode(&hi2c1);
+		HAL_StatusTypeDef code = HAL_I2C_Master_Receive(&hi2c1, CAMERA_SWITCH << 1, &data, 1, 100);
+		uint32_t error = HAL_I2C_GetError(&hi2c1);
 
 		uint16_t camera_id{0};
-		camera.readRegister(OV5640_Register::CHIP_ID, reinterpret_cast<uint8_t*>(&camera_id), sizeof(camera_id));
-//		char buffer[256];
-//		sprintf(buffer, "OV5640: %04x\r\n", camera_id);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+		uint8_t camera_id_h, camera_id_l;
+		SCCB_ReconfigurePinsToGPIO();
+		camera_id_h = SCCB_ReadReg16(0x3C, 0x300A);
+		camera_id_l  = SCCB_ReadReg16(0x3C, 0x300B);
+		SCCB_ReconfigurePinsToI2C();
 
-		uint8_t camera_id_h = camera.readRegister(OV5640_Register::CHIP_ID_H);
-		uint8_t camera_id_l = camera.readRegister(OV5640_Register::CHIP_ID_L);
-//		char buffer[256];
-//		sprintf(buffer, "Channel: %02x OV5640: %04x %02x %02x\r\n", code2, camera_id, camera_id_h, camera_id_l);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
-
-//		uint16_t adc_value1 = 0;
-//		uint16_t adc_value2 = 0;
-//
-//		ADC_ChannelConfTypeDef sConfig = {0};
-//
-//		/* --- 1. READ PC2 (ADC_CHANNEL_3) --- */
-//		sConfig.Channel = ADC_CHANNEL_3;
-//		sConfig.Rank = ADC_REGULAR_RANK_1;
-//		sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5; // Keep the same timing as your Init
-//		sConfig.SingleDiff = ADC_SINGLE_ENDED;
-//		sConfig.OffsetNumber = ADC_OFFSET_NONE;
-//		sConfig.Offset = 0;
-//
-//		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-//		    Error_Handler();
-//		}
-//
-//		HAL_ADC_Start(&hadc1);
-//		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-//		    adc_value1 = HAL_ADC_GetValue(&hadc1);
-//		}
-//		HAL_ADC_Stop(&hadc1);
-//
-//
-//		/* --- 2. READ PC3 (ADC_CHANNEL_4) --- */
-//		sConfig.Channel = ADC_CHANNEL_4; // Switch to the other channel
-//		// (Rank and SamplingTime stay the same, so we don't strictly need to redefine them,
-//		// but it's safe to keep them in the sConfig struct)
-//
-//		if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-//		    Error_Handler();
-//		}
-//
-//		HAL_ADC_Start(&hadc1);
-//		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-//		    adc_value2 = HAL_ADC_GetValue(&hadc1);
-//		}
-//		HAL_ADC_Stop(&hadc1);
-//
-//
-//		char buffer[256];
-//		sprintf(buffer, "step %ld: (%x %x %x %lx: %x) (%x %x %x %lx: %x) %3x %3x\r\n", HAL_GetTick(), state1, mode1, code1, error1, channel, state2, mode2, code2, error2, data, adc_value1, adc_value2);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+		char buffer[256];
+		sprintf(buffer, "Channel: %02x OV5640: %04x %02x %02x\r\n", data, camera_id, camera_id_h, camera_id_l);
+		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
-//		PowerMonitorData data;
-//		power_monitor(data);
-//		char buffer[256];
-//		sprintf(buffer, "INA226: %4x %4x % 6d % 6d % 6d % 6d\r\n",
-//			  data.manufacturer_id, data.die_id, data.voltage_shunt_uV, data.voltage_bus_mV, data.power_mW, data.current_uA);
-//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-//
-//				char buffer[256];
-//				sprintf(buffer, "time: %ld\r\n", HAL_GetTick());
-//				CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+		GPIO_PinState pb3 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_3);
+		GPIO_PinState pb4 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
+		GPIO_PinState pc11 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_11);
+
+		sprintf(buffer, "(%d %d %d)\r\n", pb3, pb4, pc11);
+		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 		HAL_Delay(250);
 		++counter;
