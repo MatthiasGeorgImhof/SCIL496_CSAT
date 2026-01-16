@@ -28,6 +28,9 @@ struct stream_mode_tag
 struct i2c_tag
 {
 };
+struct sccb_tag
+{
+};
 struct spi_tag
 {
 };
@@ -131,6 +134,92 @@ public:
 };
 
 #endif // HAS_I2C_HANDLE_TYPEDEF
+
+// ─────────────────────────────────────────────
+// SCCB Transport (Register Mode)
+// ─────────────────────────────────────────────
+
+#ifdef HAS_SCCB
+
+enum class SCCBAddressWidth : uint8_t {
+    Bits8,
+    Bits16
+};
+
+template <
+    typename SCCBEngine,
+    uint8_t Address,
+    SCCBAddressWidth AddrWidth = SCCBAddressWidth::Bits8>
+struct SCCBRegisterConfig
+{
+    using transport_tag = sccb_tag;
+    using mode_tag      = register_mode_tag;
+    using sccb_type     = SCCBEngine;
+
+    static constexpr uint8_t address       = Address;
+    static constexpr SCCBAddressWidth address_width = AddrWidth;
+};
+
+template <typename Config>
+    requires std::is_same_v<typename Config::transport_tag, sccb_tag>
+class SCCB_Register_Transport
+{
+public:
+    using config_type = Config;
+    using sccb_type   = typename Config::sccb_type;
+
+    explicit SCCB_Register_Transport(sccb_type& bus)
+        : bus_(bus) {}
+
+    bool write_reg(uint16_t reg, const uint8_t* data, uint16_t len) const
+    {
+        if (len != 1) return false;
+
+        bus_.start();
+        bus_.write_byte(Config::address << 1); // write
+        write_reg_addr(reg);
+        bus_.write_byte(*data);
+        bus_.stop();
+        return true;
+    }
+
+    bool read_reg(uint16_t reg, uint8_t* data, uint16_t len) const
+    {
+        if (len != 1) return false;
+
+        // write register address
+        bus_.start();
+        bus_.write_byte(Config::address << 1);
+        write_reg_addr(reg);
+        bus_.stop();
+
+        // read data
+        bus_.start();
+        bus_.write_byte((Config::address << 1) | 1);
+        *data = bus_.read_byte();
+        bus_.stop();
+
+        return true;
+    }
+
+private:
+    sccb_type& bus_;
+
+    void write_reg_addr(uint16_t reg) const
+    {
+        if constexpr (Config::address_width == SCCBAddressWidth::Bits8)
+        {
+            bus_.write_byte(static_cast<uint8_t>(reg));
+        }
+        else
+        {
+            bus_.write_byte(static_cast<uint8_t>(reg >> 8));
+            bus_.write_byte(static_cast<uint8_t>(reg & 0xFF));
+        }
+    }
+};
+
+#endif // HAS_SCCB
 
 // ─────────────────────────────────────────────
 // SPI Transport (Register Mode)
@@ -416,6 +505,7 @@ concept TransportProtocol =
 enum class TransportKind
 {
     I2C,
+	SCCB,
     SPI,
     UART
 };
@@ -433,6 +523,14 @@ template <typename Config>
 struct TransportTraits<I2CStreamTransport<Config>>
 {
     static constexpr TransportKind kind = TransportKind::I2C;
+};
+#endif
+
+#ifdef HAS_SCCB_HANDLE_TYPEDEF
+template <typename Config>
+struct TransportTraits<SCCB_Register_Transport<Config>>
+{
+    static constexpr TransportKind kind = TransportKind::SCCB;
 };
 #endif
 

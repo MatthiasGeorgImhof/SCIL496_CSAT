@@ -56,6 +56,7 @@
 
 #include "Logger.hpp"
 #include "SCCB.hpp"
+#include "SCCB_legacy.hpp"
 
 constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
@@ -285,28 +286,61 @@ void cppmain()
 	HAL_GPIO_WritePin(I2C1_RST_GPIO_Port, I2C1_RST_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_SET);
+
+	HAL_GPIO_WritePin(GPIOC, CAMERA_HW_CLK_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOC, CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, CAMERA_RST_Pin, GPIO_PIN_SET);
 
 	HAL_Delay(5);
 	constexpr uint8_t CAMERA_SWITCH = 0x70;
-	using CameraSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
-	using CameraSwitchTransport = I2CStreamTransport<CameraSwitchConfig>;
-	CameraSwitchTransport cam_sw_transport;
-	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
-	camera_switch.select(I2CSwitchChannel::Channel1);
+	using I2CSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
+	using I2CSwitchTransport = I2CStreamTransport<I2CSwitchConfig>;
+	I2CSwitchTransport i2c_switch_transport;
+	I2CSwitch<I2CSwitchTransport> camera_switch(i2c_switch_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
 
-	constexpr uint8_t CAMERA = OV5640_ID;
-	using CameraConfig = I2C_Register_Config<hi2c1, CAMERA>;
-	using CameraTransport = I2CRegisterTransport<CameraConfig>;
-	CameraTransport cam_transport;
-	using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
-	CameraClockOE cam_clock;
-	using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
-	CameraPowerDn cam_powrdn;
-	using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
-	CameraReset cam_reset;
-	OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
-	camera.powerUp();
+//	HAL_Delay(5);
+//	constexpr uint8_t CAMERA_SWITCH = 0x70;
+//	using CameraSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
+//	using CameraSwitchTransport = I2CStreamTransport<CameraSwitchConfig>;
+//	CameraSwitchTransport cam_sw_transport;
+//	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
+//	camera_switch.select(I2CSwitchChannel::Channel1);
+
+	using SCL0 = GpioPin<GPIOB_BASE, GPIO_PIN_8>;
+	using SDA0 = GpioPin<GPIOB_BASE, GPIO_PIN_9>;
+	using SCCB1 = SCCB<SCL0, SDA0, 200>;
+	SCCB1 sccb1{ SCL0{}, SDA0{} };
+	using OV5640Config = SCCBRegisterConfig< SCCB1, OV5640_ID, SCCBAddressWidth::Bits16 >;
+	using Camera1Transport = SCCB_Register_Transport<OV5640Config>;
+	Camera1Transport cam1_transport{sccb1};
+//	using CameraClockOE = GpioPin<GPIOC_BASE, CAMERA_HW_CLK_Pin>;
+//	CameraClockOE cam_clock;
+//	using CameraPowerDn = GpioPin<GPIOC_BASE, CAMERA_PWR_DN_Pin>;
+//	CameraPowerDn cam_powrdn;
+//	using CameraReset = GpioPin<GPIOB_BASE, CAMERA_RST_Pin>;
+//	CameraReset cam_reset;
+//	OV5640<Camera1Transport, CameraClockOE, CameraPowerDn, CameraReset> camera1(cam1_transport, cam_clock, cam_powrdn, cam_reset);
+//	camera1.powerUp();
+
+	constexpr uint8_t OV2640_ID = 0x30;
+	using SCCB2 = SCCB<SCL0, SDA0, 200>;
+	SCCB2 sccb2{ SCL0{}, SDA0{} };
+	using OV2640Config = SCCBRegisterConfig< SCCB2, OV2640_ID, SCCBAddressWidth::Bits8 >;
+	using Camera2Transport = SCCB_Register_Transport<OV2640Config>;
+	Camera2Transport cam2_transport{sccb2};
+
+//	using CameraConfig = I2C_Register_Config<hi2c1, CAMERA>;
+//	using CameraTransport = I2CRegisterTransport<CameraConfig>;
+//	CameraTransport cam_transport;
+//	using CameraClockOE = GpioPin<&GPIOC_object, CAMERA_HW_CLK_Pin>;
+//	CameraClockOE cam_clock;
+//	using CameraPowerDn = GpioPin<&GPIOB_object, CAMERA_PWR_DN_Pin>;
+//	CameraPowerDn cam_powrdn;
+//	using CameraReset = GpioPin<&GPIOB_object, CAMERA_RST_Pin>;
+//	CameraReset cam_reset;
+//	OV5640<CameraTransport, CameraClockOE, CameraPowerDn, CameraReset> camera(cam_transport, cam_clock, cam_powrdn, cam_reset);
+//	camera.powerUp();
 
 	//	constexpr uint8_t THERMO_I2C_ADR = 0x33;
 	//    using MLX90640Config = I2C_Register_Config<hi2c2, THERMO_I2C_ADR, I2CAddressWidth::Bits16>;
@@ -390,17 +424,42 @@ void cppmain()
 		HAL_StatusTypeDef code = HAL_I2C_Master_Receive(&hi2c1, CAMERA_SWITCH << 1, &data, 1, 100);
 		uint32_t error = HAL_I2C_GetError(&hi2c1);
 
-		uint16_t camera_id{0};
-		uint8_t camera_id_h, camera_id_l;
-		SCCB_ReconfigurePinsToGPIO();
-		camera_id_h = SCCB_ReadReg16(0x3C, 0x300A);
-		camera_id_l  = SCCB_ReadReg16(0x3C, 0x300B);
-		SCCB_ReconfigurePinsToI2C();
+		uint8_t camera2_id_h, camera2_id_l;
+		camera_switch.select(I2CSwitchChannel::Channel2);
+		HAL_Delay(10);
+		sccb2.ReconfigurePinsToSCCB();
+		cam2_transport.read_reg(0x0A, &camera2_id_h, 1);
+		cam2_transport.read_reg(0x0B, &camera2_id_l, 1);
+		sccb2.ReconfigurePinsToI2C();
+
+		uint8_t camera1_id_h, camera1_id_l;
+		camera_switch.select(I2CSwitchChannel::Channel1);
+		HAL_Delay(10);
+		sccb1.ReconfigurePinsToSCCB();
+		cam1_transport.read_reg(0x300A, &camera1_id_h, 1);
+		cam1_transport.read_reg(0x300B, &camera1_id_l, 1);
+		sccb1.ReconfigurePinsToI2C();
+
+//		uint8_t camera1_id_h, camera1_id_l;
+//		camera_switch.select(I2CSwitchChannel::Channel1);
+//		SCCB_ReconfigurePinsToGPIO();
+//		HAL_Delay(10);
+//		camera1_id_h = SCCB_ReadReg16(OV5640_ID, 0x300A);
+//		camera1_id_l  = SCCB_ReadReg16(OV5640_ID, 0x300B);
+//		SCCB_ReconfigurePinsToI2C();
+//
+//		uint8_t camera2_id_h, camera2_id_l;
+//		camera_switch.select(I2CSwitchChannel::Channel2);
+//		SCCB_ReconfigurePinsToGPIO();
+//		HAL_Delay(10);
+//		camera2_id_h = SCCB_ReadReg8(OV2640_ID, 0x0A);
+//		camera2_id_l  = SCCB_ReadReg8(OV2640_ID, 0x0B);
+//		SCCB_ReconfigurePinsToI2C();
 
 		char buffer[256];
-		sprintf(buffer, "Channel: %02x OV5640: %04x %02x %02x\r\n", data, camera_id, camera_id_h, camera_id_l);
+		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
+//		sprintf(buffer, "Channel: %02x OV5640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, lcamera_id_h, lcamera_id_l, camera1_id_h, camera1_id_l);
 		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
-
 
 		GPIO_PinState pb3 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_3);
 		GPIO_PinState pb4 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
