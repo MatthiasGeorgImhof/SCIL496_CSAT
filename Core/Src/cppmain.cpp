@@ -309,10 +309,10 @@ void cppmain()
 
 	using SCL0 = GpioPin<GPIOB_BASE, GPIO_PIN_8>;
 	using SDA0 = GpioPin<GPIOB_BASE, GPIO_PIN_9>;
-	using SCCB1 = SCCB<SCL0, SDA0, 200>;
-	SCCB1 sccb1{ SCL0{}, SDA0{} };
-	using OV5640Config = SCCBRegisterConfig< SCCB1, OV5640_ID, SCCBAddressWidth::Bits16 >;
-	using Camera1Transport = SCCB_Register_Transport<OV5640Config>;
+	using SCCB1Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
+	SCCB1Bus sccb1{};
+	using OV5640Config = SCCBRegisterConfig<SCCB1Bus, OV5640_ID, SCCBAddressWidth::Bits16>;
+	using Camera1Transport = SCCB_Register_Transport<OV5640Config, SCCB1Bus>;
 	Camera1Transport cam1_transport{sccb1};
 //	using CameraClockOE = GpioPin<GPIOC_BASE, CAMERA_HW_CLK_Pin>;
 //	CameraClockOE cam_clock;
@@ -324,10 +324,10 @@ void cppmain()
 //	camera1.powerUp();
 
 	constexpr uint8_t OV2640_ID = 0x30;
-	using SCCB2 = SCCB<SCL0, SDA0, 200>;
-	SCCB2 sccb2{ SCL0{}, SDA0{} };
-	using OV2640Config = SCCBRegisterConfig< SCCB2, OV2640_ID, SCCBAddressWidth::Bits8 >;
-	using Camera2Transport = SCCB_Register_Transport<OV2640Config>;
+	using SCCB2Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
+	SCCB2Bus sccb2{};
+	using OV2640Config = SCCBRegisterConfig< SCCB2Bus, OV2640_ID, SCCBAddressWidth::Bits8 >;
+	using Camera2Transport = SCCB_Register_Transport<OV2640Config,  SCCB2Bus>;
 	Camera2Transport cam2_transport{sccb2};
 
 //	using CameraConfig = I2C_Register_Config<hi2c1, CAMERA>;
@@ -427,18 +427,18 @@ void cppmain()
 		uint8_t camera2_id_h, camera2_id_l;
 		camera_switch.select(I2CSwitchChannel::Channel2);
 		HAL_Delay(10);
-		sccb2.ReconfigurePinsToSCCB();
+		sccb2.reconfigure_pins_to_sccb();
 		cam2_transport.read_reg(0x0A, &camera2_id_h, 1);
 		cam2_transport.read_reg(0x0B, &camera2_id_l, 1);
-		sccb2.ReconfigurePinsToI2C();
+		sccb2.reconfigure_pins_to_i2c();
 
 		uint8_t camera1_id_h, camera1_id_l;
 		camera_switch.select(I2CSwitchChannel::Channel1);
 		HAL_Delay(10);
-		sccb1.ReconfigurePinsToSCCB();
+		sccb1.reconfigure_pins_to_sccb();
 		cam1_transport.read_reg(0x300A, &camera1_id_h, 1);
 		cam1_transport.read_reg(0x300B, &camera1_id_l, 1);
-		sccb1.ReconfigurePinsToI2C();
+		sccb1.reconfigure_pins_to_i2c();
 
 //		uint8_t camera1_id_h, camera1_id_l;
 //		camera_switch.select(I2CSwitchChannel::Channel1);

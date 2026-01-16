@@ -4,9 +4,11 @@
 #include "Transport.hpp"
 #include "mock_hal.h"
 
-// ─────────────────────────────────────────────
+#include <queue>
+
+// -----------------------------------------
 // I2C Tests (Register Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 I2C_HandleTypeDef mock_i2c;
 
@@ -14,7 +16,6 @@ I2C_HandleTypeDef mock_i2c;
 using TestI2CConfig =
     I2C_Register_Config<mock_i2c, 0x42, I2CAddressWidth::Bits8>;
 using TestI2CTransport = I2CRegisterTransport<TestI2CConfig>;
-
 
 // ------------------------------------------------------------
 // write_reg()
@@ -32,11 +33,10 @@ TEST_CASE("I2CRegisterTransport write_reg() writes correct DevAddress, register,
     CHECK(transport.write_reg(reg, payload, sizeof(payload)) == true);
 
     CHECK(get_i2c_dev_address() == (0x42 << 1));
-    CHECK(get_i2c_mem_address() == reg);  // 8-bit register, no swap
+    CHECK(get_i2c_mem_address() == reg); // 8-bit register, no swap
     CHECK(get_i2c_tx_buffer_count() == sizeof(payload));
     CHECK(memcmp(get_i2c_tx_buffer(), payload, sizeof(payload)) == 0);
 }
-
 
 // ------------------------------------------------------------
 // read_reg()
@@ -62,7 +62,6 @@ TEST_CASE("I2CRegisterTransport read_reg() reads correct data from RX buffer")
     CHECK(get_i2c_mem_address() == reg);
 }
 
-
 // ------------------------------------------------------------
 // Address shifting
 // ------------------------------------------------------------
@@ -79,7 +78,6 @@ TEST_CASE("I2CRegisterTransport uses shifted 7-bit address for DevAddress")
     CHECK(get_i2c_dev_address() == (0x42 << 1));
 }
 
-
 // ------------------------------------------------------------
 // 16-bit register addressing (byte swap)
 // ------------------------------------------------------------
@@ -94,19 +92,19 @@ TEST_CASE("I2CRegisterTransport correctly byte-swaps 16-bit register addresses")
 
     Transport16 transport;
 
-    uint16_t reg = 0x1234;  // LSB=0x34, MSB=0x12
+    uint16_t reg = 0x1234; // LSB=0x34, MSB=0x12
     uint8_t payload[] = {0xDE};
 
     CHECK(transport.write_reg(reg, payload, sizeof(payload)) == true);
 
     // HAL will byteswap the reg internally, no need for us to replicate at this time
-    // if necessary, flip in mock_hal and change this test 
+    // if necessary, flip in mock_hal and change this test
     CHECK(get_i2c_mem_address() == reg);
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // I2C Tests (Stream Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 using TestI2CStreamConfig =
     I2C_Stream_Config<mock_i2c, 0x42>;
@@ -145,9 +143,9 @@ TEST_CASE("I2CStreamTransport read() reads raw bytes from RX buffer")
     CHECK(get_i2c_dev_address() == (0x42 << 1));
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // SPI Tests (Register Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 SPI_HandleTypeDef mock_spi;
 GPIO_TypeDef GPIOA;
@@ -156,7 +154,6 @@ using TestSPIConfig =
     SPI_Register_Config<mock_spi, GPIO_PIN_5, 128>;
 using TestSPITransport =
     SPIRegisterTransport<TestSPIConfig>;
-
 
 // ------------------------------------------------------------
 // write_reg()
@@ -179,7 +176,6 @@ TEST_CASE("SPIRegisterTransport write_reg() transmits register and payload with 
     CHECK(get_spi_tx_buffer()[1] == 0x01);
     CHECK(get_spi_tx_buffer()[2] == 0x02);
 }
-
 
 // ------------------------------------------------------------
 // read_reg()
@@ -211,9 +207,9 @@ TEST_CASE("SPIRegisterTransport read_reg() sends register then reads response wi
     CHECK(rx[1] == 0x66);
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // SPI Tests (Stream Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 using TestSPIStreamConfig =
     SPI_Stream_Config<mock_spi, GPIO_PIN_5, 128>;
@@ -282,14 +278,13 @@ TEST_CASE("SPIStreamTransport transfer() performs full-duplex exchange")
     CHECK(memcmp(rx, injected, sizeof(injected)) == 0);
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // UART Tests (Stream Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 UART_HandleTypeDef mock_uart;
 using TestUARTConfig = UART_Config<mock_uart>;
 using TestUARTTransport = UARTTransport<TestUARTConfig>;
-
 
 // ------------------------------------------------------------
 // write()
@@ -307,7 +302,6 @@ TEST_CASE("UARTTransport write() transmits correct data")
     CHECK(get_uart_tx_buffer()[0] == 'H');
     CHECK(get_uart_tx_buffer()[4] == 'o');
 }
-
 
 // ------------------------------------------------------------
 // read()
@@ -328,9 +322,125 @@ TEST_CASE("UARTTransport read() receives injected data")
     CHECK(buf[2] == 'C');
 }
 
-// ─────────────────────────────────────────────
+// ------------------------------------------------------------
+// SCCB Transport Tests
+// ------------------------------------------------------------
+
+struct MockSCCBBus
+{
+    std::vector<uint8_t> bits;      // sampled bits on SCL rising edge
+    uint8_t last_sda = 1;           // current SDA level
+    std::queue<uint8_t> read_queue; // bits for read_byte()
+
+    // --- SCCB Core interface ---
+
+    void scl_high()
+    {
+        // sample SDA on rising edge
+        bits.push_back(last_sda);
+    }
+
+    void scl_low() {}
+
+    void sda_high() { last_sda = 1; }
+    void sda_low() { last_sda = 0; }
+
+    void sda_as_input() {}
+    void sda_as_output_od() {}
+
+    bool sda_read()
+    {
+        if (read_queue.empty())
+            return 0;
+        uint8_t bit = read_queue.front();
+        read_queue.pop();
+        return bit;
+    }
+
+    void delay() {}
+
+    // --- Helpers for tests ---
+
+    void inject_read_byte(uint8_t v)
+    {
+        for (int i = 7; i >= 0; --i)
+            read_queue.push((v >> i) & 1);
+    }
+
+    void clear()
+    {
+        bits.clear();
+        std::queue<uint8_t> empty;
+        std::swap(read_queue, empty);
+        last_sda = 1;
+    }
+};
+
+using TestSCCBConfig8 = SCCBRegisterConfig<MockSCCBBus, 0x30, SCCBAddressWidth::Bits8>;
+using TestSCCBConfig16 = SCCBRegisterConfig<MockSCCBBus, 0x30, SCCBAddressWidth::Bits16>;
+
+static bool contains_byte(const std::vector<uint8_t>& bits, uint8_t value)
+{
+    if (bits.size() < 8) return false;
+
+    for (size_t i = 0; i + 7 < bits.size(); ++i)
+    {
+        uint8_t cur = 0;
+        for (size_t b = 0; b < 8; ++b)
+            cur = static_cast<uint8_t>((cur << 1) | (bits[i + b] & 1));
+
+        if (cur == value)
+            return true;
+    }
+    return false;
+}
+
+TEST_CASE("SCCB_Register_Transport write_reg() sends correct sequence for 8-bit reg")
+{
+    MockSCCBBus bus;
+    SCCB_Register_Transport<TestSCCBConfig8, MockSCCBBus> t(bus);
+
+    uint8_t val = 0xAA;
+    CHECK(t.write_reg(0x0A, &val, 1) == true);
+
+    auto& bits = bus.bits;
+
+    CHECK(contains_byte(bits, static_cast<uint8_t>((0x30 << 1) & 0xFE))); // device addr + write
+    CHECK(contains_byte(bits, static_cast<uint8_t>(0x0A)));               // reg
+    CHECK(contains_byte(bits, static_cast<uint8_t>(0xAA)));               // value
+}
+
+TEST_CASE("SCCB_Register_Transport write_reg() sends correct sequence for 16-bit reg")
+{
+    MockSCCBBus bus;
+    SCCB_Register_Transport<TestSCCBConfig16, MockSCCBBus> t(bus);
+
+    uint8_t val = 0x55;
+    CHECK(t.write_reg(0x1234, &val, 1) == true);
+
+    auto& bits = bus.bits;
+
+    CHECK(contains_byte(bits, static_cast<uint8_t>((0x30 << 1) & 0xFE))); // device addr + write
+    CHECK(contains_byte(bits, static_cast<uint8_t>(0x12)));               // reg high
+    CHECK(contains_byte(bits, static_cast<uint8_t>(0x34)));               // reg low
+    CHECK(contains_byte(bits, static_cast<uint8_t>(0x55)));               // value
+}
+
+TEST_CASE("SCCB_Register_Transport read_reg() reads injected byte")
+{
+    MockSCCBBus bus;
+    SCCB_Register_Transport<TestSCCBConfig8, MockSCCBBus> t(bus);
+
+    bus.inject_read_byte(0x5A);
+
+    uint8_t out = 0;
+    CHECK(t.read_reg(0x0A, &out, 1) == true);
+    CHECK(out == 0x5A);
+}
+
+// -----------------------------------------
 // Additional Transport Tests
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 // I2C register‑mode transport
 using TestI2CConfig =
@@ -348,7 +458,6 @@ using TestSPITransport =
 using TestUARTConfig = UART_Config<mock_uart>;
 using TestUARTTransport = UARTTransport<TestUARTConfig>;
 
-
 // ------------------------------------------------------------
 // Concept satisfaction
 // ------------------------------------------------------------
@@ -365,8 +474,10 @@ TEST_CASE("Transport concepts are satisfied")
     // UART stream‑mode
     static_assert(StreamModeTransport<TestUARTTransport>);
     static_assert(StreamAccessTransport<TestUARTTransport>);
-}
 
+    static_assert(RegisterAccessTransport<SCCB_Register_Transport<TestSCCBConfig8, MockSCCBBus>>);
+    static_assert(RegisterAccessTransport<SCCB_Register_Transport<TestSCCBConfig16, MockSCCBBus>>);
+}
 
 // ------------------------------------------------------------
 // TransportTraits correctness
@@ -385,7 +496,6 @@ TEST_CASE("TransportTraits report correct transport kind")
     CHECK(TransportTraits<TestUARTTransport>::kind == TransportKind::UART);
 #endif
 }
-
 
 // ------------------------------------------------------------
 // Mode tag correctness

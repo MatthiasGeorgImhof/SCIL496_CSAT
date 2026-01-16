@@ -16,6 +16,8 @@
 #include <concepts>
 #include <type_traits>
 
+#include "SCCB.hpp"
+
 // Mode tags
 struct register_mode_tag
 {
@@ -38,9 +40,9 @@ struct uart_tag
 {
 };
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // I2C Transport (Register Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 #ifdef HAS_I2C_HANDLE_TYPEDEF
 
@@ -135,9 +137,9 @@ public:
 
 #endif // HAS_I2C_HANDLE_TYPEDEF
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // SCCB Transport (Register Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 #ifdef HAS_SCCB
 
@@ -147,39 +149,37 @@ enum class SCCBAddressWidth : uint8_t {
 };
 
 template <
-    typename SCCBEngine,
+    typename Bus,
     uint8_t Address,
     SCCBAddressWidth AddrWidth = SCCBAddressWidth::Bits8>
 struct SCCBRegisterConfig
 {
     using transport_tag = sccb_tag;
     using mode_tag      = register_mode_tag;
-    using sccb_type     = SCCBEngine;
+    using bus_type      = Bus;
 
-    static constexpr uint8_t address       = Address;
+    static constexpr uint8_t address = Address;
     static constexpr SCCBAddressWidth address_width = AddrWidth;
 };
 
-template <typename Config>
-    requires std::is_same_v<typename Config::transport_tag, sccb_tag>
+template <typename Config, typename Bus>
 class SCCB_Register_Transport
 {
 public:
     using config_type = Config;
-    using sccb_type   = typename Config::sccb_type;
 
-    explicit SCCB_Register_Transport(sccb_type& bus)
+    explicit SCCB_Register_Transport(Bus& bus)
         : bus_(bus) {}
 
     bool write_reg(uint16_t reg, const uint8_t* data, uint16_t len) const
     {
         if (len != 1) return false;
 
-        bus_.start();
-        bus_.write_byte(Config::address << 1); // write
+        SCCB_Core::start(bus_);
+        SCCB_Core::write_byte(bus_, Config::address << 1); // write
         write_reg_addr(reg);
-        bus_.write_byte(*data);
-        bus_.stop();
+        SCCB_Core::write_byte(bus_, *data);
+        SCCB_Core::stop(bus_);
         return true;
     }
 
@@ -188,42 +188,42 @@ public:
         if (len != 1) return false;
 
         // write register address
-        bus_.start();
-        bus_.write_byte(Config::address << 1);
+        SCCB_Core::start(bus_);
+        SCCB_Core::write_byte(bus_, Config::address << 1);
         write_reg_addr(reg);
-        bus_.stop();
+        SCCB_Core::stop(bus_);
 
         // read data
-        bus_.start();
-        bus_.write_byte((Config::address << 1) | 1);
-        *data = bus_.read_byte();
-        bus_.stop();
+        SCCB_Core::start(bus_);
+        SCCB_Core::write_byte(bus_, (Config::address << 1) | 1);
+        *data = SCCB_Core::read_byte(bus_);
+        SCCB_Core::stop(bus_);
 
         return true;
     }
 
 private:
-    sccb_type& bus_;
+    Bus& bus_;
 
     void write_reg_addr(uint16_t reg) const
     {
         if constexpr (Config::address_width == SCCBAddressWidth::Bits8)
         {
-            bus_.write_byte(static_cast<uint8_t>(reg));
+            SCCB_Core::write_byte(bus_, static_cast<uint8_t>(reg));
         }
         else
         {
-            bus_.write_byte(static_cast<uint8_t>(reg >> 8));
-            bus_.write_byte(static_cast<uint8_t>(reg & 0xFF));
+            SCCB_Core::write_byte(bus_, static_cast<uint8_t>(reg >> 8));
+            SCCB_Core::write_byte(bus_, static_cast<uint8_t>(reg & 0xFF));
         }
     }
 };
 
 #endif // HAS_SCCB
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // SPI Transport (Register Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 #ifdef HAS_SPI_HANDLE_TYPEDEF
 
@@ -382,9 +382,9 @@ private:
 };
 
 #endif // HAS_SPI_HANDLE_TYPEDEF
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // UART Transport (Stream Mode)
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 #ifdef HAS_UART_HANDLE_TYPEDEF
 
@@ -421,9 +421,9 @@ public:
 
 #endif // HAS_UART_HANDLE_TYPEDEF
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // Transport Concepts
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 // Mode tags (simple classification)
 template <typename T>
@@ -435,9 +435,9 @@ concept StreamModeTransport =
     std::is_same_v<typename T::config_type::mode_tag, stream_mode_tag>;
 
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // Register‑mode transport requirements
-// ─────────────────────────────────────────────
+// -----------------------------------------
 //
 // A register‑mode transport must provide:
 //   bool write_reg(uint16_t reg, const uint8_t* data, uint16_t len);
@@ -453,9 +453,9 @@ concept RegisterAccessTransport =
     };
 
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // Stream‑mode transport requirements
-// ─────────────────────────────────────────────
+// -----------------------------------------
 //
 // A stream‑mode transport must provide:
 //   bool write(const uint8_t* data, uint16_t len);
@@ -485,9 +485,9 @@ concept FullDuplexStreamTransport =
     };
 
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // Unified Transport Protocol Concept
-// ─────────────────────────────────────────────
+// -----------------------------------------
 //
 // A valid transport is either:
 //   - a register‑mode transport (I2C/SPI register mode)
@@ -498,9 +498,9 @@ concept TransportProtocol =
     RegisterAccessTransport<T> || StreamAccessTransport<T>;
 
 
-// ─────────────────────────────────────────────
+// -----------------------------------------
 // Transport Kind Traits
-// ─────────────────────────────────────────────
+// -----------------------------------------
 
 enum class TransportKind
 {
