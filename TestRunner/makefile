@@ -28,6 +28,8 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
 			 TestBufferState.cpp \
+			 TestCameraControls.cpp \
+			 TestCameraPowerConverters.cpp \
 			 TestCameraPowerRails.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
@@ -349,6 +351,24 @@ $(BIN_DIR)/TestCameraSwitch.o : TestCameraSwitch.cpp
 $(BIN_DIR)/TestCameraSwitch : $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestCameraControls with extra sources
+$(BIN_DIR)/TestCameraControls.o : TestCameraControls.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestCameraControls : $(BIN_DIR)/TestCameraControls.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraControls.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestCameraPowerConverters with extra sources
+$(BIN_DIR)/TestCameraPowerConverters.o : TestCameraPowerConverters.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestCameraPowerConverters : $(BIN_DIR)/TestCameraPowerConverters.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraPowerConverters.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestCameraPowerRails with extra sources
 $(BIN_DIR)/TestCameraPowerRails.o : TestCameraPowerRails.cpp
