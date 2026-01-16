@@ -51,6 +51,8 @@
 #include "TaskMLX90640.hpp"
 #include "CameraSwitch.hpp"
 #include "CameraPowerRails.hpp"
+#include "CameraPowerConverters.hpp"
+#include "CameraControls.hpp"
 
 #include "au.hh"
 #include "au.hpp"
@@ -282,12 +284,10 @@ void cppmain()
 	PowerMonitorTransport pm_transport;
 	PowerMonitor<PowerMonitorTransport> power_monitor(pm_transport);
 
-	HAL_GPIO_WritePin(ENABLE_1V5_GPIO_Port, ENABLE_1V5_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_2V8_GPIO_Port, ENABLE_2V8_Pin, GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(I2C1_RST_GPIO_Port, I2C1_RST_Pin, GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_SET);
+	using Rail1V8 = GpioPin<GPIOB_BASE, ENABLE_1V8_Pin>;
+	using Rail2V8 = GpioPin<GPIOB_BASE, ENABLE_2V8_Pin>;
+	CameraPowerConverters<Rail1V8, Rail2V8> camera_power_converters;
+	camera_power_converters.enable();
 
 	using RailA = GpioPin<GPIOD_BASE, ENABLE_A_Pin>;
 	using RailB = GpioPin<GPIOD_BASE, ENABLE_B_Pin>;
@@ -297,9 +297,13 @@ void cppmain()
 	camera_power_rails.enable(Rail::B);
 	camera_power_rails.enable(Rail::C);
 
-	HAL_GPIO_WritePin(GPIOC, CAMERA_HW_CLK_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOC, CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, CAMERA_RST_Pin, GPIO_PIN_SET);
+	using CamClk   = GpioPin<GPIOC_BASE, CAMERA_HW_CLK_Pin>;
+	using CamPwdn  = GpioPin<GPIOC_BASE, CAMERA_PWR_DN_Pin>;
+	using CamReset = GpioPin<GPIOB_BASE, CAMERA_RST_Pin>;
+	CameraControls<CamClk, CamReset, CamPwdn> camera_control;
+	camera_control.clock_on();
+	camera_control.powerdown_off();
+	camera_control.reset_release();
 
 	HAL_Delay(5);
 	using I2CSwitchConfig = I2C_Stream_Config<hi2c1, TCA9546A_ADDRESS>;

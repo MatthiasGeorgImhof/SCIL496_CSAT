@@ -73,8 +73,8 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOB
 #define ENABLE_2V8_Pin GPIO_PIN_14
 #define ENABLE_2V8_GPIO_Port GPIOB
-#define ENABLE_1V5_Pin GPIO_PIN_15
-#define ENABLE_1V5_GPIO_Port GPIOB
+#define ENABLE_1V8_Pin GPIO_PIN_15
+#define ENABLE_1V8_GPIO_Port GPIOB
 #define CAN1_STB_Pin GPIO_PIN_8
 #define CAN1_STB_GPIO_Port GPIOD
 #define CAN1_SHTD_Pin GPIO_PIN_9

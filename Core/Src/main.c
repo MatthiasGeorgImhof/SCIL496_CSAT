@@ -612,7 +612,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin|LED1_Pin|ENABLE_2V8_Pin|ENABLE_1V5_Pin
+  HAL_GPIO_WritePin(GPIOB, POWER_RST_Pin|LED1_Pin|ENABLE_2V8_Pin|ENABLE_1V8_Pin
                           |CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -649,9 +649,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : POWER_RST_Pin ATTN_Pin LED1_Pin ENABLE_2V8_Pin
-                           ENABLE_1V5_Pin CAMERA_RST_Pin CAMERA_PWR_DN_Pin */
+                           ENABLE_1V8_Pin CAMERA_RST_Pin CAMERA_PWR_DN_Pin */
   GPIO_InitStruct.Pin = POWER_RST_Pin|ATTN_Pin|LED1_Pin|ENABLE_2V8_Pin
-                          |ENABLE_1V5_Pin|CAMERA_RST_Pin|CAMERA_PWR_DN_Pin;
+                          |ENABLE_1V8_Pin|CAMERA_RST_Pin|CAMERA_PWR_DN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
