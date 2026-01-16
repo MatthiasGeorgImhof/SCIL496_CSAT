@@ -3,54 +3,124 @@
 
 #include "Transport.hpp"
 #include "OV5640_Registers.hpp"
-#include "GpioPin.hpp"
+#include "CameraDriver.hpp"
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <concepts>
-#include <type_traits>
 
-template <typename Gpio>
-concept GpioOutput = requires(Gpio gpio) {
-    { gpio.low() }  -> std::same_as<void>;
-    { gpio.high() } -> std::same_as<void>;
-};
-
-template <typename Transport, typename ClockOE, typename PowerDn, typename Reset>
-    requires RegisterModeTransport<Transport> &&
-             GpioOutput<ClockOE> &&
-             GpioOutput<PowerDn> &&
-             GpioOutput<Reset>
+template <typename Transport>
+    requires RegisterModeTransport<Transport>
 class OV5640
 {
 public:
-    OV5640(Transport& transport, ClockOE& clk, PowerDn& pwdn, Reset& rst)
-        : transport_(transport), clockOE_(clk), powerDn_(pwdn), reset_(rst)
+    explicit OV5640(Transport& transport)
+        : transport_(transport)
     {}
 
-    void powerUp()
+    //
+    // ────────────────────────────────────────────────────────────────
+    //  High‑level CameraDriver API
+    // ────────────────────────────────────────────────────────────────
+    //
+
+    bool init()
     {
-        reset_.low();   // Hold reset
-        HAL_Delay(5);   // Wait 5 ms
-        clockOE_.high(); // Enable oscillator
-        powerDn_.low(); // Exit power-down (active low)
-        HAL_Delay(1);   // Wait 1 ms
-        reset_.high();  // Release reset
-        HAL_Delay(20);  // Wait 20 ms before SCCB access
+        // Soft reset
+        return writeRegister(OV5640_Register::SYS_RESET02, 0x00);
     }
 
-    // Write a single byte (no endian conversion needed)
+    bool setResolution(uint16_t width, uint16_t height)
+    {
+        // TIMING_DVPHO (0x3808, 0x3809)
+        if (!writeRegister(static_cast<uint16_t>(OV5640_Register::TIMING_DVPHO),     static_cast<uint8_t>(width >> 8))) return false;
+        if (!writeRegister(static_cast<uint16_t>(OV5640_Register::TIMING_DVPHO) + 1, static_cast<uint8_t>(width & 0xFF))) return false;
+
+        // TIMING_DVPVO (0x380A, 0x380B)
+        if (!writeRegister(static_cast<uint16_t>(OV5640_Register::TIMING_DVPVO),     static_cast<uint8_t>(height >> 8))) return false;
+        if (!writeRegister(static_cast<uint16_t>(OV5640_Register::TIMING_DVPVO) + 1, static_cast<uint8_t>(height & 0xFF))) return false;
+
+        return true;
+    }
+
+    bool setFormat(PixelFormat fmt)
+    {
+        switch (fmt)
+        {
+        case PixelFormat::YUV422:
+            return writeRegister(OV5640_Register::FORMAT_CONTROL00, 0x30);
+        case PixelFormat::RGB565:
+            return writeRegister(OV5640_Register::FORMAT_CONTROL00, 0x61);
+        case PixelFormat::JPEG:
+            return writeRegister(OV5640_Register::JPG_MODE_SELECT, 0x03);
+        }
+        return false;
+    }
+
+    bool setExposure(uint32_t exposure_us)
+    {
+        uint32_t exp = exposure_us;
+
+        uint8_t hi  = (exp >> 12) & 0x0F;
+        uint8_t med = (exp >> 4)  & 0xFF;
+        uint8_t lo  = (exp << 4)  & 0xF0;
+
+        return writeRegister(OV5640_Register::AEC_PK_EXPOSURE_HI,  hi)  &&
+               writeRegister(OV5640_Register::AEC_PK_EXPOSURE_MED, med) &&
+               writeRegister(OV5640_Register::AEC_PK_EXPOSURE_LO,  lo);
+    }
+
+    bool setGain(float gain)
+    {
+        uint16_t g = static_cast<uint16_t>(gain * 16.0f);
+
+        return writeRegister(static_cast<uint16_t>(OV5640_Register::AEC_PK_REAL_GAIN),     g >> 8) &&
+               writeRegister(static_cast<uint16_t>(OV5640_Register::AEC_PK_REAL_GAIN) + 1, g & 0xFF);
+    }
+
+    bool enableTestPattern(bool enable)
+    {
+        return writeRegister(OV5640_Register::PRE_ISP_TEST_SET1,
+                             enable ? 0x80 : 0x00);
+    }
+
+    //
+    // ────────────────────────────────────────────────────────────────
+    //  Enum overloads → uint16_t overloads
+    // ────────────────────────────────────────────────────────────────
+    //
+
     bool writeRegister(OV5640_Register reg, uint8_t value)
     {
-        uint8_t payload[1] = { value };
-        return transport_.write_reg(
-            static_cast<uint16_t>(reg),
-            payload,
-            sizeof(payload));
+        return writeRegister(static_cast<uint16_t>(reg), value);
     }
 
-    // Write multi-byte little-endian payload as big-endian
     bool writeRegister(OV5640_Register reg, const uint8_t* data, size_t size)
+    {
+        return writeRegister(static_cast<uint16_t>(reg), data, size);
+    }
+
+    uint8_t readRegister(OV5640_Register reg)
+    {
+        return readRegister(static_cast<uint16_t>(reg));
+    }
+
+    bool readRegister(OV5640_Register reg, uint8_t* buffer, size_t size)
+    {
+        return readRegister(static_cast<uint16_t>(reg), buffer, size);
+    }
+
+    //
+    // ────────────────────────────────────────────────────────────────
+    //  uint16_t overloads (real implementation)
+    // ────────────────────────────────────────────────────────────────
+    //
+
+    bool writeRegister(uint16_t reg, uint8_t value)
+    {
+        return transport_.write_reg(reg, &value, 1);
+    }
+
+    bool writeRegister(uint16_t reg, const uint8_t* data, size_t size)
     {
         constexpr size_t MaxSize = 32;
         if (size > MaxSize || size % 2 != 0)
@@ -58,55 +128,37 @@ public:
 
         std::array<uint8_t, MaxSize> tx{};
 
-        // Swap each 16-bit word from little to big endian
         for (size_t i = 0; i < size; i += 2) {
-            tx[i]     = data[i + 1]; // high byte
-            tx[i + 1] = data[i];     // low byte
+            tx[i]     = data[i + 1];
+            tx[i + 1] = data[i];
         }
 
-        return transport_.write_reg(
-            static_cast<uint16_t>(reg),
-            tx.data(),
-            size);
+        return transport_.write_reg(reg, tx.data(), size);
     }
 
-    // Read a single byte (no endian conversion needed)
-    uint8_t readRegister(OV5640_Register reg)
+    uint8_t readRegister(uint16_t reg)
     {
         uint8_t rx{};
-        transport_.read_reg(
-            static_cast<uint16_t>(reg),
-            &rx,
-            1);
+        transport_.read_reg(reg, &rx, 1);
         return rx;
     }
 
-    // Read multi-byte big-endian payload and convert to little-endian
-    bool readRegister(OV5640_Register reg, uint8_t* buffer, size_t size)
+    bool readRegister(uint16_t reg, uint8_t* buffer, size_t size)
     {
         if (size % 2 != 0)
             return false;
 
-        if (!transport_.read_reg(
-                static_cast<uint16_t>(reg),
-                buffer,
-                size)) {
+        if (!transport_.read_reg(reg, buffer, size))
             return false;
-        }
 
-        // Swap each 16-bit word from big to little endian
-        for (size_t i = 0; i < size; i += 2) {
+        for (size_t i = 0; i < size; i += 2)
             std::swap(buffer[i], buffer[i + 1]);
-        }
 
         return true;
     }
 
 private:
     Transport& transport_;
-    ClockOE&   clockOE_;
-    PowerDn&   powerDn_;
-    Reset&     reset_;
 };
 
 #endif // _OV5640_HPP_

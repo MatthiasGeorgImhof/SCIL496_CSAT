@@ -43,13 +43,12 @@
 #include "PowerMonitor.hpp"
 #include "Transport.hpp"
 #include "I2CSwitch.hpp"
-#include "CameraSwitch.hpp"
 #include "OV5640.hpp"
+#include "OV2640.hpp"
 #include "MLX90640.hpp"
 #include "NullImageBuffer.hpp"
 #include "Trigger.hpp"
 #include "TaskMLX90640.hpp"
-#include "CameraSwitch.hpp"
 #include "CameraPowerRails.hpp"
 #include "CameraPowerConverters.hpp"
 #include "CameraControls.hpp"
@@ -325,7 +324,7 @@ void cppmain()
 	using SDA0 = GpioPin<GPIOB_BASE, GPIO_PIN_9>;
 	using SCCB1Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
 	SCCB1Bus sccb1{};
-	using OV5640Config = SCCBRegisterConfig<SCCB1Bus, OV5640_ID, SCCBAddressWidth::Bits16>;
+	using OV5640Config = SCCBRegisterConfig<SCCB1Bus, OV5640_ADDRESS, SCCBAddressWidth::Bits16>;
 	using Camera1Transport = SCCB_Register_Transport<OV5640Config, SCCB1Bus>;
 	Camera1Transport cam1_transport{sccb1};
 //	using CameraClockOE = GpioPin<GPIOC_BASE, CAMERA_HW_CLK_Pin>;
@@ -337,10 +336,9 @@ void cppmain()
 //	OV5640<Camera1Transport, CameraClockOE, CameraPowerDn, CameraReset> camera1(cam1_transport, cam_clock, cam_powrdn, cam_reset);
 //	camera1.powerUp();
 
-	constexpr uint8_t OV2640_ID = 0x30;
 	using SCCB2Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
 	SCCB2Bus sccb2{};
-	using OV2640Config = SCCBRegisterConfig< SCCB2Bus, OV2640_ID, SCCBAddressWidth::Bits8 >;
+	using OV2640Config = SCCBRegisterConfig< SCCB2Bus, OV2640_ADDRESS, SCCBAddressWidth::Bits8 >;
 	using Camera2Transport = SCCB_Register_Transport<OV2640Config,  SCCB2Bus>;
 	Camera2Transport cam2_transport{sccb2};
 
