@@ -32,6 +32,16 @@ extern "C" {
 #define GPIO_PIN_All ((uint16_t)0xFFFF)  // All pins selected
 #define GPIO_PIN_MASK ((uint32_t)0x0000FFFF) // PIN mask for assert test
 
+#define GPIO_MODE_INPUT          0x0U
+#define GPIO_MODE_OUTPUT_OD      0x1U
+#define GPIO_MODE_AF_OD          0x2U
+#define GPIO_NOPULL              0x0U
+#define GPIO_PULLUP              0x1U
+#define GPIO_SPEED_FREQ_HIGH     0x0U
+#define GPIO_SPEED_FREQ_VERY_HIGH 0x0U
+#define GPIO_AF4_I2C1            0x0U
+#define __HAL_RCC_GPIOB_CLK_ENABLE()  do {} while(0)
+
 static const size_t MAX_GPIO_PINS = 16;
 
 //--- GPIO Structures ---
