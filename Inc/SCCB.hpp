@@ -1,205 +1,172 @@
-#ifndef __SCCB__HPP
-#define __SCCB__HPP
+#ifndef __SCCB_HPP__
+#define __SCCB_HPP__
 
-#include "stm32l4xx_hal.h"   // adjust to your MCU family
+#include <cstdint>
+#include "GpioPin.hpp"
+#include "stm32l4xx_hal.h"
 
-#define SCCB_SCL_PORT GPIOB
-#define SCCB_SCL_PIN  GPIO_PIN_8
-
-#define SCCB_SDA_PORT GPIOB
-#define SCCB_SDA_PIN  GPIO_PIN_9
-
-static inline void SCCB_SCL_H(void) { HAL_GPIO_WritePin(SCCB_SCL_PORT, SCCB_SCL_PIN, GPIO_PIN_SET); }
-static inline void SCCB_SCL_L(void) { HAL_GPIO_WritePin(SCCB_SCL_PORT, SCCB_SCL_PIN, GPIO_PIN_RESET); }
-
-static inline void SCCB_SDA_H(void) { HAL_GPIO_WritePin(SCCB_SDA_PORT, SCCB_SDA_PIN, GPIO_PIN_SET); }
-static inline void SCCB_SDA_L(void) { HAL_GPIO_WritePin(SCCB_SDA_PORT, SCCB_SDA_PIN, GPIO_PIN_RESET); }
-
-static inline uint8_t SCCB_SDA_Read(void)
+// SCCB bit-bang engine with injected pins and full mode switching
+template <typename SCLPin, typename SDAPin, uint32_t DelayCycles = 200>
+class SCCB
 {
-    return HAL_GPIO_ReadPin(SCCB_SDA_PORT, SCCB_SDA_PIN);
-}
+public:
+    SCCB(SCLPin scl_pin, SDAPin sda_pin) : scl_(scl_pin), sda_(sda_pin) {}
 
-static inline void SCCB_Delay(void)
-{
-    for (volatile int i = 0; i < 200; i++);   // tune as needed
-}
-
-static void SCCB_SDA_AsInput(void)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin  = SCCB_SDA_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(SCCB_SDA_PORT, &GPIO_InitStruct);
-}
-
-static void SCCB_SDA_AsOutputOD(void)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin   = SCCB_SDA_PIN;
-    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(SCCB_SDA_PORT, &GPIO_InitStruct);
-}
-
-void SCCB_ReconfigurePinsToGPIO(void)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    __HAL_RCC_GPIOB_CLK_ENABLE();   // adjust for your port
-
-    // SCL (PB8)
-    GPIO_InitStruct.Pin   = SCCB_SCL_PIN;
-    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(SCCB_SCL_PORT, &GPIO_InitStruct);
-
-    // SDA (PB9)
-    GPIO_InitStruct.Pin   = SCCB_SDA_PIN;
-    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(SCCB_SDA_PORT, &GPIO_InitStruct);
-
-    // Idle state
-    SCCB_SCL_H();
-    SCCB_SDA_H();
-}
-
-void SCCB_ReconfigurePinsToI2C(void)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    __HAL_RCC_GPIOB_CLK_ENABLE();   // adjust for your port
-
-    // SCL (PB8)
-    GPIO_InitStruct.Pin       = SCCB_SCL_PIN;
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull      = GPIO_PULLUP;
-    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-    HAL_GPIO_Init(SCCB_SCL_PORT, &GPIO_InitStruct);
-
-    // SDA (PB9)
-    GPIO_InitStruct.Pin       = SCCB_SDA_PIN;
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull      = GPIO_PULLUP;
-    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-    HAL_GPIO_Init(SCCB_SDA_PORT, &GPIO_InitStruct);
-}
-
-void SCCB_Start(void)
-{
-    SCCB_SDA_AsOutputOD();
-    SCCB_SDA_H();
-    SCCB_SCL_H();
-    SCCB_Delay();
-    SCCB_SDA_L();
-    SCCB_Delay();
-    SCCB_SCL_L();
-}
-
-void SCCB_Stop(void)
-{
-    SCCB_SDA_AsOutputOD();
-    SCCB_SDA_L();
-    SCCB_Delay();
-    SCCB_SCL_H();
-    SCCB_Delay();
-    SCCB_SDA_H();
-    SCCB_Delay();
-}
-
-void SCCB_WriteByte(uint8_t byte)
-{
-    SCCB_SDA_AsOutputOD();
-
-    for (int i = 0; i < 8; i++)
+    void SDA_AsInput() const
     {
-        if (byte & 0x80) SCCB_SDA_H();
-        else             SCCB_SDA_L();
-
-        SCCB_Delay();
-        SCCB_SCL_H();
-        SCCB_Delay();
-        SCCB_SCL_L();
-        byte <<= 1;
+        GPIO_InitTypeDef GPIO_InitStruct = {0};
+        GPIO_InitStruct.Pin  = SDAPin::pin;
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        HAL_GPIO_Init(SDAPin::port(), &GPIO_InitStruct);
     }
 
-    // 9th clock: ignore ACK, release line
-    SCCB_SDA_H();
-    SCCB_Delay();
-    SCCB_SCL_H();
-    SCCB_Delay();
-    SCCB_SCL_L();
-}
-
-uint8_t SCCB_ReadByte(void)
-{
-    uint8_t byte = 0;
-
-    SCCB_SDA_AsInput();   // release line
-
-    for (int i = 0; i < 8; i++)
+    void SDA_AsOutputOD() const
     {
-        byte <<= 1;
-
-        SCCB_SCL_H();
-        SCCB_Delay();
-
-        if (SCCB_SDA_Read())
-            byte |= 1;
-
-        SCCB_SCL_L();
-        SCCB_Delay();
+        GPIO_InitTypeDef GPIO_InitStruct = {0};
+        GPIO_InitStruct.Pin   = SDAPin::pin;
+        GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
+        GPIO_InitStruct.Pull  = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        HAL_GPIO_Init(SDAPin::port(), &GPIO_InitStruct);
     }
 
-    // 9th clock: NACK (master releases line)
-    SCCB_SDA_AsOutputOD();
-    SCCB_SDA_H();
-    SCCB_Delay();
-    SCCB_SCL_H();
-    SCCB_Delay();
-    SCCB_SCL_L();
+    // Switch both pins to GPIO bit-bang mode
+    void ReconfigurePinsToSCCB() const
+    {
+        GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    return byte;
-}
+        __HAL_RCC_GPIOB_CLK_ENABLE(); // adjust if needed
 
-void SCCB_WriteReg16(uint8_t dev, uint16_t reg, uint8_t value)
-{
-    SCCB_SDA_AsOutputOD();
+        // SCL
+        GPIO_InitStruct.Pin   = SCLPin::pin;
+        GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
+        GPIO_InitStruct.Pull  = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        HAL_GPIO_Init(SCLPin::port(), &GPIO_InitStruct);
 
-    SCCB_Start();
-    SCCB_WriteByte(dev << 1);          // write address
-    SCCB_WriteByte(reg >> 8);          // high byte
-    SCCB_WriteByte(reg & 0xFF);        // low byte
-    SCCB_WriteByte(value);
-    SCCB_Stop();
-}
+        // SDA
+        GPIO_InitStruct.Pin   = SDAPin::pin;
+        GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
+        GPIO_InitStruct.Pull  = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        HAL_GPIO_Init(SDAPin::port(), &GPIO_InitStruct);
 
-uint8_t SCCB_ReadReg16(uint8_t dev, uint16_t reg)
-{
-    uint8_t value;
+        // Idle state
+        scl_high();
+        sda_high();
+    }
 
-    // Write register address
-    SCCB_SDA_AsOutputOD();
-    SCCB_Start();
-    SCCB_WriteByte(dev << 1);          // write address
-    SCCB_WriteByte(reg >> 8);
-    SCCB_WriteByte(reg & 0xFF);
-    SCCB_Stop();
+    // Switch both pins back to I2C peripheral mode
+    void ReconfigurePinsToI2C() const
+    {
+        GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    // Read register value
-    SCCB_Start();
-    SCCB_WriteByte((dev << 1) | 1);    // read address
-    value = SCCB_ReadByte();
-    SCCB_Stop();
+        __HAL_RCC_GPIOB_CLK_ENABLE(); // adjust if needed
 
-    return value;
-}
+        // SCL
+        GPIO_InitStruct.Pin       = SCLPin::pin;
+        GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
+        GPIO_InitStruct.Pull      = GPIO_PULLUP;
+        GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+        HAL_GPIO_Init(SCLPin::port(), &GPIO_InitStruct);
 
-#endif // __SCCB__HPP
+        // SDA
+        GPIO_InitStruct.Pin       = SDAPin::pin;
+        GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
+        GPIO_InitStruct.Pull      = GPIO_PULLUP;
+        GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+        HAL_GPIO_Init(SDAPin::port(), &GPIO_InitStruct);
+    }
+
+    // ─────────────────────────────────────────────
+    // SCCB Protocol Primitives
+    // ─────────────────────────────────────────────
+
+    void start()
+    {
+        SDA_AsOutputOD();
+        sda_high();
+        scl_high();
+        delay();
+        sda_low();
+        delay();
+        scl_low();
+    }
+
+    void stop()
+    {
+        SDA_AsOutputOD();
+        sda_low();
+        delay();
+        scl_high();
+        delay();
+        sda_high();
+        delay();
+    }
+
+    void write_byte(uint8_t b)
+    {
+        SDA_AsOutputOD();
+
+        for (int i = 0; i < 8; ++i)
+        {
+            (b & 0x80) ? sda_high() : sda_low();
+            delay();
+            scl_high(); delay();
+            scl_low();  delay();
+            b <<= 1;
+        }
+
+        // ACK ignored
+        sda_high();
+        delay();
+        scl_high();
+        delay();
+        scl_low();
+    }
+
+    uint8_t read_byte()
+    {
+        uint8_t v = 0;
+
+        SDA_AsInput(); // release SDA
+
+        for (int i = 0; i < 8; ++i)
+        {
+            v <<= 1;
+            scl_high(); delay();
+            if (sda_read()) v |= 1;
+            scl_low(); delay();
+        }
+
+        // NACK
+        SDA_AsOutputOD();
+        sda_high();
+        delay();
+        scl_high();
+        delay();
+        scl_low();
+
+        return v;
+    }
+
+private:
+    SCLPin scl_;
+    SDAPin sda_;
+
+    static inline void delay()
+    {
+        for (volatile uint32_t i = 0; i < DelayCycles; ++i);
+    }
+
+    inline void scl_high() const { scl_.high();}
+    inline void scl_low()  const { scl_.low();}
+    inline void sda_high() const { sda_.high();}
+    inline void sda_low()  const { sda_.low();}
+    inline bool sda_read() const { return sda_.read(); }
+};
+
+#endif // __SCCB_HPP__
