@@ -50,6 +50,7 @@
 #include "Trigger.hpp"
 #include "TaskMLX90640.hpp"
 #include "CameraSwitch.hpp"
+#include "CameraPowerRails.hpp"
 
 #include "au.hh"
 #include "au.hpp"
@@ -283,21 +284,30 @@ void cppmain()
 
 	HAL_GPIO_WritePin(ENABLE_1V5_GPIO_Port, ENABLE_1V5_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(ENABLE_2V8_GPIO_Port, ENABLE_2V8_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(I2C1_RST_GPIO_Port, I2C1_RST_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(I2C1_RST_GPIO_Port, I2C1_RST_Pin, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(ENABLE_A_GPIO_Port, ENABLE_A_Pin, GPIO_PIN_RESET);
+//	HAL_GPIO_WritePin(ENABLE_B_GPIO_Port, ENABLE_B_Pin, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(ENABLE_C_GPIO_Port, ENABLE_C_Pin, GPIO_PIN_SET);
+
+	using RailA = GpioPin<GPIOD_BASE, ENABLE_A_Pin>;
+	using RailB = GpioPin<GPIOD_BASE, ENABLE_B_Pin>;
+	using RailC = GpioPin<GPIOD_BASE, ENABLE_C_Pin>;
+	CameraPowerRails<RailA, RailB, RailC> camera_power_rails;
+	camera_power_rails.disable(Rail::A);
+	camera_power_rails.enable(Rail::B);
+	camera_power_rails.enable(Rail::C);
 
 	HAL_GPIO_WritePin(GPIOC, CAMERA_HW_CLK_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, CAMERA_PWR_DN_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOB, CAMERA_RST_Pin, GPIO_PIN_SET);
 
 	HAL_Delay(5);
-	constexpr uint8_t CAMERA_SWITCH = 0x70;
-	using I2CSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
+	using I2CSwitchConfig = I2C_Stream_Config<hi2c1, TCA9546A_ADDRESS>;
 	using I2CSwitchTransport = I2CStreamTransport<I2CSwitchConfig>;
+	using I2CSwitchReset = GpioPin<GPIOB_BASE, I2C1_RST_Pin>;
 	I2CSwitchTransport i2c_switch_transport;
-	I2CSwitch<I2CSwitchTransport> camera_switch(i2c_switch_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin);
+	I2CSwitch<I2CSwitchTransport, I2CSwitchReset> camera_switch(i2c_switch_transport);
+	camera_switch.releaseReset();
 
 //	HAL_Delay(5);
 //	constexpr uint8_t CAMERA_SWITCH = 0x70;
@@ -421,7 +431,7 @@ void cppmain()
 		uint8_t data = 0;
 		HAL_I2C_StateTypeDef state = HAL_I2C_GetState(&hi2c1);
 		HAL_I2C_ModeTypeDef mode = HAL_I2C_GetMode(&hi2c1);
-		HAL_StatusTypeDef code = HAL_I2C_Master_Receive(&hi2c1, CAMERA_SWITCH << 1, &data, 1, 100);
+		HAL_StatusTypeDef code = HAL_I2C_Master_Receive(&hi2c1, TCA9546A_ADDRESS << 1, &data, 1, 100);
 		uint32_t error = HAL_I2C_GetError(&hi2c1);
 
 		uint8_t camera2_id_h, camera2_id_l;

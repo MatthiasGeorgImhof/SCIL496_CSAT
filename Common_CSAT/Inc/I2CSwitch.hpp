@@ -2,30 +2,37 @@
 #define _I2C_SWITCH_HPP_
 
 #include "Transport.hpp"
+#include "GpioPin.hpp"
 #include <cstdint>
 
-// TCA9546A channel definitions
 enum class I2CSwitchChannel : uint8_t
 {
-    None     = 0x00, // No channel selected
-    Channel0 = 0x01, // SD0/SC0
-    Channel1 = 0x02, // SD1/SC1
-    Channel2 = 0x04, // SD2/SC2
-    Channel3 = 0x08  // SD3/SC3
+    None     = 0x00,
+    Channel0 = 0x01,
+    Channel1 = 0x02,
+    Channel2 = 0x04,
+    Channel3 = 0x08,
+    Channel4 = 0x10,
+    Channel5 = 0x20,
+    Channel6 = 0x40,
+    Channel7 = 0x80
 };
 
-template <typename Transport>
+constexpr uint8_t TCA9546A_ADDRESS = 0x70;
+constexpr uint8_t TCA9548A_ADDRESS = 0x70;
+
+template <typename Transport, typename ResetPin>
     requires StreamAccessTransport<Transport>
 class I2CSwitch
 {
 public:
     I2CSwitch() = delete;
 
-    explicit I2CSwitch(const Transport& transport, GPIO_TypeDef* resetPort, uint16_t resetPin)
-        : transport_(transport), reset_port_(resetPort), reset_pin_(resetPin)
-    {
-        releaseReset(); // Ensure switch is active on init
-    }
+    explicit I2CSwitch(const Transport& transport)
+        : transport_(transport), reset_{} {}
+
+    I2CSwitch(const Transport& transport, const ResetPin& reset)
+    : transport_(transport), reset_(reset) {}
 
     bool select(I2CSwitchChannel channel)
     {
@@ -41,25 +48,22 @@ public:
 
     void holdReset()
     {
-        HAL_GPIO_WritePin(reset_port_, reset_pin_, GPIO_PIN_RESET);
+        reset_.low();
     }
 
     void releaseReset()
     {
-        HAL_GPIO_WritePin(reset_port_, reset_pin_, GPIO_PIN_SET);
+        reset_.high();
     }
 
-    uint8_t status()
+    bool status(uint8_t& out)
     {
-    	uint8_t reg = 0;
-    	transport_.read(&reg, 1);
-    	return reg;
+        return transport_.read(&out, 1);
     }
 
 private:
     const Transport& transport_;
-    GPIO_TypeDef* reset_port_;
-    uint16_t reset_pin_;
+    ResetPin reset_;
 };
 
 #endif // _I2C_SWITCH_HPP_

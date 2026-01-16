@@ -4,26 +4,30 @@
 #include "mock_hal.h"
 #include "Transport.hpp"
 
+// A mock reset pin using the GpioPin template
+constexpr uint32_t MOCK_RESET_PIN_PORT = 0x1243; // Port ignored by mock HAL
+using MockResetPin = GpioPin<MOCK_RESET_PIN_PORT, GPIO_PIN_0>;   // Port ignored by mock HAL
+
 TEST_CASE("I2CSwitch channel selection and disable")
 {
     static I2C_HandleTypeDef hi2c;
     constexpr uint8_t address = 0x70; // TCA9546A default address
 
-    GPIO_TypeDef mock_gpio_port = {};
-    constexpr uint16_t mock_gpio_pin = GPIO_PIN_0;
-
-    using SwitchConfig = I2C_Stream_Config<hi2c, address>;
+    using SwitchConfig    = I2C_Stream_Config<hi2c, address>;
     using SwitchTransport = I2CStreamTransport<SwitchConfig>;
     SwitchTransport transport;
-    I2CSwitch<SwitchTransport> switcher(transport, &mock_gpio_port, mock_gpio_pin);
+
+    // Instantiate switch with mock reset pin
+    I2CSwitch<SwitchTransport, MockResetPin> switcher(transport);
 
     clear_i2c_rx_data();
     clear_i2c_tx_data();
     clear_i2c_addresses();
-    
-    SUBCASE("Constructor sets reset pin high")
+    reset_gpio_port_state(nullptr);
+
+    SUBCASE("Reset pin defaults high after construction")
     {
-        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_SET);
+        CHECK(get_gpio_pin_state(nullptr, GPIO_PIN_0) == GPIO_PIN_RESET);
     }
 
     SUBCASE("Status readback returns last read value")
@@ -31,12 +35,10 @@ TEST_CASE("I2CSwitch channel selection and disable")
         clear_i2c_rx_data();
 
         uint8_t expected = 0xAB;
-
-        // HAL_I2C_Master_Receive uses the 8-bit shifted address
         inject_i2c_rx_data(address << 1, &expected, 1);
 
-        uint8_t result = switcher.status();
-
+        uint8_t result = 0;
+        CHECK(switcher.status(result) == true);
         CHECK(result == expected);
     }
 
@@ -82,17 +84,17 @@ TEST_CASE("I2CSwitch channel selection and disable")
         CHECK(get_i2c_tx_buffer()[0] == 0x00);
     }
 
-    SUBCASE("Reset pin is set high on releaseReset")
+    SUBCASE("Reset pin goes high on releaseReset")
     {
-        switcher.holdReset(); // simulate prior state
+        switcher.holdReset();
         switcher.releaseReset();
-        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_SET);
+        CHECK(get_gpio_pin_state(nullptr, GPIO_PIN_0) == GPIO_PIN_SET);
     }
 
-    SUBCASE("Reset pin is set low on holdReset")
+    SUBCASE("Reset pin goes low on holdReset")
     {
-        switcher.releaseReset(); // simulate prior state
+        switcher.releaseReset();
         switcher.holdReset();
-        CHECK(get_gpio_pin_state(&mock_gpio_port, mock_gpio_pin) == GPIO_PIN_RESET);
+        CHECK(get_gpio_pin_state(nullptr, GPIO_PIN_0) == GPIO_PIN_RESET);
     }
 }
