@@ -28,6 +28,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestBoxSet.cpp \
 			 TestBoxSetIterator.cpp \
 			 TestBufferState.cpp \
+			 TestCameraPowerRails.cpp \
 			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCoordinateTransformations.cpp \
@@ -348,6 +349,15 @@ $(BIN_DIR)/TestCameraSwitch.o : TestCameraSwitch.cpp
 $(BIN_DIR)/TestCameraSwitch : $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestCameraPowerRails with extra sources
+$(BIN_DIR)/TestCameraPowerRails.o : TestCameraPowerRails.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestCameraPowerRails : $(BIN_DIR)/TestCameraPowerRails.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraPowerRails.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestTransport with extra sources
 $(BIN_DIR)/TestTransport.o : TestTransport.cpp
