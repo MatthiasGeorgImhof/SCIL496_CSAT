@@ -58,7 +58,6 @@
 
 #include "Logger.hpp"
 #include "SCCB.hpp"
-#include "SCCB_legacy.hpp"
 
 constexpr size_t O1HEAP_SIZE = 65536;
 uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
