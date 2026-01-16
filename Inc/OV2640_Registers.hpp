@@ -4,7 +4,7 @@
 #include <cstdint>
 
 // OV2640 default SCCB address (7-bit)
-constexpr uint8_t OV2640_ID = 0x30;   // 0x60 write, 0x61 read
+constexpr uint8_t OV2640_ADDRESS = 0x30;   // 0x60 write, 0x61 read
 
 // OV2640 uses 8-bit register addresses
 enum class OV2640_Register : uint8_t
@@ -98,10 +98,10 @@ enum class OV2640_ModeID : uint8_t {
 };
 
 // OV2640 output formats
-enum class OV2640_FormatID : uint8_t {
-    YUV422 = 0,
-    RGB565 = 1,
-    JPEG   = 2
+enum class OV2640_FormatValue : uint8_t {
+    YUV422 = 0x30,
+    RGB565 = 0x61,
+    JPEG   = 0x10
 };
 
 // OV2640 color effects
@@ -114,5 +114,12 @@ enum class OV2640_ColorEffectID : uint8_t {
     BlueTint  = 0xA0,
     Sepia     = 0xC0
 };
+
+enum class OV2640_TestPattern : uint8_t {
+    Disabled = 0x00,
+    ColorBar = 0x02
+};
+
+constexpr uint8_t OV2640_COM7_SRST = 0x80;
 
 #endif // _OV2640_REGISTERS_HPP_

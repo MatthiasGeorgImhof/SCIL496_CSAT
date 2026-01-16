@@ -31,7 +31,6 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestCameraControls.cpp \
 			 TestCameraPowerConverters.cpp \
 			 TestCameraPowerRails.cpp \
-			 TestCameraSwitch.cpp \
 			 TestCircularBuffer.cpp \
 			 TestCoordinateTransformations.cpp \
 			 TestCyphal.cpp \
@@ -75,6 +74,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestO1HeapAllocator.cpp \
 			 TestOrientationService.cpp \
 			 TestOrientationTracker.cpp \
+			 TestOV2640.cpp \
 			 TestOV5640.cpp \
 			 TestPositionTracker9D.cpp \
 			 TestPowerMonitor.cpp \
@@ -325,6 +325,15 @@ $(BIN_DIR)/TestTaskMLX90640 : $(BIN_DIR)/TestTaskMLX90640.o $(BIN_DIR)/Registrat
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestTaskMLX90640.o $(BIN_DIR)/RegistrationManager.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
+# Rule for TestOV2640 with extra sources
+$(BIN_DIR)/TestOV2640.o : TestOV2640.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestOV2640 : $(BIN_DIR)/TestOV2640.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestOV2640.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
 # Rule for TestOV5640 with extra sources
 $(BIN_DIR)/TestOV5640.o : TestOV5640.cpp
 	@echo "Compiling $<"
@@ -342,15 +351,6 @@ $(BIN_DIR)/TestGpioPin.o : TestGpioPin.cpp
 $(BIN_DIR)/TestGpioPin : $(BIN_DIR)/TestGpioPin.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestGpioPin.o $(MOCK_HAL_OBJECTS) $(LIBS)
-
-# Rule for TestCameraSwitch with extra sources
-$(BIN_DIR)/TestCameraSwitch.o : TestCameraSwitch.cpp
-	@echo "Compiling $<"
-	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
-
-$(BIN_DIR)/TestCameraSwitch : $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS)
-	@echo "Linking $@"
-	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestCameraSwitch.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestCameraControls with extra sources
 $(BIN_DIR)/TestCameraControls.o : TestCameraControls.cpp

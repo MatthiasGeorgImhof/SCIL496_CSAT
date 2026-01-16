@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-constexpr uint8_t OV5640_ID = 0x3c;
+constexpr uint8_t OV5640_ADDRESS = 0x3c;
 
 enum class OV5640_Register : uint16_t
 {

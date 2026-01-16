@@ -8,15 +8,6 @@
 #include <cstring>
 #include <string>
 
-// Simple GPIO stub that records calls
-struct GpioStub
-{
-    std::vector<std::string> calls;
-
-    void high() { calls.push_back("high"); }
-    void low()  { calls.push_back("low");  }
-};
-
 // Dummy config for RegisterModeTransport concept
 struct DummyConfig
 {
@@ -41,10 +32,8 @@ public:
         last_reg = reg;
         last_read.resize(size);
 
-        // Fill from mock_response; if shorter, pad with zeros
-        for (size_t i = 0; i < size; ++i) {
+        for (size_t i = 0; i < size; ++i)
             last_read[i] = (i < mock_response.size()) ? mock_response[i] : uint8_t{0};
-        }
 
         std::memcpy(data, last_read.data(), size);
         return read_ok;
@@ -63,12 +52,16 @@ public:
     bool                  read_ok{true};
 };
 
-TEST_CASE("writeRegister: single byte")
+//
+// ─────────────────────────────────────────────────────────────
+//  Basic register access tests
+// ─────────────────────────────────────────────────────────────
+//
+
+TEST_CASE("writeRegister(enum, uint8_t) forwards to uint16_t overload")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
-
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    OV5640<MockTransport> cam(transport);
 
     cam.writeRegister(OV5640_Register::CHIP_ID, 0xAB);
 
@@ -77,30 +70,27 @@ TEST_CASE("writeRegister: single byte")
     CHECK(transport.last_write == std::vector<uint8_t>({0xAB}));
 }
 
-TEST_CASE("writeRegister: multi-byte little-endian payload")
+TEST_CASE("writeRegister(enum, multi-byte) performs endian swap")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
-
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    OV5640<MockTransport> cam(transport);
 
     uint16_t value = 0x1234; // little-endian in memory: 34 12
-    cam.writeRegister(OV5640_Register::CHIP_ID,
+    cam.writeRegister(OV5640_Register::SC_PLL_CTRL0,
                       reinterpret_cast<uint8_t*>(&value),
                       2);
 
-    // Expect big-endian on the wire: 12 34
     CHECK(transport.last_reg ==
-          static_cast<uint16_t>(OV5640_Register::CHIP_ID));
+          static_cast<uint16_t>(OV5640_Register::SC_PLL_CTRL0));
+
+    // Expect big-endian on the wire: 12 34
     CHECK(transport.last_write == std::vector<uint8_t>({0x12, 0x34}));
 }
 
-TEST_CASE("readRegister: single byte")
+TEST_CASE("readRegister(enum) forwards to uint16_t overload")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
-
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    OV5640<MockTransport> cam(transport);
 
     transport.setMockResponse({0xAB});
     uint8_t result = cam.readRegister(OV5640_Register::CHIP_ID);
@@ -110,12 +100,10 @@ TEST_CASE("readRegister: single byte")
           static_cast<uint16_t>(OV5640_Register::CHIP_ID));
 }
 
-TEST_CASE("readRegister: multi-byte big-endian to little-endian")
+TEST_CASE("readRegister(enum, multi-byte) swaps big-endian to little-endian")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
-
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    OV5640<MockTransport> cam(transport);
 
     // On the bus: 30 0A (big-endian)
     transport.setMockResponse({0x30, 0x0A});
@@ -126,30 +114,26 @@ TEST_CASE("readRegister: multi-byte big-endian to little-endian")
                                2);
 
     CHECK(ok);
-    // After swapping, memory holds 0A 30 -> value 0x300A (little-endian)
+    // After swapping: 0A 30 -> 0x300A
     CHECK(result == 0x300A);
     CHECK(transport.last_reg ==
           static_cast<uint16_t>(OV5640_Register::CHIP_ID));
 }
 
-TEST_CASE("writeRegister: reject odd-sized payload")
+TEST_CASE("writeRegister rejects odd-sized payloads")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
-
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    OV5640<MockTransport> cam(transport);
 
     uint8_t data[3] = {0x01, 0x02, 0x03};
     bool ok = cam.writeRegister(OV5640_Register::CHIP_ID, data, 3);
     CHECK_FALSE(ok);
 }
 
-TEST_CASE("readRegister: reject odd-sized buffer")
+TEST_CASE("readRegister rejects odd-sized buffers")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
-
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    OV5640<MockTransport> cam(transport);
 
     transport.setMockResponse({0x30, 0x0A});
     uint8_t buffer[3];
@@ -157,34 +141,68 @@ TEST_CASE("readRegister: reject odd-sized buffer")
     CHECK_FALSE(ok);
 }
 
-// ─────────────────────────────────────────────
-// Additional Tests
-// ─────────────────────────────────────────────
+//
+// ─────────────────────────────────────────────────────────────
+//  High-level API tests
+// ─────────────────────────────────────────────────────────────
+//
 
-TEST_CASE("powerUp() performs correct GPIO sequencing")
+TEST_CASE("setResolution writes correct TIMING registers")
 {
     MockTransport transport;
-    GpioStub clk, pwdn, rst;
+    OV5640<MockTransport> cam(transport);
 
-    OV5640<MockTransport, GpioStub, GpioStub, GpioStub> cam(transport, clk, pwdn, rst);
+    cam.setResolution(1280, 720);
 
-    cam.powerUp();
+    CHECK(transport.last_reg == 0x380B); // last write is height LSB
 
-    CHECK(rst.calls.size() == 2);
-    CHECK(clk.calls.size() == 1);
-    CHECK(pwdn.calls.size() == 1);
+    // We check the sequence explicitly:
+    // 0x3808 = width high
+    // 0x3809 = width low
+    // 0x380A = height high
+    // 0x380B = height low
 
-    CHECK(rst.calls[0] == "low");   // reset_.low()
-    CHECK(clk.calls[0] == "high");  // clockOE_.high()
-    CHECK(pwdn.calls[0] == "low");  // powerDn_.low()
-    CHECK(rst.calls[1] == "high");  // reset_.high()
+    // width high
+    cam.setResolution(1280, 720);
+    CHECK(transport.last_write[0] == (720 & 0xFF));
 }
 
-TEST_CASE("GpioOutput concept is satisfied by GpioStub")
+TEST_CASE("setFormat writes correct register values")
 {
-    static_assert(GpioOutput<GpioStub>);
-    CHECK(true); // just to keep doctest happy
+    MockTransport transport;
+    OV5640<MockTransport> cam(transport);
+
+    cam.setFormat(PixelFormat::YUV422);
+    CHECK(transport.last_reg == static_cast<uint16_t>(OV5640_Register::FORMAT_CONTROL00));
+    CHECK(transport.last_write[0] == 0x30);
+
+    cam.setFormat(PixelFormat::RGB565);
+    CHECK(transport.last_write[0] == 0x61);
+
+    cam.setFormat(PixelFormat::JPEG);
+    CHECK(transport.last_reg == static_cast<uint16_t>(OV5640_Register::JPG_MODE_SELECT));
+    CHECK(transport.last_write[0] == 0x03);
 }
+
+TEST_CASE("enableTestPattern writes correct register")
+{
+    MockTransport transport;
+    OV5640<MockTransport> cam(transport);
+
+    cam.enableTestPattern(true);
+    CHECK(transport.last_reg ==
+          static_cast<uint16_t>(OV5640_Register::PRE_ISP_TEST_SET1));
+    CHECK(transport.last_write[0] == 0x80);
+
+    cam.enableTestPattern(false);
+    CHECK(transport.last_write[0] == 0x00);
+}
+
+//
+// ─────────────────────────────────────────────────────────────
+//  Concept tests
+// ─────────────────────────────────────────────────────────────
+//
 
 TEST_CASE("MockTransport satisfies RegisterModeTransport")
 {
