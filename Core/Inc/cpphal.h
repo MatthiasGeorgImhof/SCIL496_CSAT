@@ -17,7 +17,7 @@ extern I2C_HandleTypeDef hi2c4;
 
 extern RTC_HandleTypeDef hrtc;
 
-extern DCMI_HandleTypeDef hdcmi;
+//extern DCMI_HandleTypeDef hdcmi;
 
 extern GPIO_TypeDef GPIOA_object;
 extern GPIO_TypeDef GPIOB_object;

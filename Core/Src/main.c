@@ -47,8 +47,6 @@ ADC_HandleTypeDef hadc1;
 CAN_HandleTypeDef hcan1;
 CAN_HandleTypeDef hcan2;
 
-DCMI_HandleTypeDef hdcmi;
-
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 I2C_HandleTypeDef hi2c4;
@@ -72,7 +70,6 @@ static void MX_DMA_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_CAN2_Init(void);
 static void MX_I2C4_Init(void);
-static void MX_DCMI_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_RTC_Init(void);
@@ -124,7 +121,6 @@ int main(void)
   MX_CAN2_Init();
   MX_USB_DEVICE_Init();
   MX_I2C4_Init();
-  MX_DCMI_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_RTC_Init();
@@ -174,7 +170,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
   RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 8;
+  RCC_OscInitStruct.PLL.PLLN = 16;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -192,7 +188,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -225,7 +221,7 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV128;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV16;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
@@ -341,43 +337,6 @@ static void MX_CAN2_Init(void)
   /* USER CODE BEGIN CAN2_Init 2 */
 
   /* USER CODE END CAN2_Init 2 */
-
-}
-
-/**
-  * @brief DCMI Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DCMI_Init(void)
-{
-
-  /* USER CODE BEGIN DCMI_Init 0 */
-
-  /* USER CODE END DCMI_Init 0 */
-
-  /* USER CODE BEGIN DCMI_Init 1 */
-
-  /* USER CODE END DCMI_Init 1 */
-  hdcmi.Instance = DCMI;
-  hdcmi.Init.SynchroMode = DCMI_SYNCHRO_HARDWARE;
-  hdcmi.Init.PCKPolarity = DCMI_PCKPOLARITY_FALLING;
-  hdcmi.Init.VSPolarity = DCMI_VSPOLARITY_LOW;
-  hdcmi.Init.HSPolarity = DCMI_HSPOLARITY_LOW;
-  hdcmi.Init.CaptureRate = DCMI_CR_ALL_FRAME;
-  hdcmi.Init.ExtendedDataMode = DCMI_EXTEND_DATA_8B;
-  hdcmi.Init.JPEGMode = DCMI_JPEG_DISABLE;
-  hdcmi.Init.ByteSelectMode = DCMI_BSM_ALL;
-  hdcmi.Init.ByteSelectStart = DCMI_OEBS_ODD;
-  hdcmi.Init.LineSelectMode = DCMI_LSM_ALL;
-  hdcmi.Init.LineSelectStart = DCMI_OELS_ODD;
-  if (HAL_DCMI_Init(&hdcmi) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DCMI_Init 2 */
-
-  /* USER CODE END DCMI_Init 2 */
 
 }
 
@@ -605,10 +564,10 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -631,6 +590,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(CAMERA_HW_CLK_GPIO_Port, CAMERA_HW_CLK_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pins : PA4 PA6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA5 PA7 */
   GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_7;
@@ -733,6 +698,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(CAMERA_HW_CLK_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 

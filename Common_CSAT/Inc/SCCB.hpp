@@ -180,7 +180,7 @@ public:
 #ifndef __arm__
         for (uint32_t i = 0; i < DelayCycles; ++i) {}
 #else
-        for (volatile uint32_t i = 0; i < DelayCycles; ++i) {}
+        for (uint32_t i = 0; i < DelayCycles; ++i) { __asm__ volatile("nop"); }
 #endif
     }
 
