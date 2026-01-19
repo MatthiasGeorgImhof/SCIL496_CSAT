@@ -107,7 +107,7 @@ public:
     // GPIO mode control for SDA
     void sda_as_input()
     {
-        GPIO_InitTypeDef GPIO_InitStruct = {0};
+        GPIO_InitTypeDef GPIO_InitStruct{};
         GPIO_InitStruct.Pin = SDAPin::pin;
         GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -116,7 +116,7 @@ public:
 
     void sda_as_output_od()
     {
-        GPIO_InitTypeDef GPIO_InitStruct = {0};
+        GPIO_InitTypeDef GPIO_InitStruct{};
         GPIO_InitStruct.Pin = SDAPin::pin;
         GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -127,7 +127,7 @@ public:
     // Configure both pins for SCCB bit‑bang mode
     void reconfigure_pins_to_sccb()
     {
-        GPIO_InitTypeDef GPIO_InitStruct = {0};
+        GPIO_InitTypeDef GPIO_InitStruct{};
 
         __HAL_RCC_GPIOB_CLK_ENABLE();
 
@@ -152,7 +152,7 @@ public:
     // Restore pins to I2C peripheral mode
     void reconfigure_pins_to_i2c()
     {
-        GPIO_InitTypeDef GPIO_InitStruct = {0};
+        GPIO_InitTypeDef GPIO_InitStruct{};
 
         __HAL_RCC_GPIOB_CLK_ENABLE();
 
@@ -180,7 +180,9 @@ public:
 #ifndef __arm__
         for (uint32_t i = 0; i < DelayCycles; ++i) {}
 #else
-        for (volatile uint32_t i = 0; i < DelayCycles; ++i) {}
+        for (uint32_t i = 0; i < DelayCycles; ++i) {
+            __asm__ volatile("nop");
+        }
 #endif
     }
 
