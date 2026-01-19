@@ -311,22 +311,33 @@ void cppmain()
 	I2CSwitch<I2CSwitchTransport, I2CSwitchReset> camera_switch(i2c_switch_transport);
 	camera_switch.releaseReset();
 
-	using SCL0 = GpioPin<GPIOB_BASE, GPIO_PIN_8>;
-	using SDA0 = GpioPin<GPIOB_BASE, GPIO_PIN_9>;
+//	using SCL0 = GpioPin<GPIOB_BASE, GPIO_PIN_8>;
+//	using SDA0 = GpioPin<GPIOB_BASE, GPIO_PIN_9>;
+//
+//	using SCCB1Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
+//	SCCB1Bus sccb1{};
+//	using OV5640Config = SCCBRegisterConfig<SCCB1Bus, OV5640_ADDRESS, SCCBAddressWidth::Bits16>;
+//	using Camera1Transport = SCCB_Register_Transport<OV5640Config, SCCB1Bus>;
+//	Camera1Transport cam1_transport{sccb1};
+//	OV5640<Camera1Transport> cam1(cam1_transport);
+//
+//	using SCCB2Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
+//	SCCB2Bus sccb2{};
+//	using OV2640Config = SCCBRegisterConfig< SCCB2Bus, OV2640_ADDRESS, SCCBAddressWidth::Bits8 >;
+//	using Camera2Transport = SCCB_Register_Transport<OV2640Config,  SCCB2Bus>;
+//	Camera2Transport cam2_transport{sccb2};
+//	OV2640<Camera2Transport> cam2(cam2_transport);
 
-	using SCCB1Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
-	SCCB1Bus sccb1{};
-	using OV5640Config = SCCBRegisterConfig<SCCB1Bus, OV5640_ADDRESS, SCCBAddressWidth::Bits16>;
-	using Camera1Transport = SCCB_Register_Transport<OV5640Config, SCCB1Bus>;
-	Camera1Transport cam1_transport{sccb1};
+	using OV5640Config = I2C_Register_Config<hi2c1, OV5640_ADDRESS, I2CAddressWidth::Bits16>;
+	using Camera1Transport = I2CRegisterTransport<OV5640Config>;
+	Camera1Transport cam1_transport{};
 	OV5640<Camera1Transport> cam1(cam1_transport);
 
-	using SCCB2Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
-	SCCB2Bus sccb2{};
-	using OV2640Config = SCCBRegisterConfig< SCCB2Bus, OV2640_ADDRESS, SCCBAddressWidth::Bits8 >;
-	using Camera2Transport = SCCB_Register_Transport<OV2640Config,  SCCB2Bus>;
-	Camera2Transport cam2_transport{sccb2};
+	using OV2640Config = I2C_Register_Config<hi2c1, OV2640_ADDRESS, I2CAddressWidth::Bits8 >;
+	using Camera2Transport = I2CRegisterTransport<OV2640Config>;
+	Camera2Transport cam2_transport{};
 	OV2640<Camera2Transport> cam2(cam2_transport);
+
 
 	//	constexpr uint8_t THERMO_I2C_ADR = 0x33;
 	//    using MLX90640Config = I2C_Register_Config<hi2c2, THERMO_I2C_ADR, I2CAddressWidth::Bits16>;
@@ -410,18 +421,18 @@ void cppmain()
 		uint8_t camera2_id_h, camera2_id_l;
 		camera_switch.select(I2CSwitchChannel::Channel2);
 		HAL_Delay(10);
-		sccb2.reconfigure_pins_to_sccb();
+//		sccb2.reconfigure_pins_to_sccb();
 		cam2_transport.read_reg(0x0A, &camera2_id_h, 1);
 		cam2_transport.read_reg(0x0B, &camera2_id_l, 1);
-		sccb2.reconfigure_pins_to_i2c();
+//		sccb2.reconfigure_pins_to_i2c();
 
 		uint8_t camera1_id_h, camera1_id_l;
 		camera_switch.select(I2CSwitchChannel::Channel1);
 		HAL_Delay(10);
-		sccb1.reconfigure_pins_to_sccb();
+//		sccb1.reconfigure_pins_to_sccb();
 		cam1_transport.read_reg(0x300A, &camera1_id_h, 1);
 		cam1_transport.read_reg(0x300B, &camera1_id_l, 1);
-		sccb1.reconfigure_pins_to_i2c();
+//		sccb1.reconfigure_pins_to_i2c();
 
 		char buffer[256];
 		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
