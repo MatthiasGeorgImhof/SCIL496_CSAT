@@ -4,10 +4,10 @@
 #include "stm32l4xx_ll_i2c.h"
 
 #include <memory>
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
 
-#include "stdio.h"
-#include "stdint.h"
-#include "string.h"
 #include "usbd_cdc_if.h"
 
 #include "o1heap.h"
@@ -244,17 +244,17 @@ void cppmain()
 	o1heap = o1heapInit(o1heap_buffer, O1HEAP_SIZE);
 	O1HeapAllocator<CanardRxTransfer> alloc(o1heap);
 
-	LoopardAdapter loopard_adapter;
-	Cyphal<LoopardAdapter> loopard_cyphal(&loopard_adapter);
-	loopard_cyphal.setNodeID(cyphal_node_id);
 	using LoopardCyphal = Cyphal<LoopardAdapter>;
+	LoopardAdapter loopard_adapter;
+	LoopardCyphal loopard_cyphal(&loopard_adapter);
+	loopard_cyphal.setNodeID(cyphal_node_id);
 
+	using CanardCyphal = Cyphal<CanardAdapter>;
 	CanardAdapter canard_adapter;
 	canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
 	canard_adapter.que = canardTxInit(512, CANARD_MTU_CAN_CLASSIC);
-	Cyphal<CanardAdapter> canard_cyphal(&canard_adapter);
+	CanardCyphal canard_cyphal(&canard_adapter);
 	canard_cyphal.setNodeID(cyphal_node_id);
-	using CanardCyphal = Cyphal<CanardAdapter>;
 
 
 	//	Logger::setCyphalCanardAdapter(&canard_cyphal);
@@ -311,16 +311,9 @@ void cppmain()
 	I2CSwitch<I2CSwitchTransport, I2CSwitchReset> camera_switch(i2c_switch_transport);
 	camera_switch.releaseReset();
 
-//	HAL_Delay(5);
-//	constexpr uint8_t CAMERA_SWITCH = 0x70;
-//	using CameraSwitchConfig = I2C_Stream_Config<hi2c1, CAMERA_SWITCH>;
-//	using CameraSwitchTransport = I2CStreamTransport<CameraSwitchConfig>;
-//	CameraSwitchTransport cam_sw_transport;
-//	CameraSwitch<CameraSwitchTransport> camera_switch(cam_sw_transport, I2C1_RST_GPIO_Port, I2C1_RST_Pin, ENABLE_A_GPIO_Port, { ENABLE_A_Pin, ENABLE_B_Pin, ENABLE_C_Pin, ENABLE_C_Pin});
-//	camera_switch.select(I2CSwitchChannel::Channel1);
-
 	using SCL0 = GpioPin<GPIOB_BASE, GPIO_PIN_8>;
 	using SDA0 = GpioPin<GPIOB_BASE, GPIO_PIN_9>;
+
 	using SCCB1Bus = STM32_SCCB_Bus<SCL0, SDA0, 200>;
 	SCCB1Bus sccb1{};
 	using OV5640Config = SCCBRegisterConfig<SCCB1Bus, OV5640_ADDRESS, SCCBAddressWidth::Bits16>;
@@ -395,7 +388,7 @@ void cppmain()
 	ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
 
-	uint counter = 0;
+	uint32_t counter = 0;
 	while(1)
 	{
 		log(LOG_LEVEL_TRACE, "while loop: %d\r\n", HAL_GetTick());
