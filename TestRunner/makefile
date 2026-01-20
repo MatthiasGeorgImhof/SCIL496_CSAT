@@ -42,6 +42,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestGNSS.cpp \
 			 TestGpioPin.cpp \
 			 TestHalUtil.cpp \
+			 TestHeapAllocation.cpp \
 			 TestHSClockSwitch.cpp \
 			 TestI2CSwitch.cpp \
 			 TestIGRFModel.cpp \
@@ -123,6 +124,7 @@ HAL_TEST_FILES =   tests/test_hal_can.cpp \
 				   tests/test_hal_dcmi.cpp \
 				   tests/test_hal_gpio.cpp \
 				   tests/test_hal_i2c.cpp \
+				   tests/test_hal_irq.cpp \
 				   tests/test_hal_spi.cpp \
 				   tests/test_hal_timer.cpp \
 				   tests/test_hal_uart.cpp \
@@ -157,6 +159,7 @@ MOCK_HAL_SRC_FILES =   ../Src/mock_hal.c \
 					   ../Src/mock_hal/mock_hal_dcmi.c \
 					   ../Src/mock_hal/mock_hal_gpio.c \
 					   ../Src/mock_hal/mock_hal_i2c.c \
+					   ../Src/mock_hal/mock_hal_irq.c \
 					   ../Src/mock_hal/mock_hal_mem.c \
 					   ../Src/mock_hal/mock_hal_rtc.c \
 					   ../Src/mock_hal/mock_hal_spi.c \
@@ -785,6 +788,15 @@ $(BIN_DIR)/TestHalUtil.o : TestHalUtil.cpp
 $(BIN_DIR)/TestHalUtil : $(BIN_DIR)/TestHalUtil.o $(MOCK_HAL_OBJECTS)
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestHalUtil.o $(MOCK_HAL_OBJECTS) $(LIBS)
+
+# Rule for TestHeapAllocation with extra sources
+$(BIN_DIR)/TestHeapAllocation.o : TestHeapAllocation.cpp
+	@echo "Compiling $<"
+	$(CXX) -c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestHeapAllocation : $(BIN_DIR)/TestHeapAllocation.o $(MOCK_HAL_OBJECTS)
+	@echo "Linking $@"
+	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestHeapAllocation.o $(MOCK_HAL_OBJECTS) $(LIBS)
 
 # Rule for TestCoordinateTransformations with extra sources
 $(BIN_DIR)/TestCoordinateTransformations.o : TestCoordinateTransformations.cpp
