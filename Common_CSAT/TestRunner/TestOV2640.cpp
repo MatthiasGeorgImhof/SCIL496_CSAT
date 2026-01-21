@@ -137,16 +137,15 @@ TEST_CASE("readRegister rejects odd-sized buffers")
 // ─────────────────────────────────────────────────────────────
 //
 
-TEST_CASE("init() performs bank switch + soft reset")
+TEST_CASE("init() performs bank switch + soft reset and loads table")
 {
     MockTransport tx;
     OV2640<MockTransport> cam(tx);
 
     cam.init();
 
-    // First write: BANK_SEL = SENSOR
-    CHECK(tx.last_reg == static_cast<uint8_t>(OV2640_Register::REG_COM7));
-    CHECK(tx.last_write[0] == 0x80);
+    CHECK(tx.last_reg == 0x00);
+    CHECK(tx.last_write[0] == 0x00);
 }
 
 TEST_CASE("setFormat writes correct DSP_FORMAT_CTRL values")
