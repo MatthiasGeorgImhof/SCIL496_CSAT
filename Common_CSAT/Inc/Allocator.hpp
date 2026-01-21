@@ -6,6 +6,8 @@
 #include "canard.h"
 #include "cyphal.hpp"
 
+#include "HeapAllocation.hpp"
+
 #include <cstdio>
 #include <cstdint>
 #include <cstring>

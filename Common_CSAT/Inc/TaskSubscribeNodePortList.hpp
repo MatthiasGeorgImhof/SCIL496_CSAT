@@ -46,7 +46,7 @@ void TaskSubscribeNodePortList<Adapters...>::handleTaskImpl()
         if (result != 0)
         {
         	log(LOG_LEVEL_ERROR, "TaskSubscribeNodePortList: deserialization error\r\n");
-        	return;
+        	continue;
         }
 
         char substring[64];

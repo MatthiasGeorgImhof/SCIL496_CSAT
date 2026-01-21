@@ -27,6 +27,7 @@
 #include <CircularBuffer.hpp>
 #include <ArrayList.hpp>
 #include "Allocator.hpp"
+#include "CANCallBacks.hpp"
 #include "RegistrationManager.hpp"
 #include "ServiceManager.hpp"
 #include "SubscriptionManager.hpp"
@@ -52,6 +53,7 @@
 #include "CameraPowerRails.hpp"
 #include "CameraPowerConverters.hpp"
 #include "CameraControls.hpp"
+#include "HeapAllocation.hpp"
 
 #include "au.hh"
 #include "au.hpp"
@@ -60,28 +62,8 @@
 #include "SCCB.hpp"
 
 constexpr size_t O1HEAP_SIZE = 65536;
-uint8_t o1heap_buffer[O1HEAP_SIZE] __attribute__ ((aligned (O1HEAP_ALIGNMENT)));
-O1HeapInstance *o1heap;
-
-void* canardMemoryAllocate(CanardInstance *const /*canard*/, const size_t size)
-{
-	return o1heapAllocate(o1heap, size);
-}
-
-void canardMemoryDeallocate(CanardInstance *const /*canard*/, void *const pointer)
-{
-	o1heapFree(o1heap, pointer);
-}
-
-void* serardMemoryAllocate(void *const /*user_reference*/, const size_t size)
-{
-	return o1heapAllocate(o1heap, size);
-}
-
-void serardMemoryDeallocate(void *const /*user_reference*/, const size_t /*size*/, void *const pointer)
-{
-	o1heapFree(o1heap, pointer);
-};
+using LocalHeap = HeapAllocation<O1HEAP_SIZE>;
+LocalHeap heap;
 
 #ifndef CYPHAL_NODE_ID
 #define CYPHAL_NODE_ID 21
@@ -89,21 +71,7 @@ void serardMemoryDeallocate(void *const /*user_reference*/, const size_t /*size*
 
 constexpr CyphalNodeID cyphal_node_id = CYPHAL_NODE_ID;
 
-constexpr size_t CAN_RX_BUFFER_SIZE = 64;
-CircularBuffer<CanRxFrame, CAN_RX_BUFFER_SIZE> can_rx_buffer;
-
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-	uint32_t num_messages = HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0);
-	log(LOG_LEVEL_TRACE, "HAL_CAN_RxFifo0MsgPendingCallback %d\r\n", num_messages);
-	for(uint32_t n=0; n<num_messages; ++n)
-	{
-		if (can_rx_buffer.is_full()) return;
-
-		CanRxFrame &frame = can_rx_buffer.next();
-		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &frame.header, frame.data);
-	}
-}
+CanardAdapter canard_adapter;
 
 constexpr uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
 constexpr int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
@@ -212,17 +180,20 @@ bool toHexAsciiWords(const uint8_t* data,
 }
 
 template<typename T, typename... Args>
-static void register_task_with_heap(RegistrationManager &rm, O1HeapInstance *heap, Args&&... args)
+static void register_task_with_heap(RegistrationManager& rm, Args&&... args)
 {
-	static O1HeapAllocator<T> alloc(heap);
-	rm.add(allocate_unique_custom<T>(alloc, std::forward<Args>(args)...));
+    static SafeAllocator<T, LocalHeap> alloc;
+    rm.add(allocate_unique_custom<T>(alloc, std::forward<Args>(args)...));
 }
 
 void cppmain()
 {
+	heap.initialize();
+
 	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
 		Error_Handler();
 	}
+//	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
 	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
 	{
 		Error_Handler();
@@ -241,7 +212,7 @@ void cppmain()
 	filter.SlaveStartFilterBank = 0;
 	HAL_CAN_ConfigFilter(&hcan1, &filter);
 
-	o1heap = o1heapInit(o1heap_buffer, O1HEAP_SIZE);
+	O1HeapInstance *o1heap = heap.getO1Heap();
 	O1HeapAllocator<CanardRxTransfer> alloc(o1heap);
 
 	using LoopardCyphal = Cyphal<LoopardAdapter>;
@@ -250,8 +221,7 @@ void cppmain()
 	loopard_cyphal.setNodeID(cyphal_node_id);
 
 	using CanardCyphal = Cyphal<CanardAdapter>;
-	CanardAdapter canard_adapter;
-	canard_adapter.ins = canardInit(&canardMemoryAllocate, &canardMemoryDeallocate);
+	canard_adapter.ins = canardInit(&heap.canardMemoryAllocate, &heap.canardMemoryDeallocate);
 	canard_adapter.que = canardTxInit(512, CANARD_MTU_CAN_CLASSIC);
 	CanardCyphal canard_cyphal(&canard_adapter);
 	canard_cyphal.setNodeID(cyphal_node_id);
@@ -355,35 +325,35 @@ void cppmain()
 	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
 	HAL_Delay(3000);
-	O1HeapAllocator<CyphalTransfer> allocator(o1heap);
+	static SafeAllocator<CyphalTransfer, LocalHeap> allocator;
 	LoopManager loop_manager(allocator);
 
 	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
 	constexpr char node_name[50] = "SCIL496_CSAT";
 
 	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
-	register_task_with_heap<TSHeart>(registration_manager, o1heap, 2000, 100, 0, canard_adapters);
+	register_task_with_heap<TSHeart>(registration_manager, 2000, 100, 0, canard_adapters);
 
 	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
-	register_task_with_heap<TPHeart>(registration_manager, o1heap, 2000, 100, canard_adapters);
+	register_task_with_heap<TPHeart>(registration_manager, 2000, 100, canard_adapters);
 
 	using TSendNodeList = TaskSendNodePortList<CanardCyphal>;
-	register_task_with_heap<TSendNodeList>(registration_manager, o1heap, &registration_manager, 10000, 100, 0, canard_adapters);
+	register_task_with_heap<TSendNodeList>(registration_manager, &registration_manager, 10000, 100, 0, canard_adapters);
 
 	using TSubscribeNodeList = TaskSubscribeNodePortList<CanardCyphal>;
-	register_task_with_heap<TSubscribeNodeList>(registration_manager, o1heap, &subscription_manager, 10000, 100, canard_adapters);
+	register_task_with_heap<TSubscribeNodeList>(registration_manager, &subscription_manager, 10000, 100, canard_adapters);
 
 	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
-	register_task_with_heap<TRespondInfo>(registration_manager, o1heap, uuid, node_name, 10000, 100, canard_adapters);
+	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
 
 	using TRequestInfo = TaskRequestGetInfo<CanardCyphal>;
-	register_task_with_heap<TRequestInfo>(registration_manager, o1heap, 10000, 100, 13, 0, canard_adapters);
+	register_task_with_heap<TRequestInfo>(registration_manager, 10000, 100, 13, 0, canard_adapters);
 
 	using TBlink = TaskBlinkLED;
-	register_task_with_heap<TBlink>(registration_manager, o1heap, GPIOB, LED1_Pin, 1000, 100);
+	register_task_with_heap<TBlink>(registration_manager, GPIOB, LED1_Pin, 1000, 100);
 
 	using TCheckMem = TaskCheckMemory;
-	register_task_with_heap<TCheckMem>(registration_manager, o1heap, o1heap, 2000, 100);
+	register_task_with_heap<TCheckMem>(registration_manager, o1heap, 2000, 100);
 
 	//	using PowerSwitchType = PowerSwitch<PowerSwitchTransport>;
 	//	using MLX90640Type = MLX90640<MLX90640Transport>;
@@ -434,12 +404,12 @@ void cppmain()
 		cam1_transport.read_reg(0x300B, &camera1_id_l, 1);
 //		sccb1.reconfigure_pins_to_i2c();
 
-		char buffer[256];
-		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
-		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+//		char buffer[256];
+//		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
-		HAL_Delay(250);
+		HAL_Delay(5);
 		++counter;
 	}
 }

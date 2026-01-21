@@ -13,22 +13,25 @@
 #include "ServiceManager.hpp"
 #include "o1heap.h"
 #include "Allocator.hpp"
+#include "CANCallBacks.hpp"
 #include "Logger.hpp"
 
-constexpr size_t SERIAL_MTU = 640;
-constexpr size_t CAN_MTU = 8;
+// constexpr size_t SERIAL_MTU = 640;
+// constexpr size_t CAN_MTU = 8;
 
-struct SerialFrame
-{
-    size_t size;
-    uint8_t data[SERIAL_MTU];
-};
+// struct SerialFrame
+// {
+//     size_t size;
+//     uint8_t data[SERIAL_MTU];
+// };
 
-struct CanRxFrame
-{
-    CAN_RxHeaderTypeDef header;
-    uint8_t data[CAN_MTU];
-};
+// struct CanRxFrame
+// {
+//     CAN_RxHeaderTypeDef header;
+//     uint8_t data[CAN_MTU];
+// };
+
+// extern void drain_canard_tx_queue(CAN_HandleTypeDef *hcan);
 
 template <typename Allocator>
 class LoopManager
@@ -121,33 +124,20 @@ public:
         }
     }
 
-    void CanProcessTxQueue(CanardAdapter *adapter, CAN_HandleTypeDef *hcan)
-    {
-        for (const CanardTxQueueItem *ti = NULL; (ti = canardTxPeek(&adapter->que)) != NULL;)
-        {
-            if (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0)
-                return;
+	void CanProcessTxQueue(CanardAdapter */*adapter*/, CAN_HandleTypeDef *hcan)
+	{
+		// Optional: log queue state before draining
+		// if (adapter->que.size > 0)
+		// {
+		//     log(LOG_LEVEL_DEBUG,
+		//         "CanProcessTxQueue: draining queue, size=%u/%u\r\n",
+		//         adapter->que.size, adapter->que.capacity);
+		// }
 
-            size_t que_capacity = adapter->que.capacity;
-            size_t que_size = adapter->que.size;
-            constexpr size_t BUFFER_SIZE = 256;
-            char hex_string_buffer[BUFFER_SIZE];
-            uchar_buffer_to_hex(static_cast<const unsigned char*>(ti->frame.payload), ti->frame.payload_size, hex_string_buffer, BUFFER_SIZE);
-            log(LOG_LEVEL_TRACE, "LoopManager::CanProcessTxQueue %2d %2d: %4x %s\r\n", que_size, que_capacity, ti->frame.extended_can_id, hex_string_buffer);
-
-            CAN_TxHeaderTypeDef header;
-            header.ExtId = ti->frame.extended_can_id;
-            header.DLC = static_cast<uint8_t>(ti->frame.payload_size);
-            header.RTR = CAN_RTR_DATA;
-            header.IDE = CAN_ID_EXT;
-            uint32_t mailbox;
-            if (HAL_CAN_AddTxMessage(hcan, &header, static_cast<uint8_t *>(const_cast<void *>(ti->frame.payload)), &mailbox) != HAL_OK)
-                return;
-            adapter->ins.memory_free(&adapter->ins, canardTxPop(&adapter->que, ti));
-
-
-        }
-    }
+		drain_canard_tx_queue(hcan);
+	}
 };
+
+
 
 #endif // RX_PROCESSING_HPP
