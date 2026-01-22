@@ -12,26 +12,62 @@
 #include "CircularBuffer.hpp"
 #include "ServiceManager.hpp"
 #include "o1heap.h"
-#include "Allocator.hpp"
-#include "CANCallBacks.hpp"
 #include "Logger.hpp"
 
-// constexpr size_t SERIAL_MTU = 640;
-// constexpr size_t CAN_MTU = 8;
+constexpr size_t SERIAL_MTU = 640;
+struct SerialFrame
+{
+    size_t size;
+    uint8_t data[SERIAL_MTU];
+};
 
-// struct SerialFrame
-// {
-//     size_t size;
-//     uint8_t data[SERIAL_MTU];
-// };
+constexpr size_t CAN_MTU = 8;
+struct CanRxFrame
+{
+    CAN_RxHeaderTypeDef header;
+    uint8_t data[CAN_MTU];
+};
 
-// struct CanRxFrame
-// {
-//     CAN_RxHeaderTypeDef header;
-//     uint8_t data[CAN_MTU];
-// };
+extern CanardAdapter canard_adapter;
 
-// extern void drain_canard_tx_queue(CAN_HandleTypeDef *hcan);
+void drain_canard_tx_queue(CAN_HandleTypeDef *hcan)
+{
+    const CanardTxQueueItem* ti = nullptr;
+
+    while ((ti = canardTxPeek(&canard_adapter.que)) != nullptr)
+    {
+        log(LOG_LEVEL_ERROR,
+            "drain_canard_tx_queue: buffer size=%d\r\n",
+            canard_adapter.que.size);
+
+        if (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0)
+            break;
+
+        CAN_TxHeaderTypeDef header;
+        header.ExtId = ti->frame.extended_can_id;
+        header.DLC   = static_cast<uint8_t>(ti->frame.payload_size);
+        header.RTR   = CAN_RTR_DATA;
+        header.IDE   = CAN_ID_EXT;
+
+        uint32_t mailbox;
+        HAL_StatusTypeDef status =
+            HAL_CAN_AddTxMessage(hcan, &header,
+                                 (uint8_t*)ti->frame.payload,
+                                 &mailbox);
+
+        if (status != HAL_OK)
+        {
+            log(LOG_LEVEL_ERROR,
+                "TX fail in callback, dropping frame extid=%08lx status=%d\r\n",
+                header.ExtId, status);
+        }
+
+        canard_adapter.ins.memory_free(
+            &canard_adapter.ins,
+            canardTxPop(&canard_adapter.que, ti)
+        );
+    }
+}
 
 template <typename Allocator>
 class LoopManager

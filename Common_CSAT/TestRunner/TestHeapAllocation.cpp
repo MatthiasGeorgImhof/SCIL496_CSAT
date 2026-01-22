@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#include "cyphal.hpp"
 #include "HeapAllocation.hpp"
 #include <vector>
 #include <cstring>

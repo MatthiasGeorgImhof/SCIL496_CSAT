@@ -134,6 +134,7 @@ HAL_TEST_FILES =   tests/test_hal_can.cpp \
 SRC_FILES = ../Src/coordiate_transformations.cpp \
 			../Src/coordiate_rotators.cpp \
 			../Src/cyphal.cpp \
+			../Src/CANCallBacks.cpp \
 			../Src/GNSS.cpp \
 			../Src/GNSSCore.cpp \
 			../Src/HSClockSwitch.cpp \
@@ -718,7 +719,11 @@ $(BIN_DIR)/TestMainLoop.o : TestMainLoop.cpp
 	@echo "Compiling $<"
 	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
 
-$(BIN_DIR)/TestMainLoop : $(BIN_DIR)/TestMainLoop.o $(BIN_DIR)/Logger.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/TaskCheckMemory.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/RegistrationManager.o
+$(BIN_DIR)/CANCallBacks.o : ../Src/CANCallBacks.cpp
+	@echo "Compiling $<"
+	$(CXX)	-c $< $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_EXTRA_FLAGS) $(INCLUDE_PATHS) -o $@
+
+$(BIN_DIR)/TestMainLoop : $(BIN_DIR)/TestMainLoop.o $(BIN_DIR)/CANCallBacks.o $(BIN_DIR)/Logger.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/TaskCheckMemory.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/RegistrationManager.o
 	@echo "Linking $@"
 	$(CXX) $(LIBS_PATH) -o $@ $(BIN_DIR)/TestMainLoop.o $(BIN_DIR)/Logger.o $(MOCK_HAL_OBJECTS) $(BIN_DIR)/TaskCheckMemory.o $(BIN_DIR)/TaskBlinkLED.o $(BIN_DIR)/ServiceManager.o $(BIN_DIR)/RegistrationManager.o $(LIBS)
 

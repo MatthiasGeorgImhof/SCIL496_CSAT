@@ -2,7 +2,11 @@
 #define __HEAP_ALLOCATION_HPP__
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <utility>
+
 #include "o1heap.h"
+#include "cyphal.hpp"
 #include "canard.h"
 #include "serard.h"
 #include "udpard.h"
@@ -131,12 +135,22 @@ public:
 		safeDeallocate(pointer);
 	};
 
+	static void *loopardMemoryAllocate(const size_t size)
+	{
+		return safeAllocate(size);
+	}
+
+	static void loopardMemoryDeallocate(void *const pointer)
+	{
+		safeDeallocate(pointer);
+	}
+
 	static O1HeapInstance *getO1Heap()
 	{
 		return o1heap;
 	}
 
-	HeapDiagnostics getDiagnostics() const
+	static HeapDiagnostics getDiagnostics()
 	{
 		O1HeapInstance *inst = getO1Heap();
 		// In production you might assert; in tests we just return zeros if uninitialized.
@@ -165,10 +179,10 @@ template<typename T, typename Heap>
 class SafeAllocator
 {
 public:
-    using value_type = T;
-    using pointer = T*;
-    using const_pointer = const T*;
-    using size_type = std::size_t;
+    using value_type      = T;
+    using pointer         = T*;
+    using const_pointer   = const T*;
+    using size_type       = std::size_t;
     using difference_type = std::ptrdiff_t;
 
     template<typename U>
@@ -186,9 +200,33 @@ public:
         return static_cast<pointer>(Heap::heapAllocate(nullptr, n * sizeof(T)));
     }
 
-    void deallocate(pointer p, size_type)
+    // *** make this const ***
+    void deallocate(pointer p, size_type) const noexcept
     {
         Heap::heapFree(nullptr, p);
+    }
+
+    // *** make this const ***
+    void destroy(pointer p) const
+    {
+        if (!p) return;
+
+        if constexpr (std::is_same_v<T, CyphalTransfer>) {
+            log(LOG_LEVEL_INFO, "destroy CyphalTransfer %p payload %p size %u\r\n",
+                static_cast<void*>(p),
+                p->payload,
+                unsigned(p->payload_size));
+            if (p->payload) {
+                Heap::heapFree(nullptr, p->payload);
+            }
+        }
+        else if constexpr (std::is_same_v<T, CanardRxTransfer>) {
+            if (p->payload) {
+                Heap::heapFree(nullptr, p->payload);
+            }
+        }
+
+        p->~T();
     }
 
     template<typename U>
@@ -198,26 +236,44 @@ public:
     bool operator!=(const SafeAllocator<U, Heap>&) const noexcept { return false; }
 
     struct Deletor {
+        SafeAllocator alloc;
+
         void operator()(T* p) const {
             if (!p) return;
-
-            // Special handling for types that own a heap payload
-            if constexpr (std::is_same_v<T, CyphalTransfer>) {
-                if (p->payload) {
-                    Heap::heapFree(nullptr, p->payload);
-                }
-            } else if constexpr (std::is_same_v<T, CanardRxTransfer>) {
-                if (p->payload) {
-                    Heap::heapFree(nullptr, p->payload);
-                }
-            }
-
-            p->~T();
-            Heap::heapFree(nullptr, p);
+            alloc.destroy(p);      // now OK: destroy is const
+            alloc.deallocate(p, 1);
         }
     };
 
-    Deletor getDeletor() const { return Deletor{}; }
+    Deletor getDeletor() const { return Deletor{*this}; }
 };
+
+// For SafeAllocator<T, Heap>
+template <typename T, typename Heap, typename... Args>
+std::unique_ptr<T, typename SafeAllocator<T, Heap>::Deletor>
+alloc_unique_custom(SafeAllocator<T, Heap> alloc, Args&&... args)
+{
+    using Alloc = SafeAllocator<T, Heap>;
+    T* ptr = alloc.allocate(1);
+    if (ptr != nullptr)
+    {
+        // You can also use std::allocator_traits<Alloc>::construct if you prefer
+        new (ptr) T(std::forward<Args>(args)...);
+    }
+    return std::unique_ptr<T, typename Alloc::Deletor>(ptr, alloc.getDeletor());
+}
+
+template <typename T, typename Heap, typename... Args>
+std::shared_ptr<T>
+alloc_shared_custom(SafeAllocator<T, Heap> alloc, Args&&... args)
+{
+    // This uses SafeAllocator<T, Heap> for both control block and T.
+    // When the shared_ptr refcount hits zero, it will:
+    //   1) call allocator_traits<SafeAllocator>::destroy(alloc, ptr)
+    //   2) call allocator_traits<SafeAllocator>::deallocate(alloc, ptr, 1)
+    //
+    // Our destroy() handles payload cleanup for CyphalTransfer/CanardRxTransfer.
+    return std::allocate_shared<T>(alloc, std::forward<Args>(args)...);
+}
 
 #endif // __HEAP_ALLOCATION_HPP__

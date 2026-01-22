@@ -26,8 +26,6 @@
 
 #include <CircularBuffer.hpp>
 #include <ArrayList.hpp>
-#include "Allocator.hpp"
-#include "CANCallBacks.hpp"
 #include "RegistrationManager.hpp"
 #include "ServiceManager.hpp"
 #include "SubscriptionManager.hpp"
@@ -63,143 +61,77 @@
 
 constexpr size_t O1HEAP_SIZE = 65536;
 using LocalHeap = HeapAllocation<O1HEAP_SIZE>;
-LocalHeap heap;
+
+LoopardAdapter loopard_adapter;
+CanardAdapter canard_adapter;
 
 #ifndef CYPHAL_NODE_ID
 #define CYPHAL_NODE_ID 21
 #endif
-
 constexpr CyphalNodeID cyphal_node_id = CYPHAL_NODE_ID;
 
-CanardAdapter canard_adapter;
+constexpr size_t CAN_RX_BUFFER_SIZE = 64;
+using CAN_Circular_Rx_Buffer = CircularBuffer<CanRxFrame, CAN_RX_BUFFER_SIZE>;
+CAN_Circular_Rx_Buffer can_rx_buffer;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef */*hcan*/)
+{
+//	uint32_t num_messages = HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0);
+////	log(LOG_LEVEL_TRACE, "HAL_CAN_RxFifo0MsgPendingCallback %d\r\n", num_messages);
+//	for(uint32_t n=0; n<num_messages; ++n)
+//	{
+//		if (can_rx_buffer.is_full()) return;
+//
+//		CanRxFrame &frame = can_rx_buffer.next();
+//		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &frame.header, frame.data);
+//	}
+}
+
+void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef */*hcan*/)
+{
+//    log(LOG_LEVEL_TRACE, "HAL_CAN_TxMailbox0CompleteCallback\r\n");
+//    drain_canard_tx_queue(hcan);
+}
+
+void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef */*hcan*/)
+{
+//    log(LOG_LEVEL_TRACE, "HAL_CAN_TxMailbox1CompleteCallback\r\n");
+//    drain_canard_tx_queue(hcan);
+}
+
+void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef */*hcan*/)
+{
+//    log(LOG_LEVEL_TRACE, "HAL_CAN_TxMailbox2CompleteCallback\r\n");
+//    drain_canard_tx_queue(hcan);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
 
 constexpr uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
 constexpr int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
-
-#include <cstdint>
-#include <cstdio>
-
-bool toHexAscii(const uint8_t* data,
-		size_t dataSize,
-		char* out,
-		size_t outSize,
-		size_t bytesPerLine = 16)
-{
-	if (!data || !out || outSize == 0)
-		return false;
-
-	size_t pos = 0;
-
-	for (size_t i = 0; i < dataSize; ++i)
-	{
-		// Format for one byte: "0xNN" + space or newline
-		int written = std::snprintf(
-				out + pos,
-				(pos < outSize ? outSize - pos : 0),
-				"0x%02X",
-				data[i]
-		);
-
-		if (written < 0 || pos + written >= outSize)
-			return false; // buffer too small
-
-		pos += written;
-
-		// Add separator
-		bool endOfLine = ((i + 1) % bytesPerLine == 0);
-		bool lastByte  = (i + 1 == dataSize);
-
-		if (!lastByte)
-		{
-			const char* sep = endOfLine ? "\n" : " ";
-			size_t sepLen = endOfLine ? 1 : 1;
-
-			if (pos + sepLen >= outSize)
-				return false;
-
-			out[pos++] = sep[0];
-		}
-	}
-
-	// Null‑terminate
-	if (pos >= outSize-3)
-		return false;
-
-	out[pos+0] = '\n';
-	out[pos+1] = '\n';
-	out[pos+2] = '\0';
-	return true;
-}
-
-bool toHexAsciiWords(const uint8_t* data,
-		size_t dataSize,
-		char* out,
-		size_t outSize,
-		size_t wordsPerLine)
-{
-	if (!data || !out || outSize == 0 || (dataSize % 2) != 0)
-		return false;
-
-	size_t pos = 0;
-	size_t wordCount = dataSize / 2;
-
-	for (size_t w = 0; w < wordCount; w++)
-	{
-		uint16_t be = (uint16_t(data[2*w]) << 8) | data[2*w + 1];
-
-		int written = std::snprintf(out + pos, outSize - pos, "0x%04X", be);
-		if (written <= 0 || pos + written >= outSize)
-			return false;
-
-		pos += written;
-
-		bool lastWord = (w + 1 == wordCount);
-		bool endOfLine = ((w + 1) % wordsPerLine == 0);
-
-		if (!lastWord)
-		{
-			const char* sep = endOfLine ? ",\r\n" : ", ";
-			size_t sepLen = std::strlen(sep);
-
-			if (pos + sepLen >= outSize)
-				return false;
-
-			std::memcpy(out + pos, sep, sepLen);
-			pos += sepLen;
-		}
-	}
-
-	if (pos + 3 >= outSize)
-		return false;
-
-	out[pos++] = '\r';
-	out[pos++] = '\n';
-	out[pos]   = '\0';
-
-	return true;
-}
 
 template<typename T, typename... Args>
 static void register_task_with_heap(RegistrationManager& rm, Args&&... args)
 {
     static SafeAllocator<T, LocalHeap> alloc;
-    rm.add(allocate_unique_custom<T>(alloc, std::forward<Args>(args)...));
+    rm.add(alloc_unique_custom<T>(alloc, std::forward<Args>(args)...));
 }
 
 void cppmain()
 {
-	heap.initialize();
+	HAL_Delay(3000);
+	HAL_GPIO_WritePin(GPIOA, LED5_Pin, GPIO_PIN_SET);
 
-	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
-		Error_Handler();
-	}
-//	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
-	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	LocalHeap::initialize();
 
-	CAN_FilterTypeDef filter = {};
+	CAN_FilterTypeDef filter{};
 	filter.FilterIdHigh = 0x1fff;
 	filter.FilterIdLow = 0xffff;
 	filter.FilterMaskIdHigh = 0;
@@ -212,16 +144,34 @@ void cppmain()
 	filter.SlaveStartFilterBank = 0;
 	HAL_CAN_ConfigFilter(&hcan1, &filter);
 
-	O1HeapInstance *o1heap = heap.getO1Heap();
-	O1HeapAllocator<CanardRxTransfer> alloc(o1heap);
+	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
+	    Error_Handler();
+	}
+
+	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
+	{
+	    // Error_Handler();
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+		uint32_t counter = 0;
+		while(1)
+		{
+			if ((counter % 30000) == 0)
+			{
+				HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+			}
+			counter++;
+
+		}
+	}
 
 	using LoopardCyphal = Cyphal<LoopardAdapter>;
-	LoopardAdapter loopard_adapter;
+	loopard_adapter.memory_allocate = LocalHeap::loopardMemoryAllocate;
+	loopard_adapter.memory_free = LocalHeap::loopardMemoryDeallocate;
 	LoopardCyphal loopard_cyphal(&loopard_adapter);
 	loopard_cyphal.setNodeID(cyphal_node_id);
 
 	using CanardCyphal = Cyphal<CanardAdapter>;
-	canard_adapter.ins = canardInit(&heap.canardMemoryAllocate, &heap.canardMemoryDeallocate);
+	canard_adapter.ins = canardInit(LocalHeap::canardMemoryAllocate, LocalHeap::canardMemoryDeallocate);
 	canard_adapter.que = canardTxInit(512, CANARD_MTU_CAN_CLASSIC);
 	CanardCyphal canard_cyphal(&canard_adapter);
 	canard_cyphal.setNodeID(cyphal_node_id);
@@ -353,7 +303,8 @@ void cppmain()
 	register_task_with_heap<TBlink>(registration_manager, GPIOB, LED1_Pin, 1000, 100);
 
 	using TCheckMem = TaskCheckMemory;
-	register_task_with_heap<TCheckMem>(registration_manager, o1heap, 2000, 100);
+	auto o1heap = LocalHeap::getO1Heap();
+	register_task_with_heap<TCheckMem>(registration_manager, o1heap, 1000, 100);
 
 	//	using PowerSwitchType = PowerSwitch<PowerSwitchTransport>;
 	//	using MLX90640Type = MLX90640<MLX90640Transport>;
@@ -378,8 +329,6 @@ void cppmain()
 				registration_manager.getSubscriptions().capacity(), registration_manager.getSubscriptions().size());
 		log(LOG_LEVEL_TRACE, "ServiceManager: (%d %d) \r\n",
 				service_manager.getHandlers().capacity(), service_manager.getHandlers().size());
-		log(LOG_LEVEL_TRACE, "CanProcessRxQueue: (%d %d) \r\n",
-				can_rx_buffer.capacity(), can_rx_buffer.size());
 		loop_manager.CanProcessTxQueue(&canard_adapter, &hcan1);
 		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, empty_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
@@ -408,6 +357,10 @@ void cppmain()
 //		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
 //		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
+		if ((counter % 300) == 0)
+		{
+			HAL_GPIO_TogglePin(GPIOA, LED5_Pin);
+		}
 
 		HAL_Delay(5);
 		++counter;
