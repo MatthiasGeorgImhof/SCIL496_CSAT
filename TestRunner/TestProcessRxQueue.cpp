@@ -74,7 +74,7 @@ public:
         : TaskFromBuffer(interval, tick), transfer_(transfer) {}
 
     void handleTaskImpl() override {
-        fprintf(stderr, "MockTaskFromBuffer::handleTaskImpl called\n");
+        // fprintf(stderr, "MockTaskFromBuffer::handleTaskImpl called\n");
         auto t = buffer_.pop();
         CHECK(t.use_count() == 1);
         checkTransfers(transfer_, *t);
