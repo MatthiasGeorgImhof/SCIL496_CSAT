@@ -50,6 +50,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestImageBufferInternals.cpp \
 			 TestImageBufferFalseHeaders.cpp \
 			 TestImageBufferReconstruction.cpp \
+			 TestImageToWritePipeline.cpp \
 			 TestIMUExtension.cpp \
 			 TestInputOutputStream.cpp \
 			 TestKalmanFunctionGPS.cpp \
@@ -115,6 +116,7 @@ TEST_FILES = TestAccessorEraseAndFormat.cpp \
 			 TestTimeUtils.cpp \
 			 TestTransport.cpp \
 			 TestTrigger.cpp \
+			 TestTrivialImageBuffer.cpp \
 			 TestWMMLegendre.cpp \
 			 TestWMMModel.cpp
 
