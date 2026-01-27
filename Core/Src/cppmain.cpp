@@ -256,7 +256,7 @@ void cppmain()
 	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
 
 	using TRequestInfo = TaskRequestGetInfo<CanardCyphal>;
-	register_task_with_heap<TRequestInfo>(registration_manager, 10000, 100, 13, 0, canard_adapters);
+	register_task_with_heap<TRequestInfo>(registration_manager, 10000, 100, 11, 0, canard_adapters);
 
 	using TBlink = TaskBlinkLED;
 	register_task_with_heap<TBlink>(registration_manager, GPIOB, LED1_Pin, 1000, 100);
