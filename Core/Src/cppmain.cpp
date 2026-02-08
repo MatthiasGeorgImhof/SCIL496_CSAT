@@ -53,6 +53,13 @@
 #include "CameraPowerConverters.hpp"
 #include "CameraControls.hpp"
 
+#include "TrivialImageBuffer.hpp"
+#include "TaskSyntheticImageGenerator.hpp"
+#include "InputOutputStream.hpp"
+#include "TaskRequestWrite.hpp"
+#include "TaskPushWrite.hpp"
+#include "Trigger.hpp"
+
 #include "au.hh"
 #include "au.hpp"
 
@@ -226,37 +233,41 @@ void cppmain()
 
 	RegistrationManager registration_manager;
 	SubscriptionManager subscription_manager;
-	registration_manager.subscribe(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
-	registration_manager.subscribe(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
-	registration_manager.subscribe(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
-	registration_manager.publish(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_);
-	registration_manager.publish(uavcan_node_port_List_1_0_FIXED_PORT_ID_);
-	registration_manager.publish(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_);
 
 	HAL_Delay(3000);
 	static SafeAllocator<CyphalTransfer, LocalHeap> allocator;
 	LoopManager loop_manager(allocator);
 
-	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
-	constexpr char node_name[50] = "SCIL496_CSAT";
+//	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
+//	constexpr char node_name[50] = "SCIL496_CSAT";
 
-	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
-	register_task_with_heap<TSHeart>(registration_manager, 2000, 100, 0, canard_adapters);
+//	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
+//	register_task_with_heap<TSHeart>(registration_manager, 2000, 100, 0, canard_adapters);
 
-	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
-	register_task_with_heap<TPHeart>(registration_manager, 2000, 100, canard_adapters);
+//	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
+//	register_task_with_heap<TPHeart>(registration_manager, 2000, 100, canard_adapters);
 
-	using TSendNodeList = TaskSendNodePortList<CanardCyphal>;
-	register_task_with_heap<TSendNodeList>(registration_manager, &registration_manager, 10000, 100, 0, canard_adapters);
+//	using TSendNodeList = TaskSendNodePortList<CanardCyphal>;
+//	register_task_with_heap<TSendNodeList>(registration_manager, &registration_manager, 10000, 100, 0, canard_adapters);
 
-	using TSubscribeNodeList = TaskSubscribeNodePortList<CanardCyphal>;
-	register_task_with_heap<TSubscribeNodeList>(registration_manager, &subscription_manager, 10000, 100, canard_adapters);
+//	using TSubscribeNodeList = TaskSubscribeNodePortList<CanardCyphal>;
+//	register_task_with_heap<TSubscribeNodeList>(registration_manager, &subscription_manager, 10000, 100, canard_adapters);
 
-	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
-	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
+//	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
+//	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
 
-	using TRequestInfo = TaskRequestGetInfo<CanardCyphal>;
-	register_task_with_heap<TRequestInfo>(registration_manager, 10000, 100, 11, 0, canard_adapters);
+	using TTrivialImageBuffer = TrivialImageBuffer<1024>;
+	using TSyntheticImageGenerator = TaskSyntheticImageGenerator<TTrivialImageBuffer, ContinuousTrigger, 160>;
+	TTrivialImageBuffer img_buf;
+	register_task_with_heap<TSyntheticImageGenerator>(registration_manager, img_buf, ContinuousTrigger{}, 2000, 200);
+
+	using TrivialPipeline = ImageInputStream<TTrivialImageBuffer>;
+	using TRequestWrite = TaskRequestWrite<TrivialPipeline, CanardCyphal>;
+	ImageInputStream<TTrivialImageBuffer> stream(img_buf);
+	register_task_with_heap<TRequestWrite>(registration_manager, stream, 1000, 100, 0, 121, 0, canard_adapters);
+
+//	using TPushWrite = TaskPushWrite<CanardCyphal>;
+//	register_task_with_heap<TPushWrite>(registration_manager, 500, 0, 121, 0, canard_adapters);
 
 	using TBlink = TaskBlinkLED;
 	register_task_with_heap<TBlink>(registration_manager, GPIOB, LED1_Pin, 1000, 100);
@@ -271,9 +282,18 @@ void cppmain()
 	//	PeriodicTrigger trig(30000);
 	//	register_task_with_heap<TMLX>(registration_manager, o1heap, power_switch, IMAGER_POWER, mlx90640, imgbuf, trig, MLXMode::Burst, 2, 250, 1);
 
-	subscription_manager.subscribe<SubscriptionManager::MessageTag>(registration_manager.getSubscriptions(), canard_adapters);
-	subscription_manager.subscribe<SubscriptionManager::ResponseTag>(registration_manager.getServers(), canard_adapters);
-	subscription_manager.subscribe<SubscriptionManager::RequestTag>(registration_manager.getClients(), canard_adapters);
+	subscription_manager.subscribeAll(registration_manager, canard_adapters);
+	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_), canard_adapters);
+//	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_node_port_List_1_0_FIXED_PORT_ID_), canard_adapters);
+//	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_), canard_adapters);
+//
+//	subscription_manager.subscribe<SubscriptionManager::RequestTag>(static_cast<CyphalPortID>(uavcan_node_GetInfo_1_0_FIXED_PORT_ID_), canard_adapters);
+	subscription_manager.subscribe<SubscriptionManager::RequestTag>(static_cast<CyphalPortID>(uavcan_file_Write_1_1_FIXED_PORT_ID_), canard_adapters);
+//	subscription_manager.subscribe<SubscriptionManager::RequestTag>(static_cast<CyphalPortID>(uavcan_file_Read_1_1_FIXED_PORT_ID_), canard_adapters);
+//
+//	subscription_manager.subscribe<SubscriptionManager::ResponseTag>(static_cast<CyphalPortID>(uavcan_node_GetInfo_1_0_FIXED_PORT_ID_), canard_adapters);
+	subscription_manager.subscribe<SubscriptionManager::ResponseTag>(static_cast<CyphalPortID>(uavcan_file_Write_1_1_FIXED_PORT_ID_), canard_adapters);
+//	subscription_manager.subscribe<SubscriptionManager::ResponseTag>(static_cast<CyphalPortID>(uavcan_file_Read_1_1_FIXED_PORT_ID_), canard_adapters);
 
 	ServiceManager service_manager(registration_manager.getHandlers());
 	service_manager.initializeServices(HAL_GetTick());
@@ -294,28 +314,28 @@ void cppmain()
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
 
-		uint8_t data = 0;
-		camera_switch.status(data);
-
-		uint8_t camera2_id_h, camera2_id_l;
-		camera_switch.select(I2CSwitchChannel::Channel2);
-		HAL_Delay(10);
-//		sccb2.reconfigure_pins_to_sccb();
-		cam2_transport.read_reg(0x0A, &camera2_id_h, 1);
-		cam2_transport.read_reg(0x0B, &camera2_id_l, 1);
-//		sccb2.reconfigure_pins_to_i2c();
-
-		uint8_t camera1_id_h, camera1_id_l;
-		camera_switch.select(I2CSwitchChannel::Channel1);
-		HAL_Delay(10);
-//		sccb1.reconfigure_pins_to_sccb();
-		cam1_transport.read_reg(0x300A, &camera1_id_h, 1);
-		cam1_transport.read_reg(0x300B, &camera1_id_l, 1);
-//		sccb1.reconfigure_pins_to_i2c();
-
-		char buffer[256];
-		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
-		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+//		uint8_t data = 0;
+//		camera_switch.status(data);
+//
+//		uint8_t camera2_id_h, camera2_id_l;
+//		camera_switch.select(I2CSwitchChannel::Channel2);
+//		HAL_Delay(10);
+////		sccb2.reconfigure_pins_to_sccb();
+//		cam2_transport.read_reg(0x0A, &camera2_id_h, 1);
+//		cam2_transport.read_reg(0x0B, &camera2_id_l, 1);
+////		sccb2.reconfigure_pins_to_i2c();
+//
+//		uint8_t camera1_id_h, camera1_id_l;
+//		camera_switch.select(I2CSwitchChannel::Channel1);
+//		HAL_Delay(10);
+////		sccb1.reconfigure_pins_to_sccb();
+//		cam1_transport.read_reg(0x300A, &camera1_id_h, 1);
+//		cam1_transport.read_reg(0x300B, &camera1_id_l, 1);
+////		sccb1.reconfigure_pins_to_i2c();
+//
+//		char buffer[256];
+//		sprintf(buffer, "Channel: %02x OV2640: (%02x %02x) OV5640: (%02x %02x)\r\n", data, camera2_id_h, camera2_id_l, camera1_id_h, camera1_id_l);
+//		CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
 
 
 		HAL_Delay(25);
