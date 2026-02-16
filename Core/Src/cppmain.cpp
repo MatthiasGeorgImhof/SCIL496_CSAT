@@ -32,6 +32,7 @@
 #include "SubscriptionManager.hpp"
 #include "ProcessRxQueue.hpp"
 #include "TaskCheckMemory.hpp"
+#include "TaskCheckTxQueue.hpp"
 #include "TaskBlinkLED.hpp"
 #include "TaskSendHeartBeat.hpp"
 #include "TaskProcessHeartBeat.hpp"
@@ -63,11 +64,10 @@
 #include "au.hh"
 #include "au.hpp"
 
+#include "heapallocation.hpp"
+
 #include "Logger.hpp"
 #include "SCCB.hpp"
-
-constexpr size_t O1HEAP_SIZE = 65536;
-using LocalHeap = HeapAllocation<O1HEAP_SIZE>;
 
 CanardAdapter canard_adapter;
 LoopardAdapter loopard_adapter;
@@ -96,12 +96,47 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
-void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef */*hcan*/) { tx_drainer.irq_safe_drain(); }
-void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef */*hcan*/) { tx_drainer.irq_safe_drain(); }
-void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef */*hcan*/) { tx_drainer.irq_safe_drain(); }
-void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef */*hcan*/) { tx_drainer.irq_safe_drain(); }
-void HAL_CAN_TxMailbox1AbortCallback(CAN_HandleTypeDef */*hcan*/) { tx_drainer.irq_safe_drain(); }
-void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef */*hcan*/) { tx_drainer.irq_safe_drain(); }
+void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+	tx_drainer.drain();
+}
+
+void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+	tx_drainer.drain();
+}
+
+void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+	tx_drainer.drain();
+}
+
+void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+	tx_drainer.drain();
+}
+
+void HAL_CAN_TxMailbox1AbortCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+	tx_drainer.drain();
+}
+
+void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+	tx_drainer.drain();
+}
 
 constexpr uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
 constexpr int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
@@ -243,11 +278,11 @@ void cppmain()
 	static SafeAllocator<CyphalTransfer, LocalHeap> allocator;
 	LoopManager loop_manager(allocator);
 
-	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
-	constexpr char node_name[50] = "SCIL496_CSAT";
-
-	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
-	register_task_with_heap<TSHeart>(registration_manager, 2000, 100, 0, canard_adapters);
+//	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
+//	constexpr char node_name[50] = "SCIL496_CSAT";
+//
+//	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
+//	register_task_with_heap<TSHeart>(registration_manager, 2000, 100, 0, canard_adapters);
 
 //	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
 //	register_task_with_heap<TPHeart>(registration_manager, 2000, 100, canard_adapters);
@@ -258,27 +293,30 @@ void cppmain()
 //	using TSubscribeNodeList = TaskSubscribeNodePortList<CanardCyphal>;
 //	register_task_with_heap<TSubscribeNodeList>(registration_manager, &subscription_manager, 10000, 100, canard_adapters);
 
-	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
-	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
+//	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
+//	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
 
-//	using TTrivialImageBuffer = TrivialImageBuffer<1024>;
-//	using TSyntheticImageGenerator = TaskSyntheticImageGenerator<TTrivialImageBuffer, ContinuousTrigger, 640>;
-//	TTrivialImageBuffer img_buf;
-//	register_task_with_heap<TSyntheticImageGenerator>(registration_manager, img_buf, ContinuousTrigger{}, 10000, 200);
-//
-//	using TrivialPipeline = ImageInputStream<TTrivialImageBuffer>;
-//	using TRequestWrite = TaskRequestWrite<TrivialPipeline, CanardCyphal>;
-//	ImageInputStream<TTrivialImageBuffer> stream(img_buf);
-//	register_task_with_heap<TRequestWrite>(registration_manager, stream, 500, 100, 0, 121, 0, canard_adapters);
+	using TTrivialImageBuffer = TrivialImageBuffer<10000>;
+	using TSyntheticImageGenerator = TaskSyntheticImageGenerator<TTrivialImageBuffer, ContinuousTrigger, 8192>;
+	TTrivialImageBuffer img_buf;
+	register_task_with_heap<TSyntheticImageGenerator>(registration_manager, img_buf, ContinuousTrigger{}, 60000, 0);
 
-	using TPushWrite = TaskPushWrite<CanardCyphal>;
-	register_task_with_heap<TPushWrite>(registration_manager, 2000, 0, 121, 0, canard_adapters);
+	using TrivialPipeline = ImageInputStream<TTrivialImageBuffer>;
+	using TRequestWrite = TaskRequestWrite<TrivialPipeline, CanardCyphal>;
+	ImageInputStream<TTrivialImageBuffer> stream(img_buf);
+	register_task_with_heap<TRequestWrite>(registration_manager, stream, 2000, 200, 50, 121, 0, canard_adapters);
+
+//	using TPushWrite = TaskPushWrite<CanardCyphal>;
+//	register_task_with_heap<TPushWrite>(registration_manager, 2000, 0, 121, 0, canard_adapters);
 
 	using TBlink = TaskBlinkLED;
 	register_task_with_heap<TBlink>(registration_manager, GPIOB, LED1_Pin, 1000, 100);
 
 	using TCheckMem = TaskCheckMemory;
-	register_task_with_heap<TCheckMem>(registration_manager, o1heap, 2000, 100);
+	register_task_with_heap<TCheckMem>(registration_manager, o1heap, 1000, 100);
+
+	using TCheckTxQueue = TaskCheckTxQueue;
+	register_task_with_heap<TCheckTxQueue>(registration_manager, 1000, 100, canard_adapter);
 
 	//	using PowerSwitchType = PowerSwitch<PowerSwitchTransport>;
 	//	using MLX90640Type = MLX90640<MLX90640Transport>;
@@ -288,7 +326,7 @@ void cppmain()
 	//	register_task_with_heap<TMLX>(registration_manager, o1heap, power_switch, IMAGER_POWER, mlx90640, imgbuf, trig, MLXMode::Burst, 2, 250, 1);
 
 	subscription_manager.subscribeAll(registration_manager, canard_adapters);
-	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_), canard_adapters);
+//	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_node_Heartbeat_1_0_FIXED_PORT_ID_), canard_adapters);
 //	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_node_port_List_1_0_FIXED_PORT_ID_), canard_adapters);
 //	subscription_manager.subscribe<SubscriptionManager::MessageTag>(static_cast<CyphalPortID>(uavcan_diagnostic_Record_1_1_FIXED_PORT_ID_), canard_adapters);
 //
@@ -307,10 +345,10 @@ void cppmain()
 	{
 		Error_Handler();
 	}
-//	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 	uint32_t counter = 0;
 	while(1)
@@ -323,7 +361,7 @@ void cppmain()
 				service_manager.getHandlers().capacity(), service_manager.getHandlers().size());
 		log(LOG_LEVEL_TRACE, "CanProcessRxQueue: (%d %d) \r\n",
 				can_rx_buffer.capacity(), can_rx_buffer.size());
-//		loop_manager.CanProcessTxQueue(&canard_adapter, &hcan1);
+		loop_manager.CanProcessTxQueue(&canard_adapter, &hcan1);
 		loop_manager.CanProcessRxQueue(&canard_cyphal, &service_manager, empty_adapters, can_rx_buffer);
 		loop_manager.LoopProcessRxQueue(&loopard_cyphal, &service_manager, empty_adapters);
 		service_manager.handleServices();
