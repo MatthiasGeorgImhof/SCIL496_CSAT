@@ -96,47 +96,47 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
-void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan)
-{
-	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
-	tx_drainer.drain();
-}
-
-void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan)
-{
-	HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
-	tx_drainer.drain();
-}
-
-void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef *hcan)
-{
-	HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
-	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
-	tx_drainer.drain();
-}
-
-void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef *hcan)
-{
-	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
-	tx_drainer.drain();
-}
-
-void HAL_CAN_TxMailbox1AbortCallback(CAN_HandleTypeDef *hcan)
-{
-	HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
-	tx_drainer.drain();
-}
-
-void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef *hcan)
-{
-	HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
-	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
-	tx_drainer.drain();
-}
+//void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan)
+//{
+//	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+//	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+//	tx_drainer.drain();
+//}
+//
+//void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan)
+//{
+//	HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+//	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+//	tx_drainer.drain();
+//}
+//
+//void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef *hcan)
+//{
+//	HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+//	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+//	tx_drainer.drain();
+//}
+//
+//void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef *hcan)
+//{
+//	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+//	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+//	tx_drainer.drain();
+//}
+//
+//void HAL_CAN_TxMailbox1AbortCallback(CAN_HandleTypeDef *hcan)
+//{
+//	HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+//	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+//	tx_drainer.drain();
+//}
+//
+//void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef *hcan)
+//{
+//	HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+//	__HAL_CAN_DISABLE_IT(hcan, CAN_IT_TX_MAILBOX_EMPTY);
+//	tx_drainer.drain();
+//}
 
 constexpr uint16_t endian_swap(uint16_t num) {return (num>>8) | (num<<8); };
 constexpr int16_t endian_swap(int16_t num) {return (num>>8) | (num<<8); };
@@ -345,10 +345,10 @@ void cppmain()
 	{
 		Error_Handler();
 	}
-	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
-	{
-		Error_Handler();
-	}
+//	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
+//	{
+//		Error_Handler();
+//	}
 
 	uint32_t counter = 0;
 	while(1)
