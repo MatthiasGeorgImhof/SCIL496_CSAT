@@ -304,10 +304,10 @@ void cppmain()
 	using TrivialPipeline = ImageInputStream<TTrivialImageBuffer>;
 	using TRequestWrite = TaskRequestWrite<TrivialPipeline, CanardCyphal>;
 	ImageInputStream<TTrivialImageBuffer> stream(img_buf);
-	register_task_with_heap<TRequestWrite>(registration_manager, stream, 2000, 200, 50, 121, 0, canard_adapters);
+	register_task_with_heap<TRequestWrite>(registration_manager, stream, 2000, 200, 50, 121, 7, canard_adapters);
 
 //	using TPushWrite = TaskPushWrite<CanardCyphal>;
-//	register_task_with_heap<TPushWrite>(registration_manager, 2000, 0, 121, 0, canard_adapters);
+//	register_task_with_heap<TPushWrite>(registration_manager, 10000, 0, 121, 13, canard_adapters);
 
 	using TBlink = TaskBlinkLED;
 	register_task_with_heap<TBlink>(registration_manager, GPIOB, LED1_Pin, 1000, 100);
