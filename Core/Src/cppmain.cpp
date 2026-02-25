@@ -1,3 +1,5 @@
+//SCI
+
 #include <cppmain.h>
 #include <cpphal.h>
 #include "usb_device.h"
@@ -54,6 +56,8 @@
 #include "CameraPowerConverters.hpp"
 #include "CameraControls.hpp"
 
+#include "CanTxQueueDrainer.hpp"
+
 #include "TrivialImageBuffer.hpp"
 #include "TaskSyntheticImageGenerator.hpp"
 #include "InputOutputStream.hpp"
@@ -85,12 +89,8 @@ CircularBuffer<CanRxFrame, CAN_RX_BUFFER_SIZE> can_rx_buffer;
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-	uint32_t num_messages = HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0);
-//	log(LOG_LEVEL_TRACE, "HAL_CAN_RxFifo0MsgPendingCallback %d\r\n", num_messages);
-	for(uint32_t n=0; n<num_messages; ++n)
+	while(HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0) != 0)
 	{
-		if (can_rx_buffer.is_full()) return;
-
 		CanRxFrame &frame = can_rx_buffer.next();
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &frame.header, frame.data);
 	}
@@ -280,9 +280,9 @@ void cppmain()
 
 //	constexpr uint8_t uuid[] = {0x1a, 0xb7, 0x9f, 0x23, 0x7c, 0x51, 0x4e, 0x0b, 0x8d, 0x69, 0x32, 0xfa, 0x15, 0x0c, 0x6e, 0x41};
 //	constexpr char node_name[50] = "SCIL496_CSAT";
-//
-//	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
-//	register_task_with_heap<TSHeart>(registration_manager, 2000, 100, 0, canard_adapters);
+
+	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
+	register_task_with_heap<TSHeart>(registration_manager, 5000, 100, 0, canard_adapters);
 
 //	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
 //	register_task_with_heap<TPHeart>(registration_manager, 2000, 100, canard_adapters);
