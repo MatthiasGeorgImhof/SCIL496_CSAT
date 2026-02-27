@@ -62,6 +62,7 @@
 #include "TaskSyntheticImageGenerator.hpp"
 #include "InputOutputStream.hpp"
 #include "TaskRequestWrite.hpp"
+#include "TaskRequestRead.hpp"
 #include "TaskPushWrite.hpp"
 #include "Trigger.hpp"
 
@@ -282,7 +283,7 @@ void cppmain()
 //	constexpr char node_name[50] = "SCIL496_CSAT";
 
 	using TSHeart = TaskSendHeartBeat<CanardCyphal>;
-	register_task_with_heap<TSHeart>(registration_manager, 5000, 100, 0, canard_adapters);
+	register_task_with_heap<TSHeart>(registration_manager, 1000, 100, 0, canard_adapters);
 
 //	using TPHeart = TaskProcessHeartBeat<CanardCyphal>;
 //	register_task_with_heap<TPHeart>(registration_manager, 2000, 100, canard_adapters);
@@ -296,15 +297,20 @@ void cppmain()
 //	using TRespondInfo = TaskRespondGetInfo<CanardCyphal>;
 //	register_task_with_heap<TRespondInfo>(registration_manager, uuid, node_name, 10000, 100, canard_adapters);
 
-	using TTrivialImageBuffer = TrivialImageBuffer<10000>;
-	using TSyntheticImageGenerator = TaskSyntheticImageGenerator<TTrivialImageBuffer, ContinuousTrigger, 8192>;
-	TTrivialImageBuffer img_buf;
-	register_task_with_heap<TSyntheticImageGenerator>(registration_manager, img_buf, ContinuousTrigger{}, 60000, 0);
+//	using TTrivialImageBuffer = TrivialImageBuffer<10000>;
+//	using TSyntheticImageGenerator = TaskSyntheticImageGenerator<TTrivialImageBuffer, ContinuousTrigger, 8192>;
+//	TTrivialImageBuffer img_buf;
+//	register_task_with_heap<TSyntheticImageGenerator>(registration_manager, img_buf, ContinuousTrigger{}, 60000, 0);
+//
+//	using TrivialPipeline = ImageInputStream<TTrivialImageBuffer>;
+//	using TRequestWrite = TaskRequestWrite<TrivialPipeline, CanardCyphal>;
+//	ImageInputStream<TTrivialImageBuffer> stream(img_buf);
+//	register_task_with_heap<TRequestWrite>(registration_manager, stream, 2000, 200, 50, 121, 7, canard_adapters);
 
-	using TrivialPipeline = ImageInputStream<TTrivialImageBuffer>;
-	using TRequestWrite = TaskRequestWrite<TrivialPipeline, CanardCyphal>;
-	ImageInputStream<TTrivialImageBuffer> stream(img_buf);
-	register_task_with_heap<TRequestWrite>(registration_manager, stream, 2000, 200, 50, 121, 7, canard_adapters);
+	LoggingOutputStream logfile;
+	SimpleFileSource source("remote.txt");
+	using TRequestRead = TaskRequestRead<SimpleFileSource, LoggingOutputStream, CanardCyphal>;
+	register_task_with_heap<TRequestRead>(registration_manager, source, logfile, 10000, 200, 5000, 121, 0, canard_adapters);
 
 //	using TPushWrite = TaskPushWrite<CanardCyphal>;
 //	register_task_with_heap<TPushWrite>(registration_manager, 10000, 0, 121, 13, canard_adapters);
